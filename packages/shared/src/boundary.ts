@@ -75,6 +75,8 @@ export const INTERVIEW_DIMENSIONS = [
 
 export type InterviewDimensionId = (typeof INTERVIEW_DIMENSIONS)[number]["id"];
 
+export type DimensionChipState = "unasked" | "asking" | "asked" | "filled";
+
 export type InterviewDimensionStatus = {
   id: InterviewDimensionId;
   label: string;
@@ -83,8 +85,10 @@ export type InterviewDimensionStatus = {
   filled: boolean;
   asked: boolean;
   stubCovered: boolean | "partial";
-  /** Visible gap: empty, and either required or a dim the UI must not pretend was asked. */
+  /** Visible gap: empty. Do not treat unasked dims as filled. */
   gap: boolean;
+  chip: DimensionChipState;
+  chipLabel: string;
 };
 
 const ALIAS_PAIRS: Array<[keyof BoundarySnapshot, keyof BoundarySnapshot]> = [
@@ -124,6 +128,55 @@ export function applyKindAnswer(snap: BoundarySnapshot, kind: string, answer: st
   for (const [from, to] of ALIAS_PAIRS) {
     if (field === from && !snap[to].trim()) snap[to] = trimmed;
   }
+  if (kind === "constraint" || kind === "scope_out" || kind === "scope_in") {
+    const parsed = parseScopeAnswer(trimmed);
+    if (parsed.scope_in) snap.scope_in = parsed.scope_in;
+    if (parsed.scope_out) snap.scope_out = parsed.scope_out;
+  }
+  if (kind === "depth") {
+    const parsed = parseDepthLoadAnswer(trimmed);
+    if (parsed.labeled) {
+      if (parsed.depth) snap.depth = parsed.depth;
+      if (parsed.load) snap.chunk_budget = parsed.load;
+    }
+  }
+  if (kind === "prior_gaps" || kind === "prior_known" || kind === "gap") {
+    const known = parseLabeled(trimmed, "会|已知|先修会");
+    const gap = parseLabeled(trimmed, "不会|缺口|半会");
+    if (known) snap.prior_known = known;
+    if (gap) snap.prior_gaps = gap;
+  }
+}
+
+function parseLabeled(answer: string, label: string): string {
+  const match = answer.match(new RegExp(`(?:${label})[:：]\\s*([^；;\\n]+)`));
+  return match?.[1]?.trim() ?? "";
+}
+
+export function parseScopeAnswer(answer: string): { scope_in: string; scope_out: string } {
+  const inn = answer.match(/含[:：]\s*([^；;\n]+)/);
+  const out = answer.match(/排除[:：]\s*([^；;\n]+)/);
+  if (inn || out) {
+    return { scope_in: inn?.[1]?.trim() ?? "", scope_out: out?.[1]?.trim() ?? "" };
+  }
+  return { scope_in: "", scope_out: "" };
+}
+
+export function parseDepthLoadAnswer(answer: string): {
+  depth: string;
+  load: string;
+  labeled: boolean;
+} {
+  const depth = answer.match(/深度[:：]\s*([^；;\n]+)/);
+  const load = answer.match(/负荷[:：]\s*([^；;\n]+)/);
+  if (depth || load) {
+    return {
+      depth: depth?.[1]?.trim() ?? "",
+      load: load?.[1]?.trim() ?? "",
+      labeled: true,
+    };
+  }
+  return { depth: answer.trim(), load: "", labeled: false };
 }
 
 export function snapshotFromAnswers(
@@ -149,37 +202,73 @@ export function hasAnySnapshotValue(snapshot: BoundarySnapshot): boolean {
 export function interviewDimensionStatus(
   snapshot: BoundarySnapshot,
   askedKinds: string[] = [],
+  currentKind?: string | null,
 ): InterviewDimensionStatus[] {
   const asked = new Set(askedKinds);
+  const currentIds = currentKind ? kindsToDimensionIds(currentKind) : [];
   return INTERVIEW_DIMENSIONS.map((dim) => {
     const value = dim.fields
       .map((field) => snapshot[field].trim())
       .find(Boolean) ?? "";
-    const filled = value.length > 0;
     const wasAsked = dim.kinds.some((kind) => asked.has(kind));
+    const current = currentIds.includes(dim.id);
     if (dim.id === "scope") {
-      return {
+      const filled = Boolean(snapshot.scope_out.trim() && snapshot.scope_in.trim());
+      const row = {
         id: dim.id,
         label: dim.label,
         hint: dim.hint,
         value: formatScopeValue(snapshot),
-        filled: Boolean(snapshot.scope_out.trim()),
+        filled,
         asked: wasAsked,
         stubCovered: dim.stubCovered,
-        gap: !snapshot.scope_out.trim() || !snapshot.scope_in.trim(),
+        gap: !filled,
+        chip: "unasked" as DimensionChipState,
+        chipLabel: "未问",
       };
+      return withChip(row, current);
     }
-    return {
-      id: dim.id,
-      label: dim.label,
-      hint: dim.hint,
-      value,
-      filled,
-      asked: wasAsked,
-      stubCovered: dim.stubCovered,
-      gap: !filled,
-    };
+    const filled = value.length > 0;
+    return withChip(
+      {
+        id: dim.id,
+        label: dim.label,
+        hint: dim.hint,
+        value,
+        filled,
+        asked: wasAsked,
+        stubCovered: dim.stubCovered,
+        gap: !filled,
+        chip: "unasked",
+        chipLabel: "未问",
+      },
+      current,
+    );
   });
+}
+
+export function kindsToDimensionIds(kind: string): InterviewDimensionId[] {
+  return INTERVIEW_DIMENSIONS.filter((dim) => (dim.kinds as readonly string[]).includes(kind)).map(
+    (dim) => dim.id,
+  );
+}
+
+export function allInterviewDimensionsAsked(askedKinds: string[]): boolean {
+  const asked = new Set(askedKinds);
+  return INTERVIEW_DIMENSIONS.every((dim) => dim.kinds.some((kind) => asked.has(kind)));
+}
+
+function withChip(
+  row: InterviewDimensionStatus,
+  current: boolean,
+): InterviewDimensionStatus {
+  let chip: DimensionChipState = "unasked";
+  if (row.filled) chip = "filled";
+  else if (current || (row.asked && !row.filled)) chip = "asking";
+  else if (row.asked) chip = "asked";
+  const chipLabel =
+    chip === "filled" ? "已答" : chip === "asking" ? "在问" : chip === "asked" ? "已问" : "未问";
+  return { ...row, chip, chipLabel };
 }
 
 function formatScopeValue(snapshot: BoundarySnapshot): string {
@@ -265,4 +354,4 @@ function clip(text: string, max: number): string {
 }
 
 export const STUB_INTERVIEW_NOTE =
-  "本地 stub 目前只问 5 维：终点表现、先验、负荷、深度、排除。动机、成功证据、先修轻探、scope_in 未问齐时会在边界卡标缺口，不会假装已经问过。";
+  "可合并问，但 8 维都会走到「已问 / 已答」：动机、终点表现、成功证据、先验、先修轻探、范围 in/out、深度、负荷。没有问到的维保持未问，不会标成已齐。";

@@ -63,7 +63,7 @@ pnpm --filter @quantum/web build
 
 Stub still asks 5 dims. The UI must not claim the other dims were asked.
 
-1. **1.2 提问维**：书籍 → 右侧抽屉 → 新建主题 → 打开学习页会话。会话顶应看到 8 个引导维芯片（动机 / 终点表现 / 成功证据 / 先验 / 先修轻探 / 范围 / 深度 / 负荷）。stub 路径上动机、成功证据、先修、scope_in 标「未问」。占位符跟当前 `ask_boundary.kind` 对齐，不写「已问齐」。
+1. **1.2 提问维**：书籍 → 右侧抽屉 → 新建主题 → 打开学习页会话。会话顶 8 个引导维芯片。stub 题序：动机 → 终点 → 成功证据 → 先验 → 先修 → scope_in → 排除 → 深度 → 负荷。每问一维，对应芯片从「未问」变为「在问」，答完变「已答」。走完后 8 维都能到「已问 / 已答」；没问到的维保持未问。边界卡上已问到的缺维会随作答消失。
 2. **1.3 边界卡**：走完 5 问后等 `boundary_finalized`。学习页正文出现**独立边界卡**（不是书籍英雄卡 goal 行）。必填五行：`goal_outcome` / `prior_level` / `scope_out` / `depth` / `chunk_budget`；有值才展示动机、成功证据、先修、scope_in，缺则标缺口。未点「确认边界，看大纲」时回复「可以」会被拦住，不进大纲确认。确认后才出现大纲卡（objective / 先修 / 篇幅）。
 3. **2.7 拒回流**：学习相位说一句踩 `scope_out` 的话（如排除「弦论」时说「顺便把弦论也讲一遍」）。应收到短拒 + 拉回当前节，`message.strategy=REFUSE_OFFSCOPE`，书籍笔记不增加。问当前节卡点则仍可 `append_note`。密钥只在「我的 → 模型代理」。客户端仍只订 7 个域名 SSE。
 

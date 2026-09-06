@@ -2,10 +2,8 @@ import type { BoundaryKind, BoundaryRecord, FinalizeRequiredField } from "@quant
 import { evaluateFinalize } from "./boundary-snapshot.js";
 
 /**
- * Draft interview policy. Sources: Knowles (need-to-know / prior experience),
- * Wiggins backward design, cognitive-load time caps. Not validated in-product.
- *
- * TODO (product research): shortest question set that still yields a usable outline.
+ * Default interview order from core1 §3.1. Questions may merge semantics,
+ * but every dimension gets its own ask_boundary.kind so the UI can mark 已问.
  */
 
 export const BOUNDARY_SCRIPT: Array<{
@@ -14,29 +12,51 @@ export const BOUNDARY_SCRIPT: Array<{
   why: string;
 }> = [
   {
+    kind: "motivation",
+    question: "你为什么现在要学这个？一句话说清场景或差距就行。",
+    why: "Needs / motivation. Not a catalog title.",
+  },
+  {
     kind: "goal",
-    question: "这次学完，你希望自己能独立做成哪一件具体的事？请用「我能……」来写，而不是一个学科名。",
-    why: "Performance goal, not a catalog title.",
+    question: "学完你希望自己能独立做成哪一件具体的事？请用「我能……」写，而不是学科名。",
+    why: "Desired results / goal_outcome.",
+  },
+  {
+    kind: "success_evidence",
+    question: "怎样算「够了」？能向别人讲清、能做一道小练习，还是能交出一份东西？",
+    why: "UbD evidence.",
   },
   {
     kind: "prior",
-    question: "这件事上你已经会什么？卡在哪一步？如果几乎从零开始，也直接说。",
-    why: "Places the first gap before we invent chapters.",
+    question: "先验哪一档最像你：零基础 / 听说过 / 用过皮毛 / 能独立做？已经会什么、卡在哪？",
+    why: "Learner analysis / prior_level.",
   },
   {
-    kind: "time",
-    question: "接下来四周，你每周大概能拿出多少专注时间？更想浅扫一遍，还是只啃最关键的几块？",
-    why: "Width cap. Time + depth often arrive together; we still ask depth next if vague.",
+    kind: "prior_gaps",
+    question:
+      "对目标里冒出的关键概念，用「会：…；半会/不会：…」点一下。没有把握也直接说。",
+    why: "Light prerequisite probe.",
   },
   {
-    kind: "depth",
-    question: "过关标准更接近哪一种：能向别人讲清、能独立做一遍、还是只要认路？",
-    why: "Stops the outline from pretending every leaf is mastery.",
+    kind: "scope_in",
+    question: "这次必须包含什么？没有硬性包含就写「没有」。",
+    why: "scope_in.",
   },
   {
     kind: "constraint",
-    question: "有没有必须用的语言/工具，或必须避开的材料（时间、设备、先修）？没有就写「没有」。",
-    why: "Keeps generation practical.",
+    question:
+      "坚决不碰什么？没有排除就写「没有」。若要一次写清范围，可用「含：…；排除：…」。",
+    why: "scope_out. Optional 含：/排除： fills both fields.",
+  },
+  {
+    kind: "depth",
+    question: "要到哪一档深度：认路 / 能讲清 / 能动手 / 能教人？",
+    why: "Depth band.",
+  },
+  {
+    kind: "time",
+    question: "单次能啃多少？用字数或分钟说，也可以写每周可投入多久。",
+    why: "Cognitive load / chunk_budget.",
   },
 ];
 

@@ -33,11 +33,49 @@ describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
     const scope = dims.find((d) => d.id === "scope");
     const prereq = dims.find((d) => d.id === "prereq");
     assert.equal(motivation?.gap, true);
-    assert.equal(motivation?.stubCovered, false);
+    assert.equal(motivation?.chip, "unasked");
     assert.equal(evidence?.filled, true);
+    assert.equal(evidence?.chip, "filled");
     assert.equal(prereq?.gap, true);
-    assert.equal(scope?.filled, true);
+    assert.equal(prereq?.chip, "unasked");
+    assert.equal(scope?.asked, true);
     assert.equal(scope?.gap, true);
+  });
+
+  it("marks a dimension asking then filled once its kind is asked and answered", () => {
+    const empty = snapshotFromAnswers([]);
+    const asking = interviewDimensionStatus(empty, ["motivation"], "motivation");
+    assert.equal(asking.find((d) => d.id === "motivation")?.chip, "asking");
+    assert.equal(asking.find((d) => d.id === "goal_outcome")?.chip, "unasked");
+
+    const filled = snapshotFromAnswers([
+      { kind: "motivation", answer: "因为工作" },
+      { kind: "goal", answer: "我能独立画一遍" },
+      { kind: "success_evidence", answer: "能讲 10 分钟" },
+      { kind: "prior", answer: "零基础" },
+      { kind: "prior_gaps", answer: "会：无；不会：投影" },
+      { kind: "scope_in", answer: "测量公设" },
+      { kind: "constraint", answer: "排除：弦论" },
+      { kind: "depth", answer: "能讲清" },
+      { kind: "time", answer: "20 分钟" },
+    ]);
+    const asked = [
+      "motivation",
+      "goal",
+      "success_evidence",
+      "prior",
+      "prior_gaps",
+      "scope_in",
+      "constraint",
+      "depth",
+      "time",
+    ];
+    const dims = interviewDimensionStatus(filled, asked);
+    assert.equal(dims.every((d) => d.asked || d.filled), true);
+    assert.equal(dims.every((d) => d.chip === "filled"), true);
+    assert.equal(dims.some((d) => d.gap), false);
+    assert.equal(filled.scope_in, "测量公设");
+    assert.equal(filled.scope_out, "弦论");
   });
 
   it("does not enter outline confirm until the boundary card is confirmed", () => {

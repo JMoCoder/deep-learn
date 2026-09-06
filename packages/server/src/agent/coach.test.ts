@@ -5,20 +5,67 @@ import { Store } from "../store/repos.js";
 import { planCoachTurn } from "./coach.js";
 
 describe("coach boundary → outline", () => {
-  it("asks goal first, waits, then records prior", () => {
+  it("asks motivation first, then goal", () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("量子场入门");
     const first = planCoachTurn(store, topic.id, "学习者刚新建主题。请开始边界访谈。");
     assert.equal(first.tool?.name, "ask_boundary");
-    assert.equal((first.tool?.args as { kind: string }).kind, "goal");
+    assert.equal((first.tool?.args as { kind: string }).kind, "motivation");
 
-    store.askBoundary(topic.id, "goal", "目标？");
+    store.askBoundary(topic.id, "motivation", "动机？");
     const wait = planCoachTurn(store, topic.id, "学习者刚新建主题。请开始边界访谈。");
     assert.equal(wait.tool, undefined);
 
-    const next = planCoachTurn(store, topic.id, "我能给同事讲清自旋与测量");
+    const next = planCoachTurn(store, topic.id, "工作要用测量");
     assert.equal(next.tool?.name, "ask_boundary");
-    assert.equal((next.tool?.args as { kind: string }).kind, "prior");
+    assert.equal((next.tool?.args as { kind: string }).kind, "goal");
+  });
+
+  it("walks all eight interview dimensions before finalize", () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("八维");
+    const kinds: string[] = [];
+    let pending: { kind: string; question: string } | null = null;
+    const answers: Record<string, string> = {
+      motivation: "因为工作要用",
+      goal: "我能独立画一遍测量",
+      success_evidence: "能给同事讲 10 分钟",
+      prior: "只会定义",
+      prior_gaps: "会：态矢量；不会：投影公设",
+      scope_in: "测量公设",
+      constraint: "弦论",
+      depth: "能讲清",
+      time: "每次 20 分钟",
+    };
+    for (let i = 0; i < 12; i += 1) {
+      const plan = planCoachTurn(
+        store,
+        topic.id,
+        pending ? answers[pending.kind] ?? "答" : "学习者刚新建主题。请开始边界访谈。",
+      );
+      if (plan.tool?.name === "finalize_boundary") {
+        const asked = (plan.tool.args as { answers: Array<{ kind: string }> }).answers.map((a) => a.kind);
+        assert.ok(asked.includes("motivation"));
+        assert.ok(asked.includes("success_evidence"));
+        assert.ok(asked.includes("prior_gaps"));
+        assert.ok(asked.includes("scope_in"));
+        assert.ok(asked.includes("constraint"));
+        assert.ok(kinds.includes("motivation"));
+        return;
+      }
+      if (plan.tool?.name === "ask_boundary") {
+        const args = plan.tool.args as { kind: string; question: string; record_previous?: { kind: string; answer: string } };
+        kinds.push(args.kind);
+        store.askBoundary(
+          topic.id,
+          args.kind as never,
+          args.question,
+          args.record_previous as never,
+        );
+        pending = { kind: args.kind, question: args.question };
+      }
+    }
+    assert.fail(`did not finalize after asking ${kinds.join(",")}`);
   });
 
   it("drafts then finalizes outline after confirmation", () => {

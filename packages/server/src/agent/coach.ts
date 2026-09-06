@@ -114,7 +114,7 @@ function planInterview(store: Store, topicId: string, last: string): CoachPlan {
       });
     }
     return {
-      text: "目标与先验已经够起草大纲。我先锁定边界。",
+      text: "八维已经问过。我先锁定边界，你再确认边界卡。",
       tool: { name: "finalize_boundary", args: { answers } },
     };
   }
