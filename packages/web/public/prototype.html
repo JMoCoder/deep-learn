@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quantum IA v1.3.1 原型</title>
+    <style>
+      :root { --paper:#f4efe4; --ink:#2b2a26; --muted:#6d6a62; --line:#ddd4c4; --cin:#8c2f19; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 15px/1.5 "Noto Sans SC", sans-serif; background: #d9d0c0; color: var(--ink); }
+      .phone { max-width: 390px; margin: 16px auto; background: var(--paper); min-height: 720px; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 12px 40px #0002; }
+      header.bar { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; border-bottom: 1px solid var(--line); padding: 8px; }
+      header.bar h1 { margin: 0; text-align: center; font-family: "Noto Serif SC", serif; font-size: 15px; }
+      main { flex: 1; padding: 20px 18px 80px; }
+      nav { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); }
+      nav button, .icon { background: none; border: 0; padding: 10px; font: inherit; color: var(--muted); }
+      nav button.on { color: var(--cin); }
+      .drawer { position: absolute; inset: 0 auto 0 0; width: 80%; background: var(--paper); border-right: 1px solid var(--line); transform: translateX(-105%); transition: .2s; z-index: 3; }
+      .drawer.right { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--line); transform: translateX(105%); }
+      .drawer.open { transform: none; }
+      .mask { position: absolute; inset: 0; background: #0004; display: none; z-index: 2; }
+      .mask.on { display: block; }
+      .card { border: 1px solid var(--line); padding: 12px; border-radius: 10px; margin: 10px; }
+      .card.new { border-style: dashed; color: var(--cin); }
+      .muted { color: var(--muted); font-size: 13px; }
+      #export { display: none; position: absolute; inset: 0; background: #0004; z-index: 5; place-items: center; }
+      #export.on { display: grid; }
+      #export .box { background: var(--paper); padding: 16px; border-radius: 12px; width: 240px; }
+    </style>
+  </head>
+  <body>
+    <div class="phone">
+      <div class="mask" id="mask" onclick="closeAll()"></div>
+      <aside class="drawer" id="outline">
+        <p class="card">定向</p><p class="card">先修</p><p class="card">核心</p>
+      </aside>
+      <aside class="drawer right" id="session">
+        <p class="card">会话只在此抽屉。正文没有入口。</p>
+      </aside>
+      <aside class="drawer right" id="topics">
+        <div class="card new" onclick="alert('新建主题 → current_topic_id → 边界访谈')">新建主题</div>
+        <div class="card">历史主题<br><button onclick="alert('切换')">切换</button> <button onclick="document.getElementById('export').classList.add('on')">导出</button></div>
+      </aside>
+      <div id="learn">
+        <header class="bar">
+          <button class="icon" onclick="openDrawer('outline')">≡</button>
+          <h1>主题·章节</h1>
+          <button class="icon" onclick="openDrawer('session')">✦</button>
+        </header>
+        <main>
+          <p>学习页：内容投影。没有会话输入框。</p>
+          <p class="muted">左：大纲 · 右：会话</p>
+        </main>
+      </div>
+      <div id="books" hidden>
+        <header class="bar">
+          <span></span>
+          <h1>书籍</h1>
+          <button class="icon" onclick="openDrawer('topics')">☰</button>
+        </header>
+        <main>
+          <p>当前主题正文 / 笔记（只读 append_note）。</p>
+          <p class="muted">主题抽屉从右侧打开（v1.3.1）。</p>
+        </main>
+      </div>
+      <div id="me" hidden>
+        <header class="bar"><span></span><h1>我的</h1><span></span></header>
+        <main>
+          <p>模型代理设置</p>
+          <p class="muted">热力图占位</p>
+        </main>
+      </div>
+      <nav>
+        <button class="on" data-tab="learn" onclick="tab('learn')">学习</button>
+        <button data-tab="books" onclick="tab('books')">书籍</button>
+        <button data-tab="me" onclick="tab('me')">我的</button>
+      </nav>
+      <div id="export"><div class="box">
+        <p>export_topic</p>
+        <button onclick="alert('md')">md</button>
+        <button onclick="alert('html')">html</button>
+        <button onclick="alert('epub')">epub</button>
+        <p><button onclick="document.getElementById('export').classList.remove('on')">关闭</button></p>
+      </div></div>
+    </div>
+    <script>
+      function tab(name) {
+        ['learn','books','me'].forEach((id) => document.getElementById(id).hidden = id !== name);
+        document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+        closeAll();
+      }
+      function openDrawer(id) {
+        closeAll();
+        document.getElementById(id).classList.add('open');
+        document.getElementById('mask').classList.add('on');
+      }
+      function closeAll() {
+        document.querySelectorAll('.drawer').forEach((d) => d.classList.remove('open'));
+        document.getElementById('mask').classList.remove('on');
+      }
+    </script>
+  </body>
+</html>

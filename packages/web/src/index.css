@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Noto Serif SC", "Songti SC", serif;
+  --color-paper: #f4efe4;
+  --color-paper-ink: #2b2a26;
+  --color-paper-muted: #6d6a62;
+  --color-paper-line: #ddd4c4;
+  --color-paper-deep: #ebe4d6;
+  --color-cinnabar: #8c2f19;
+  --color-cinnabar-soft: #c46a54;
+  --color-pine: #2f4a43;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background: var(--color-paper);
+  color: var(--color-paper-ink);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+.prose-quantum :where(h1, h2, h3) {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 1.2em 0 0.5em;
+}
+
+.prose-quantum h1 {
+  font-size: 1.45rem;
+}
+
+.prose-quantum h2 {
+  font-size: 1.15rem;
+}
+
+.prose-quantum p,
+.prose-quantum li {
+  line-height: 1.75;
+}
+
+.prose-quantum p {
+  margin: 0.7em 0;
+}
+
+.prose-quantum ul {
+  padding-left: 1.2em;
+  list-style: disc;
+}
+
+.prose-quantum blockquote {
+  border-left: 2px solid var(--color-cinnabar);
+  padding-left: 0.85em;
+  color: var(--color-paper-muted);
+  margin: 1em 0;
+}
+
+.prose-quantum code {
+  font-size: 0.88em;
+  background: var(--color-paper-deep);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

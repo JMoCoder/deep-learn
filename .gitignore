@@ -1,0 +1,16 @@
+node_modules
+dist
+.turbo
+.cache
+*.log
+.env
+.env.local
+data
+*.db
+*.sqlite
+.DS_Store
+.vite
+coverage
+tsconfig.tsbuildinfo
+packages/web/dev-dist
+agent-tools

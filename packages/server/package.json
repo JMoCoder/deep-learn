@@ -1,0 +1,27 @@
+{
+  "name": "@quantum/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.6",
+    "@mariozechner/pi-agent-core": "^0.73.1",
+    "@mariozechner/pi-ai": "^0.73.1",
+    "@quantum/shared": "workspace:*",
+    "hono": "^4.11.3",
+    "jszip": "^3.10.1",
+    "typebox": "^1.1.24"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

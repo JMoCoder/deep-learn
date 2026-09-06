@@ -1,0 +1,84 @@
+import type {
+  AppSnapshot,
+  HeatmapDay,
+  PublicSettings,
+  SessionEvent,
+  SessionMessage,
+  SettingsInput,
+  TopicDetail,
+  TopicSummary,
+} from "@quantum/shared";
+
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  return (await res.json()) as T;
+}
+
+export const api = {
+  state: () => req<AppSnapshot>("/api/state"),
+  topics: () => req<TopicSummary[]>("/api/topics"),
+  topic: (id: string) => req<TopicDetail>(`/api/topics/${id}`),
+  createTopic: (title?: string) =>
+    req<TopicSummary>("/api/topics", { method: "POST", body: JSON.stringify({ title }) }),
+  switchTopic: (id: string) => req(`/api/topics/${id}/switch`, { method: "POST" }),
+  selectSection: (topicId: string, sectionId: string) =>
+    req(`/api/topics/${topicId}/select-section`, {
+      method: "POST",
+      body: JSON.stringify({ sectionId }),
+    }),
+  settings: () => req<PublicSettings>("/api/settings"),
+  saveSettings: (body: SettingsInput) =>
+    req<PublicSettings>("/api/settings", { method: "PUT", body: JSON.stringify(body) }),
+  heatmap: () => req<HeatmapDay[]>("/api/heatmap"),
+  messages: () => req<SessionMessage[]>("/api/session/messages"),
+  prompt: (text: string) =>
+    req<{ ok: boolean }>("/api/session/prompt", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  abort: () => req("/api/session/abort", { method: "POST" }),
+  requestExport: (topicId: string, format: "md" | "html" | "epub") =>
+    req(`/api/topics/${topicId}/export`, {
+      method: "POST",
+      body: JSON.stringify({ format }),
+    }),
+};
+
+export function connectEvents(onEvent: (event: SessionEvent) => void): () => void {
+  const es = new EventSource("/api/session/events");
+  const types = [
+    "session_start",
+    "session_end",
+    "text_delta",
+    "message",
+    "tool_start",
+    "tool_end",
+    "phase_changed",
+    "topic_updated",
+    "section_updated",
+    "note_appended",
+    "outline_updated",
+    "export_ready",
+    "error",
+  ];
+  for (const type of types) {
+    es.addEventListener(type, (raw) => {
+      try {
+        onEvent(JSON.parse((raw as MessageEvent).data) as SessionEvent);
+      } catch {
+        /* ignore malformed */
+      }
+    });
+  }
+  return () => es.close();
+}
