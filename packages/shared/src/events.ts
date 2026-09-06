@@ -1,4 +1,4 @@
-import type { NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
+import type { BoundarySnapshot, NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
 
 export const SESSION_EVENT_TYPES = [
   "session_start",
@@ -22,7 +22,8 @@ export const SESSION_EVENT_TYPES = [
 
 export type SessionEventType = (typeof SESSION_EVENT_TYPES)[number];
 
-/** Domain events `packages/web` subscribes to. Older aliases are ignored. */
+/** Domain events `packages/web` subscribes to. Older aliases are ignored.
+ * Refuse+redirect is NOT a new domain name; it rides `message.strategy`. */
 export const CLIENT_SSE_EVENTS = [
   "phase_changed",
   "boundary_finalized",
@@ -64,7 +65,13 @@ export type SessionEvent =
       phase: string;
       exportState: string;
     }
-  | { type: "boundary_finalized"; topic_id: string; phase: string }
+  | {
+      type: "boundary_finalized";
+      topic_id: string;
+      phase: string;
+      /** Packed snapshot for the boundary card. Same event name; additive field. */
+      boundary_snapshot?: BoundarySnapshot;
+    }
   | { type: "outline_finalized"; topic_id: string; phase: string }
   | {
       type: "section_status";

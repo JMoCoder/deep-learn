@@ -1,7 +1,16 @@
 import Markdown from "react-markdown";
 import { List, Sparkles } from "lucide-react";
-import type { OutlineNode, SectionRecord, SessionMessage, TopicSummary } from "@quantum/shared";
+import type {
+  BoundarySnapshot,
+  OutlineNode,
+  SectionRecord,
+  SessionMessage,
+  TopicPhase,
+  TopicSummary,
+} from "@quantum/shared";
+import { BoundaryCard } from "@/components/BoundaryCard";
 import { Drawer } from "@/components/Drawer";
+import { OutlineConfirmCard } from "@/components/OutlineConfirmCard";
 import { OutlineTree } from "@/components/OutlineTree";
 import { SessionPane } from "@/components/SessionPane";
 import { Button } from "@/components/ui/button";
@@ -24,6 +33,12 @@ export function LearnTab({
   coachMode,
   error,
   onSend,
+  snapshot,
+  askedKinds,
+  currentKind,
+  pendingBoundary,
+  pendingOutline,
+  onConfirmBoundary,
 }: {
   topic: TopicSummary | null;
   section: SectionRecord | null;
@@ -41,10 +56,17 @@ export function LearnTab({
   coachMode: "stub" | "live";
   error: string | null;
   onSend: (text: string) => void;
+  snapshot: BoundarySnapshot;
+  askedKinds: string[];
+  currentKind?: string | null;
+  pendingBoundary: boolean;
+  pendingOutline: boolean;
+  onConfirmBoundary: () => void;
 }) {
   const center = topic
     ? `${topic.title}·${section?.title ?? "章节"}`
     : "主题·章节";
+  const phase: TopicPhase | "" = topic?.phase ?? "";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -73,6 +95,20 @@ export function LearnTab({
           <Empty
             title="还没有当前主题"
             body="打开底栏「书籍」，从右侧抽屉点「新建主题」。会话只在顶栏右侧，正文里没有入口。"
+          />
+        ) : pendingBoundary ? (
+          <BoundaryCard
+            snapshot={snapshot}
+            askedKinds={askedKinds}
+            coachMode={coachMode}
+            onConfirm={onConfirmBoundary}
+            onNeedMore={() => onSessionOpen(true)}
+          />
+        ) : pendingOutline ? (
+          <OutlineConfirmCard
+            nodes={outline}
+            onConfirm={() => onSend("可以")}
+            onRevise={() => onSessionOpen(true)}
           />
         ) : !section ? (
           <Empty
@@ -116,6 +152,14 @@ export function LearnTab({
           coachMode={coachMode}
           error={error}
           onSend={onSend}
+          phase={phase}
+          snapshot={snapshot}
+          askedKinds={askedKinds}
+          currentKind={currentKind}
+          pendingBoundary={pendingBoundary}
+          pendingOutline={pendingOutline}
+          scopeIn={snapshot.scope_in}
+          scopeOut={snapshot.scope_out}
         />
       </Drawer>
     </div>

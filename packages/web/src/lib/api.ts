@@ -57,7 +57,8 @@ export const api = {
   projection: () => req<TopicProjection>("/api/topics/current/projection"),
 };
 
-/** Frozen domain names only. Aliases like topic_updated / section_updated / outline_updated / tool_* are ignored. */
+/** Frozen domain names only. Aliases like topic_updated / section_updated / outline_updated / tool_* are ignored.
+ * REFUSE_OFFSCOPE is a `message.strategy` (or compat text), not an 8th domain event. */
 export const WEB_SSE_EVENTS = CLIENT_SSE_EVENTS;
 
 /** Stream transport for composer + tutor metadata (`strategy`, `citations[]`). Not domain aliases. */

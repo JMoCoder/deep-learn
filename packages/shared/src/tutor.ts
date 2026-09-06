@@ -10,6 +10,9 @@ export const TUTOR_STRATEGIES = [
   "CHECK",
   "REDIRECT",
   "HOLD",
+  "ADVANCE",
+  "NOTEWORTHY",
+  "REFUSE_OFFSCOPE",
 ] as const;
 
 export type TutorStrategy = (typeof TUTOR_STRATEGIES)[number];
@@ -56,8 +59,11 @@ export const APPEND_NOTE_MAX_CHARS = 300;
 /**
  * Packed interview. Operational required-to-finalize (v0.5 lock):
  * goal_outcome, prior_level, scope_out, depth, chunk_budget.
+ * Full core1 dimensions also live here so the boundary card can show gaps.
  * Interview kinds map: goal→goal_outcome, prior→prior_level,
  * constraint→scope_out, time→chunk_budget.
+ * Compat aliases: success↔success_evidence, first_gap↔prior_gaps,
+ * scaffold_pref↔modality.
  */
 export type BoundarySnapshot = {
   goal_outcome: string;
@@ -65,6 +71,13 @@ export type BoundarySnapshot = {
   scope_out: string;
   depth: string;
   chunk_budget: string;
+  motivation: string;
+  success_evidence: string;
+  prior_known: string;
+  prior_gaps: string;
+  scope_in: string;
+  time_budget: string;
+  modality: string;
   success: string;
   first_gap: string;
   scaffold_pref: string;
@@ -76,6 +89,13 @@ export const BOUNDARY_SNAPSHOT_FIELDS = [
   "scope_out",
   "depth",
   "chunk_budget",
+  "motivation",
+  "success_evidence",
+  "prior_known",
+  "prior_gaps",
+  "scope_in",
+  "time_budget",
+  "modality",
   "success",
   "first_gap",
   "scaffold_pref",
@@ -101,11 +121,18 @@ export const KIND_TO_SNAPSHOT: Record<string, keyof BoundarySnapshot> = {
   depth: "depth",
   time: "chunk_budget",
   chunk_budget: "chunk_budget",
+  time_budget: "time_budget",
   success: "success",
+  success_evidence: "success_evidence",
   gap: "first_gap",
   first_gap: "first_gap",
+  prior_gaps: "prior_gaps",
+  prior_known: "prior_known",
+  scope_in: "scope_in",
+  motivation: "motivation",
   scaffold: "scaffold_pref",
   scaffold_pref: "scaffold_pref",
+  modality: "modality",
 };
 
 export type TutorContext = {

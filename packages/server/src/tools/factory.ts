@@ -25,6 +25,13 @@ const Kind = Type.Union([
   Type.Literal("prior_level"),
   Type.Literal("scope_out"),
   Type.Literal("chunk_budget"),
+  Type.Literal("motivation"),
+  Type.Literal("success_evidence"),
+  Type.Literal("prior_known"),
+  Type.Literal("prior_gaps"),
+  Type.Literal("scope_in"),
+  Type.Literal("time_budget"),
+  Type.Literal("modality"),
 ]);
 
 function textResult(text: string, details: Record<string, unknown> = {}) {
@@ -101,7 +108,12 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         });
       }
       runtime.store.finalizeBoundaries(topic.id, merged);
-      runtime.emit({ type: "boundary_finalized", topic_id: topic.id, phase: "outline_draft" });
+      runtime.emit({
+        type: "boundary_finalized",
+        topic_id: topic.id,
+        phase: "outline_draft",
+        boundary_snapshot: check.snapshot,
+      });
       runtime.emit({
         type: "phase_changed",
         topicId: topic.id,

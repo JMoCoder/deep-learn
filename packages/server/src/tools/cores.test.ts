@@ -215,6 +215,14 @@ describe("two cores backend", () => {
     assert.equal(body.section_title, leaf.title);
     assert.ok(Array.isArray(body.outline));
     assert.equal(body.phase, "learning");
+
+    const detailRes = await app.request(`/api/topics/${topic.id}`);
+    const detail = (await detailRes.json()) as {
+      boundary_snapshot: { goal_outcome: string; motivation: string; scope_out: string };
+    };
+    assert.equal(detail.boundary_snapshot.goal_outcome, "我能独立画一遍");
+    assert.equal(detail.boundary_snapshot.scope_out, "没有");
+    assert.equal(detail.boundary_snapshot.motivation, "");
   });
 
   it("keeps a single current_topic_id", () => {

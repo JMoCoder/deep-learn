@@ -1,6 +1,6 @@
 import type { BoundaryKind, ExportFormat } from "./tools.js";
 import type { ExportSubstate, OutlineNodeStatus, TopicPhase } from "./phases.js";
-import type { NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
+import type { BoundarySnapshot, NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
 
 export type TopicSummary = {
   id: string;
@@ -103,6 +103,7 @@ export type SettingsInput = {
 export type TopicDetail = {
   topic: TopicSummary;
   boundaries: BoundaryRecord[];
+  boundary_snapshot: BoundarySnapshot;
   outline: OutlineNode[];
   currentSection: SectionRecord | null;
   notes: NoteRecord[];

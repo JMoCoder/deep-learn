@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type {
   AppSnapshot,
   BoundaryRecord,
+  BoundarySnapshot,
   ExportFormat,
   HeatmapDay,
   NoteRecord,
@@ -12,11 +13,21 @@ import type {
   SessionMessage,
   TopicSummary,
 } from "@quantum/shared";
+import {
+  emptyBoundarySnapshot,
+  isRefuseOffscopeSignal,
+  looksLikeOutlineConfirm,
+  refuseRedirectCopy,
+  shouldShowBoundaryCard,
+  shouldShowOutlineConfirm,
+  snapshotFromAnswers,
+} from "@quantum/shared";
 import { BookOpen, GraduationCap, User } from "lucide-react";
 import { BooksTab } from "@/tabs/BooksTab";
 import { LearnTab } from "@/tabs/LearnTab";
 import { MeTab } from "@/tabs/MeTab";
 import { api, connectEvents } from "@/lib/api";
+import { readBoundaryConfirmed, writeBoundaryConfirmed } from "@/lib/boundary-session";
 import type { LiveSessionRow } from "@/lib/session-display";
 import { citationLabel, uiNoteType } from "@/lib/session-display";
 import { cn } from "@/lib/utils";
@@ -38,7 +49,10 @@ export default function App() {
   const [section, setSection] = useState<SectionRecord | null>(null);
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [boundaries, setBoundaries] = useState<BoundaryRecord[]>([]);
+  const [boundarySnapshot, setBoundarySnapshot] = useState<BoundarySnapshot>(emptyBoundarySnapshot());
+  const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
+  const refuseTurnRef = useRef(false);
   const [streaming, setStreaming] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,11 +76,17 @@ export default function App() {
         setSection(detail.currentSection);
         setNotes(detail.notes);
         setBoundaries(detail.boundaries);
+        const packed = detail.boundary_snapshot ?? snapshotFromAnswers(detail.boundaries);
+        setBoundarySnapshot(packed);
+        const pastGate = state.topic?.phase === "learning";
+        setBoundaryConfirmed(pastGate || readBoundaryConfirmed(state.currentTopicId));
       } else {
         setOutline([]);
         setSection(null);
         setNotes([]);
         setBoundaries([]);
+        setBoundarySnapshot(emptyBoundarySnapshot());
+        setBoundaryConfirmed(false);
       }
       setLoadError(null);
     } catch (err) {
@@ -86,6 +106,7 @@ export default function App() {
           setStreaming("");
           setError(null);
           setLiveRows([]);
+          refuseTurnRef.current = false;
           break;
         case "session_end":
           setBusy(false);
@@ -107,6 +128,26 @@ export default function App() {
           if (event.role !== "assistant") break;
           const cites = event.citations ?? [];
           const strategy = event.strategy;
+          const refuse = isRefuseOffscopeSignal({ strategy, text: event.text });
+          if (refuse) {
+            refuseTurnRef.current = true;
+            const copy = refuseRedirectCopy({
+              text: event.text,
+            });
+            setLiveRows((rows) => [
+              ...rows.filter((r) => r.kind !== "cite" && r.kind !== "note" && r.id !== "tutor-refuse"),
+              {
+                id: "tutor-refuse",
+                kind: "refuse",
+                title: copy.title,
+                summary: event.text,
+                status: "done",
+                strategy: "REFUSE_OFFSCOPE",
+                createdAt: Date.now(),
+              },
+            ]);
+            break;
+          }
           if (!strategy && cites.length === 0) break;
           setLiveRows((rows) => {
             const next = rows.filter((r) => r.id !== "tutor-meta" && r.id !== "tutor-cites");
@@ -138,8 +179,10 @@ export default function App() {
           break;
         }
         case "note_appended": {
+          if (refuseTurnRef.current) break;
           const mapped = uiNoteType(event.reason_code, event.note_type);
           setLiveRows((rows) => {
+            if (rows.some((r) => r.kind === "refuse")) return rows;
             if (rows.some((r) => r.kind === "note" && r.id === `note-${event.note_id}`)) return rows;
             return [
               ...rows,
@@ -157,8 +200,16 @@ export default function App() {
           void refresh();
           break;
         }
+        case "boundary_finalized": {
+          if (event.boundary_snapshot) setBoundarySnapshot(event.boundary_snapshot);
+          writeBoundaryConfirmed(event.topic_id, false);
+          setBoundaryConfirmed(false);
+          setTab("learn");
+          setSessionOpen(true);
+          void refresh();
+          break;
+        }
         case "phase_changed":
-        case "boundary_finalized":
         case "outline_finalized":
         case "section_status":
         case "section_ready":
@@ -172,6 +223,17 @@ export default function App() {
 
   async function send(text: string) {
     setError(null);
+    const topicId = snapshot?.currentTopicId;
+    const pendingCard = shouldShowBoundaryCard({
+      phase: snapshot?.topic?.phase ?? "",
+      snapshot: boundarySnapshot,
+      confirmed: boundaryConfirmed,
+    });
+    if (topicId && pendingCard && looksLikeOutlineConfirm(text)) {
+      setError("先确认学习页上的边界卡，再进大纲确认。");
+      setTab("learn");
+      return;
+    }
     try {
       await api.prompt(text);
     } catch (err) {
@@ -179,9 +241,19 @@ export default function App() {
     }
   }
 
+  function confirmBoundaryCard() {
+    const topicId = snapshot?.currentTopicId;
+    if (!topicId) return;
+    writeBoundaryConfirmed(topicId, true);
+    setBoundaryConfirmed(true);
+    setSessionOpen(true);
+  }
+
   async function createTopic() {
     setLiveRows([]);
-    await api.createTopic();
+    const created = await api.createTopic();
+    writeBoundaryConfirmed(created.id, false);
+    setBoundaryConfirmed(false);
     setTab("learn");
     setSessionOpen(true);
     await refresh();
@@ -210,6 +282,21 @@ export default function App() {
   const topic = snapshot?.topic ?? null;
   const coachMode = snapshot?.coachMode ?? "stub";
   const settings = snapshot?.settings ?? emptySettings;
+  const askedKinds = boundaries.map((b) => b.kind);
+  const currentKind =
+    [...boundaries].reverse().find((b) => b.status === "asked" && !b.answer.trim())?.kind ??
+    [...boundaries].reverse().find((b) => b.status === "asked")?.kind ??
+    null;
+  const pendingBoundary = shouldShowBoundaryCard({
+    phase: topic?.phase ?? "",
+    snapshot: boundarySnapshot,
+    confirmed: boundaryConfirmed,
+  });
+  const pendingOutline = shouldShowOutlineConfirm({
+    phase: topic?.phase ?? "",
+    boundaryConfirmed,
+    hasOutline: outline.length > 0,
+  });
 
   return (
     <div className="mx-auto flex h-dvh max-w-lg flex-col bg-paper shadow-[0_0_0_1px_var(--color-paper-line)] md:max-w-3xl">
@@ -237,6 +324,12 @@ export default function App() {
           coachMode={coachMode}
           error={error}
           onSend={(text) => void send(text)}
+          snapshot={boundarySnapshot}
+          askedKinds={askedKinds}
+          currentKind={currentKind}
+          pendingBoundary={pendingBoundary}
+          pendingOutline={pendingOutline}
+          onConfirmBoundary={confirmBoundaryCard}
         />
       ) : null}
 

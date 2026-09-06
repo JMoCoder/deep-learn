@@ -1,4 +1,5 @@
 import {
+  isRefuseOffscopeSignal,
   noteTypeFromReason,
   parseNoteReasonCode,
   type NoteType,
@@ -9,7 +10,7 @@ import {
 
 export type LiveSessionRow = {
   id: string;
-  kind: "tool" | "cite" | "note";
+  kind: "tool" | "cite" | "note" | "refuse";
   toolName?: string;
   title: string;
   summary: string;
@@ -48,6 +49,9 @@ const STRATEGY_LABEL: Record<TutorStrategy, string> = {
   CHECK: "核对",
   REDIRECT: "转向",
   HOLD: "等待",
+  ADVANCE: "推进",
+  NOTEWORTHY: "值得记下",
+  REFUSE_OFFSCOPE: "拒+回流",
 };
 
 export function toolLabel(name?: string): string {
@@ -170,6 +174,7 @@ export function visibleLiveRows(
       .map((m) => `${m.toolName ?? ""}:${m.text.slice(0, 80)}`),
   );
   return liveRows.filter((row) => {
+    if (row.kind === "refuse") return true;
     if (row.status === "running") return true;
     if (row.kind === "tool") {
       return !persisted.has(`${row.toolName ?? ""}:${row.summary.slice(0, 80)}`);
@@ -180,5 +185,13 @@ export function visibleLiveRows(
       );
     }
     return true;
+  });
+}
+
+export function messageIsRefuse(message: Pick<SessionMessage, "strategy" | "text" | "toolName">): boolean {
+  return isRefuseOffscopeSignal({
+    strategy: message.strategy,
+    text: message.text,
+    toolName: message.toolName,
   });
 }

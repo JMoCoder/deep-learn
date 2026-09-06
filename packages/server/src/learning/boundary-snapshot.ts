@@ -3,26 +3,10 @@ import type {
   BoundarySnapshot,
   FinalizeRequiredField,
 } from "@quantum/shared";
-import { FINALIZE_REQUIRED_FIELDS, KIND_TO_SNAPSHOT } from "@quantum/shared";
+import { KIND_TO_SNAPSHOT, missingFinalizeFields, snapshotFromAnswers } from "@quantum/shared";
 
 export function snapshotFromRecords(records: BoundaryRecord[]): BoundarySnapshot {
-  const snap: BoundarySnapshot = {
-    goal_outcome: "",
-    prior_level: "",
-    scope_out: "",
-    depth: "",
-    chunk_budget: "",
-    success: "",
-    first_gap: "",
-    scaffold_pref: "",
-  };
-  for (const row of records) {
-    const field = KIND_TO_SNAPSHOT[row.kind];
-    if (!field) continue;
-    const answer = row.answer.trim();
-    if (answer) snap[field] = answer;
-  }
-  return snap;
+  return snapshotFromAnswers(records);
 }
 
 export function mergeAnswersIntoRecords(
@@ -65,6 +49,6 @@ export function evaluateFinalize(records: Array<{ kind: string; answer: string }
       createdAt: 0,
     })),
   );
-  const missing = FINALIZE_REQUIRED_FIELDS.filter((field) => !snapshot[field].trim());
+  const missing = missingFinalizeFields(snapshot);
   return { ok: missing.length === 0, missing, snapshot };
 }

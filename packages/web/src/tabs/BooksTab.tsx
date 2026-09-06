@@ -189,6 +189,9 @@ function TopicHero({
           ) : (
             <p className="mt-2 text-sm text-paper-muted">边界未齐时，先打开学习页右上角会话。</p>
           )}
+          {topic.phase === "outline_draft" ? (
+            <p className="mt-2 text-xs text-paper-muted">完整边界卡在学习页确认，不靠这一行进大纲。</p>
+          ) : null}
           <div className="mt-3 flex flex-wrap gap-1.5">
             <MetaChip>
               章节 {leaves.ready}/{leaves.total || "—"}

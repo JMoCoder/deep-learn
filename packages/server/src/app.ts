@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import type { ExportFormat, SettingsInput } from "@quantum/shared";
+import { snapshotFromAnswers } from "@quantum/shared";
 import { AgentHost } from "./agent/runtime.js";
 import { bus } from "./agent/bus.js";
 import { config } from "./config.js";
@@ -102,9 +103,11 @@ export function createApp(store = new Store(), host = new AgentHost(store)) {
     const id = c.req.param("id");
     const topic = store.requireTopic(id);
     const currentSectionId = store.getCurrentSectionId();
+    const boundaries = store.listBoundaries(id);
     return c.json({
       topic,
-      boundaries: store.listBoundaries(id),
+      boundaries,
+      boundary_snapshot: snapshotFromAnswers(boundaries),
       outline: store.getOutline(id),
       currentSection: currentSectionId ? store.getSection(currentSectionId) : null,
       notes: store.listNotes(id),

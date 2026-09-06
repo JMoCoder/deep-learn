@@ -85,3 +85,9 @@ body {
 .meta-chip {
   backdrop-filter: blur(6px);
 }
+
+.boundary-card {
+  background:
+    linear-gradient(180deg, #fffaf2 0%, #f7f1e6 100%);
+  box-shadow: 0 10px 24px #2b2a260e;
+}

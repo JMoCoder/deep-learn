@@ -75,6 +75,23 @@ export function ToolSystemRow({
   );
 }
 
+export function RefuseRedirectRow({
+  refuse,
+  redirect,
+}: {
+  refuse: string;
+  redirect: string;
+}) {
+  return (
+    <article className="rounded-lg border border-cinnabar/35 bg-cinnabar/8 px-3 py-2 text-sm">
+      <div className="text-[11px] font-semibold tracking-wide text-cinnabar">拒 + 回流 · REFUSE_OFFSCOPE</div>
+      <p className="mt-1 whitespace-pre-wrap leading-relaxed">{refuse}</p>
+      <p className="mt-2 text-sm leading-relaxed text-pine">{redirect}</p>
+      <p className="mt-2 text-[11px] text-paper-muted">踩界内容不会记成笔记，也不会挂引用或工具行。</p>
+    </article>
+  );
+}
+
 export function NoteSystemRow({ summary }: { summary: string }) {
   return (
     <article className="rounded-lg border border-cinnabar/20 bg-cinnabar/5 px-3 py-2 text-sm">
