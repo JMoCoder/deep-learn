@@ -64,9 +64,9 @@ Bottom tabs: **学习 / 书籍 / 我的**.
 See `docs/IA-agent-v1.md` (v1.3.2), `docs/backend-baseline.md` (v0.5), `docs/cores.md` → core1 / core2 / acceptance.
 Static IA click-through: `packages/web/public/prototype.html`.
 
-## Tests (repo / CI)
+## Tests (optional · repo / CI)
 
-Not the v1 start path. Inside a checkout or CI job:
+Not the v1 acceptance path. Do not require `pnpm install` on the preview machine. Inside a checkout or CI job:
 
 ```bash
 pnpm test
