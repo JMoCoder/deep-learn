@@ -1,5 +1,6 @@
 import type { BoundaryKind, ExportFormat } from "./tools.js";
 import type { ExportSubstate, OutlineNodeStatus, TopicPhase } from "./phases.js";
+import type { NoteReasonCode } from "./tutor.js";
 
 export type TopicSummary = {
   id: string;
@@ -27,6 +28,9 @@ export type OutlineNode = {
   parentId: string | null;
   title: string;
   intent: string;
+  objective: string;
+  dependsOn: string[];
+  targetChars: number;
   sortOrder: number;
   status: OutlineNodeStatus;
   children: OutlineNode[];
@@ -46,6 +50,7 @@ export type NoteRecord = {
   topicId: string;
   sectionId: string | null;
   body: string;
+  reasonCode: NoteReasonCode;
   createdAt: number;
 };
 

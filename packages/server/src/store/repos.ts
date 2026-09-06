@@ -4,7 +4,9 @@ import type {
   BoundaryRecord,
   ExportSubstate,
   HeatmapDay,
+  NoteReasonCode,
   NoteRecord,
+  OutlineDraftNode,
   OutlineNode,
   OutlineNodeStatus,
   PublicSettings,
@@ -241,25 +243,36 @@ export class Store {
   replaceOutline(
     topicId: string,
     title: string,
-    nodes: Array<{ title: string; intent: string; children?: Array<{ title: string; intent: string }> }>,
+    nodes: OutlineDraftNode[],
     status: OutlineNodeStatus,
   ): OutlineNode[] {
     this.db.prepare("DELETE FROM outline_nodes WHERE topic_id = ?").run(topicId);
-    nodes.forEach((node, index) => {
-      const parentId = id("out");
+    const insert = (
+      node: OutlineDraftNode,
+      parentId: string | null,
+      index: number,
+    ): string => {
+      const nodeId = id("out");
       this.db
         .prepare(
-          "INSERT INTO outline_nodes (id, topic_id, parent_id, title, intent, sort_order, status) VALUES (?, ?, NULL, ?, ?, ?, ?)",
+          "INSERT INTO outline_nodes (id, topic_id, parent_id, title, intent, objective, depends_on, target_chars, sort_order, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
-        .run(parentId, topicId, node.title, node.intent, index, status);
-      (node.children ?? []).forEach((child, childIndex) => {
-        this.db
-          .prepare(
-            "INSERT INTO outline_nodes (id, topic_id, parent_id, title, intent, sort_order, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          )
-          .run(id("out"), topicId, parentId, child.title, child.intent, childIndex, status);
-      });
-    });
+        .run(
+          nodeId,
+          topicId,
+          parentId,
+          node.title,
+          node.intent,
+          node.objective ?? node.intent,
+          JSON.stringify(node.depends_on ?? []),
+          node.target_chars ?? 0,
+          index,
+          status,
+        );
+      (node.children ?? []).forEach((child, childIndex) => insert(child, nodeId, childIndex));
+      return nodeId;
+    };
+    nodes.forEach((node, index) => insert(node, null, index));
     this.updateTopic(topicId, { title });
     return this.getOutline(topicId);
   }
@@ -349,14 +362,19 @@ export class Store {
     return row ? sectionFromRow(row) : null;
   }
 
-  appendNote(topicId: string, body: string, sectionId?: string): NoteRecord {
+  appendNote(
+    topicId: string,
+    body: string,
+    sectionId?: string,
+    reasonCode: NoteReasonCode = "unspecified",
+  ): NoteRecord {
     const noteId = id("note");
     const ts = this.now();
     this.db
       .prepare(
-        "INSERT INTO notes (id, topic_id, section_id, body, source, created_at) VALUES (?, ?, ?, ?, 'append_note', ?)",
+        "INSERT INTO notes (id, topic_id, section_id, body, source, reason_code, created_at) VALUES (?, ?, ?, ?, 'append_note', ?, ?)",
       )
-      .run(noteId, topicId, sectionId ?? null, body.trim(), ts);
+      .run(noteId, topicId, sectionId ?? null, body.trim(), reasonCode, ts);
     this.touchTopic(topicId);
     this.bumpActivity();
     return this.listNotes(topicId).find((n) => n.id === noteId)!;
@@ -440,12 +458,21 @@ function boundaryFromRow(row: Row): BoundaryRecord {
 }
 
 function outlineFromRow(row: Row): OutlineNode {
+  let dependsOn: string[] = [];
+  try {
+    dependsOn = JSON.parse(String(row.depends_on ?? "[]")) as string[];
+  } catch {
+    dependsOn = [];
+  }
   return {
     id: String(row.id),
     topicId: String(row.topic_id),
     parentId: row.parent_id ? String(row.parent_id) : null,
     title: String(row.title),
     intent: String(row.intent),
+    objective: String(row.objective ?? row.intent ?? ""),
+    dependsOn,
+    targetChars: Number(row.target_chars ?? 0),
     sortOrder: Number(row.sort_order),
     status: row.status as OutlineNodeStatus,
     children: [],
@@ -469,6 +496,7 @@ function noteFromRow(row: Row): NoteRecord {
     topicId: String(row.topic_id),
     sectionId: row.section_id ? String(row.section_id) : null,
     body: String(row.body),
+    reasonCode: (row.reason_code as NoteReasonCode) || "unspecified",
     createdAt: Number(row.created_at),
   };
 }

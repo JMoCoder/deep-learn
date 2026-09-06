@@ -36,7 +36,15 @@ describe("store invariants", () => {
     store.replaceOutline(
       topic.id,
       "独立推一遍",
-      [{ title: "定向", intent: "地图", children: [{ title: "过关", intent: "证据" }] }],
+      [
+        {
+          title: "定向",
+          intent: "地图",
+          objective: "能指出地图",
+          target_chars: 600,
+          children: [{ title: "过关", intent: "证据", objective: "能写出证据" }],
+        },
+      ],
       "draft",
     );
     store.finalizeOutline(topic.id);

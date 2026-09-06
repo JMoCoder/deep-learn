@@ -190,6 +190,7 @@ function planLearning(store: Store, topicId: string, last: string): CoachPlan {
         args: {
           section_id: section.id,
           body: last.slice(0, 500),
+          reason_code: "friction",
         },
       },
     };

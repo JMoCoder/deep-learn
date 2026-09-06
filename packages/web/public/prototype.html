@@ -3,14 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Quantum IA v1.3.1 原型</title>
+    <title>Quantum IA v1.3.2 原型</title>
     <style>
-      :root { --paper:#f4efe4; --ink:#2b2a26; --muted:#6d6a62; --line:#ddd4c4; --cin:#8c2f19; }
+      :root { --paper:#f4efe4; --ink:#2b2a26; --muted:#6d6a62; --line:#ddd4c4; --cin:#8c2f19; --deep:#ebe4d6; }
       * { box-sizing: border-box; }
       body { margin: 0; font: 15px/1.5 "Noto Sans SC", sans-serif; background: #d9d0c0; color: var(--ink); }
       .phone { max-width: 390px; margin: 16px auto; background: var(--paper); min-height: 720px; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 12px 40px #0002; }
       header.bar { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; border-bottom: 1px solid var(--line); padding: 8px; }
       header.bar h1 { margin: 0; text-align: center; font-family: "Noto Serif SC", serif; font-size: 15px; }
+      header.hero { display: flex; gap: 8px; align-items: stretch; padding: 12px; border-bottom: 1px solid var(--line); }
+      .hero-card { flex: 1; border: 1px solid var(--line); background: var(--deep); border-radius: 12px; padding: 12px 14px; }
+      .hero-card h1 { margin: 4px 0 0; font-family: "Noto Serif SC", serif; font-size: 20px; }
       main { flex: 1; padding: 20px 18px 80px; }
       nav { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); }
       nav button, .icon { background: none; border: 0; padding: 10px; font: inherit; color: var(--muted); }
@@ -53,14 +56,17 @@
         </main>
       </div>
       <div id="books" hidden>
-        <header class="bar">
-          <span></span>
-          <h1>书籍</h1>
+        <header class="hero">
+          <div class="hero-card">
+            <p class="muted">学习中</p>
+            <h1>当前主题标题</h1>
+            <p class="muted">我能……（来自 BoundarySnapshot.goal）</p>
+          </div>
           <button class="icon" onclick="openDrawer('topics')">☰</button>
         </header>
         <main>
-          <p>当前主题正文 / 笔记（只读 append_note）。</p>
-          <p class="muted">主题抽屉从右侧打开（v1.3.1）。</p>
+          <p>正文摘录。没有页面标题「书籍」——「书籍」只出现在底栏。</p>
+          <p class="muted">笔记只读 append_note。主题抽屉从右侧打开（v1.3.2 / 原型 v0.3.4）。</p>
         </main>
       </div>
       <div id="me" hidden>

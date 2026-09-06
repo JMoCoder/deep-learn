@@ -26,8 +26,8 @@ export function OutlineTree({
             )}
           >
             <span className="block font-medium">{node.title}</span>
-            {node.intent ? (
-              <span className="block text-xs text-paper-muted">{node.intent}</span>
+            {node.objective || node.intent ? (
+              <span className="block text-xs text-paper-muted">{node.objective || node.intent}</span>
             ) : null}
           </button>
           {node.children.length > 0 ? (

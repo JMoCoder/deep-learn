@@ -1,3 +1,5 @@
+import type { NoteReasonCode } from "./tutor.js";
+
 export const TOOL_NAMES = [
   "ask_boundary",
   "finalize_boundary",
@@ -47,6 +49,9 @@ export type FinalizeBoundaryArgs = {
 export type OutlineDraftNode = {
   title: string;
   intent: string;
+  objective?: string;
+  depends_on?: string[];
+  target_chars?: number;
   children?: OutlineDraftNode[];
 };
 
@@ -74,6 +79,7 @@ export type ListOutlineArgs = Record<string, never>;
 export type AppendNoteArgs = {
   body: string;
   section_id?: string;
+  reason_code: NoteReasonCode;
 };
 
 export type SummarizeNotesArgs = {

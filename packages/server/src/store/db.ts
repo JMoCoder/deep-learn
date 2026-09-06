@@ -99,4 +99,18 @@ function migrate(database: DatabaseSync): void {
       count INTEGER NOT NULL
     );
   `);
+
+  addColumn(database, "outline_nodes", "objective TEXT NOT NULL DEFAULT ''");
+  addColumn(database, "outline_nodes", "depends_on TEXT NOT NULL DEFAULT '[]'");
+  addColumn(database, "outline_nodes", "target_chars INTEGER NOT NULL DEFAULT 0");
+  addColumn(database, "notes", "reason_code TEXT NOT NULL DEFAULT 'unspecified'");
+}
+
+function addColumn(database: DatabaseSync, table: string, definition: string): void {
+  try {
+    database.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/duplicate column/i.test(message)) throw error;
+  }
 }

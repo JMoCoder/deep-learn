@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Library } from "lucide-react";
-import type { ExportFormat, NoteRecord, SectionRecord, TopicSummary } from "@quantum/shared";
+import type {
+  BoundaryRecord,
+  ExportFormat,
+  NoteRecord,
+  SectionRecord,
+  TopicSummary,
+} from "@quantum/shared";
 import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -10,6 +16,7 @@ export function BooksTab({
   topic,
   section,
   notes,
+  boundaries,
   topics,
   drawerOpen,
   onDrawerOpen,
@@ -20,6 +27,7 @@ export function BooksTab({
   topic: TopicSummary | null;
   section: SectionRecord | null;
   notes: NoteRecord[];
+  boundaries: BoundaryRecord[];
   topics: TopicSummary[];
   drawerOpen: boolean;
   onDrawerOpen: (open: boolean) => void;
@@ -28,40 +36,66 @@ export function BooksTab({
   onExport: (id: string, format: ExportFormat) => void;
 }) {
   const [exportId, setExportId] = useState<string | null>(null);
+  const goal = boundaries.find((b) => b.kind === "goal")?.answer.trim();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex items-center justify-between border-b border-paper-line px-4 py-3">
-        <h1 className="font-serif text-lg">书籍</h1>
-        <Button variant="ghost" size="icon" aria-label="打开主题" onClick={() => onDrawerOpen(true)}>
-          <Library className="h-5 w-5" />
-        </Button>
+      <header className="border-b border-paper-line">
+        <div className="flex items-stretch gap-2 px-3 py-3">
+          <div className="min-w-0 flex-1 rounded-xl border border-paper-line bg-paper-deep/70 px-4 py-3">
+            {topic ? (
+              <>
+                <p className="text-[11px] tracking-wide text-paper-muted">
+                  {phaseLabel(topic.phase)}
+                  {topic.exportState !== "idle" ? ` · 导出 ${topic.exportState}` : ""}
+                </p>
+                <h1 className="mt-1 truncate font-serif text-xl leading-tight">{topic.title}</h1>
+                {goal ? (
+                  <p className="mt-1 truncate text-xs text-paper-muted">{goal}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-paper-muted">当前主题 · 边界未齐时先走右侧会话</p>
+                )}
+              </>
+            ) : (
+              <>
+                <h1 className="font-serif text-xl leading-tight">还没有当前主题</h1>
+                <p className="mt-1 text-xs text-paper-muted">
+                  点右侧打开主题抽屉，先「新建主题」。没有页面标题「书籍」。
+                </p>
+              </>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mt-1 shrink-0"
+            aria-label="打开主题抽屉"
+            onClick={() => onDrawerOpen(true)}
+          >
+            <Library className="h-5 w-5" />
+          </Button>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
         {!topic ? (
-          <p className="mx-auto max-w-md py-16 text-center text-sm text-paper-muted">
-            当前没有主题。从右侧抽屉新建一个，向导会开始边界访谈。
+          <p className="mx-auto max-w-md py-10 text-center text-sm text-paper-muted">
+            主题抽屉从右侧打开。笔记只由助手 append_note 写入。
           </p>
         ) : (
           <div className="mx-auto max-w-2xl space-y-8">
             <section>
-              <p className="text-xs text-paper-muted">
-                {phaseLabel(topic.phase)}
-                {topic.exportState !== "idle" ? ` · 导出 ${topic.exportState}` : ""}
-              </p>
-              <h2 className="mt-1 font-serif text-2xl">{topic.title}</h2>
               {section ? (
-                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-paper-ink/90">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink/90">
                   {section.bodyMd.slice(0, 800)}
                   {section.bodyMd.length > 800 ? "…" : ""}
                 </p>
               ) : (
-                <p className="mt-4 text-sm text-paper-muted">这一主题还没有投影正文。</p>
+                <p className="text-sm text-paper-muted">这一主题还没有投影正文。</p>
               )}
             </section>
             <section>
-              <h3 className="font-serif text-base">笔记</h3>
+              <h2 className="font-serif text-base">笔记</h2>
               <p className="mt-1 text-xs text-paper-muted">
                 只由助手通过 append_note 写入。这里没有「记一笔」。
               </p>
@@ -72,7 +106,9 @@ export function BooksTab({
                   {notes.map((n) => (
                     <li key={n.id} className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm">
                       <p>{n.body}</p>
-                      <p className="mt-1 text-[11px] text-paper-muted">{formatTime(n.createdAt)}</p>
+                      <p className="mt-1 text-[11px] text-paper-muted">
+                        {n.reasonCode} · {formatTime(n.createdAt)}
+                      </p>
                     </li>
                   ))}
                 </ul>

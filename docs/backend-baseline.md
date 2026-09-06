@@ -1,6 +1,8 @@
-# Quantum backend baseline
+# Quantum backend baseline — v0.5
 
-Server contract for v0. Runtime is **Pi** (`@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`). Not DeepSeek Harness / DSH.
+Server contract. Runtime is **Pi** (`@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`). Not DeepSeek Harness / DSH.
+
+v0.5 names the **context and outline contracts** the two cores need. Heuristics below are product-lock *shapes*, not finished learning science. Open items stay **TODO (product research)**.
 
 ## Invariants
 
@@ -9,12 +11,16 @@ Server contract for v0. Runtime is **Pi** (`@mariozechner/pi-agent-core` + `@mar
 3. API keys live in settings (and optional env seed). They are never written to tool args, SSE events, or logs.
 4. Tools mutate durable state. The UI is a projection of that state plus a live session stream.
 5. Stub tools and types ship first. A real LLM is used only when settings/env provide a key. Without a key, a **local coach** still drives the same tool loop.
+6. Session packing goes through internal `build_tutor_context`. It is **not** a learner-facing tool.
 
 ## Persistence (v0)
 
 SQLite via `node:sqlite` under `QUANTUM_DATA_DIR` (default `./data/quantum.db`).
 
 Tables: `settings`, `app_state`, `topics`, `boundaries`, `outline_nodes`, `sections`, `notes`, `sessions`, `activity_days`.
+
+`outline_nodes` stores `objective`, `depends_on` (JSON id list), `target_chars` in addition to `intent`.  
+`notes` stores `reason_code` (see below).
 
 ## Phases
 
@@ -32,6 +38,74 @@ idle → boundary_interview → outline_draft → learning
 
 `finalize_boundary` is the only path into `outline_draft`. `finalize_outline` is the only path into `learning`.
 
+## BoundarySnapshot (required fields)
+
+`BoundarySnapshot` is the durable, packed form of the interview. Kinds still flow through `ask_boundary`.
+
+| Field | Required to finalize? | Notes |
+| --- | --- | --- |
+| `goal` | **yes** | Performance, not a catalog title |
+| `prior` | **yes** | What they can already do / first stuck point |
+| `time` | snapshot field **yes**; value may be `"unspecified"` | Width cap |
+| `success` | field exists; may be empty | UbD evidence. **TODO**: require after first section? |
+| `depth` | no | Browse / explain / perform |
+| `constraint` | no | Tools, language, must-avoid |
+| `first_gap` | no | 8-step item. **TODO**: own `kind` vs folded into `prior` |
+| `scaffold_pref` | no | 8-step item. **TODO**: whether to ask in v0 interview |
+
+See `docs/core1-onboarding-research-v0.md`.
+
+## OutlineNode (v0.5)
+
+| Field | Role |
+| --- | --- |
+| `title` | Leaf / branch name |
+| `intent` | Why this node exists for *this* learner (kept) |
+| `objective` | Observable “I can…” for the leaf (UbD-ish). If empty, packers fall back to `intent` |
+| `depends_on` | Outline node ids that should be ready first |
+| `target_chars` | Soft cap for `generate_section` body. `0` = unset |
+| `status` | `draft` / `finalized` / `generating` / `ready` |
+
+**TODO (product research):** default `target_chars` from `time` × depth; whether `depends_on` is author-time or inferred.
+
+## TutorContext L0–L4
+
+Internal only. Built by `build_tutor_context(store, topicId)` (`packages/server/src/agent/tutor-context.ts`). Never include settings secrets.
+
+| Layer | Name | Contents |
+| --- | --- | --- |
+| L0 | Session invariants | `current_topic_id`, phase, export substate, coach mode |
+| L1 | Boundary snapshot | `BoundarySnapshot` digest |
+| L2 | Outline position | current / prev / next, `objective`, `depends_on` |
+| L3 | Grounded section | current section body, truncated |
+| L4 | Notes + strategy hint | last N `append_note` rows (`reason_code`) + last `TutorStrategy` |
+
+**TODO:** token budget vs always-full outline; whether L4 should include a model-chosen strategy or only a hint.
+
+## Strategy enums
+
+Closed set for sidebar turns (names stable; firing rules are **not** validated science):
+
+`PROBE` · `SCAFFOLD` · `GROUND` · `ELABORATE` · `CONTRAST` · `CHECK` · `REDIRECT` · `HOLD`
+
+Draft use (see `docs/core2-sidebar-ai-research-v0.md`):
+
+- `PROBE` — reveal the gap before generating
+- `SCAFFOLD` — partial structure, not a full new chapter
+- `GROUND` — point at the projected section
+- `ELABORATE` / `CONTRAST` — expand or compare
+- `CHECK` — one observable check, not a quiz engine
+- `REDIRECT` — back to the current leaf
+- `HOLD` — talk, do not mutate
+
+## `append_note.reason_code`
+
+Required on the tool. Closed set:
+
+`friction` · `contrast` · `checkpoint` · `transfer` · `correction` · `export_worthy` · `unspecified`
+
+Learner UI never picks these. **TODO:** which codes predict a useful export preface.
+
 ## Tool surface
 
 Names are stable in `@quantum/shared`. Schemas live next to Pi `AgentTool` implementations.
@@ -39,31 +113,31 @@ Names are stable in `@quantum/shared`. Schemas live next to Pi `AgentTool` imple
 | Tool | Side effects |
 | --- | --- |
 | `ask_boundary` | Records a question; may attach the learner’s previous answer |
-| `finalize_boundary` | Writes structured answers; phase → `outline_draft` |
-| `draft_outline` | Replaces draft outline nodes |
+| `finalize_boundary` | Writes structured answers / snapshot; phase → `outline_draft` |
+| `draft_outline` | Replaces draft outline nodes (incl. objective / depends_on / target_chars) |
 | `finalize_outline` | Locks outline; phase → `learning` |
 | `generate_section` | Writes section body for an outline node |
 | `get_section` | Read |
 | `list_outline` | Read |
-| `append_note` | Inserts an AI note; bumps activity |
+| `append_note` | Inserts an AI note with `reason_code`; bumps activity |
 | `summarize_notes_for_export` | Read + compact notes for export context |
 | `export_topic` | Writes `md` / `html` / `epub` artifact; export substate |
+| `build_tutor_context` | **Not a tool.** Server-internal packer |
 
 ## Session + SSE
 
 - One Pi `Agent` per live topic session (rehydrated from `sessions.messages_json`).
-- `POST /api/session/prompt` runs `agent.prompt`.
+- `POST /api/session/prompt` runs `agent.prompt` (serialized per topic).
 - `GET /api/session/events` is SSE.
-- Server maps Pi events → `SessionEvent` DTOs (`text_delta`, `tool_start`, `tool_end`, `phase_changed`, `note_appended`, …).
-- `transformContext` packs: topic, phase, boundary digest, outline position, current section (truncated), recent notes. Never settings secrets.
+- System prompt = phase prompt + `renderTutorContext(build_tutor_context(...))`.
 
 ## Model proxy
 
 Settings fields: `provider`, `modelId`, `baseUrl`, `apiKey`.
 
 - Known providers use `getModel` when the id is in the Pi registry.
-- Otherwise a custom `Model<'openai-completions'>` (or the selected API) with `baseUrl`.
-- `getApiKey` reads the store. Keys are not placed on the `Model` object that is serialized to the client.
+- Otherwise a custom `Model<'openai-completions'>` with `baseUrl`.
+- `getApiKey` reads the store. Keys are not placed on objects sent to the client.
 - Without a key: `streamFn` is the local coach (same tools).
 
 ## Export

@@ -12,7 +12,7 @@ Chinese UI. One `current_topic_id` at a time. Notes exist only via tool `append_
 packages/shared   tool names, events, DTOs
 packages/server   Pi agent, tools, SQLite, SSE, export
 packages/web      PWA (学习 / 书籍 / 我的)
-docs/             IA v1.3.1, backend baseline, two product cores
+docs/             IA v1.3.2, backend v0.5, core1/core2 research, acceptance
 ```
 
 ## Run locally
@@ -46,10 +46,10 @@ Keys stay in SQLite (`data/quantum.db`). They are never written to chat, SSE, lo
 Bottom tabs: **学习 / 书籍 / 我的**.
 
 - 学习: content projection. Top bar `主题·章节`. Left = outline. Right = session. No composer in the body.
-- 书籍: current topic body + notes. **Topic drawer from the RIGHT.** First card = 新建主题. History = 切换 + 导出 (`md | html | epub` via `export_topic`).
+- 书籍: **current-topic hero only** (no page title「书籍」). Topic drawer from the RIGHT. First card = 新建主题. History = 切换 + 导出 (`md | html | epub` via `export_topic`).
 - 我的: settings + heatmap placeholder.
 
-See `docs/IA-agent-v1.md`, `docs/backend-baseline.md`, `docs/cores.md`.
+See `docs/IA-agent-v1.md` (v1.3.2), `docs/backend-baseline.md` (v0.5), `docs/cores.md` → core1 / core2 / acceptance.
 Static IA click-through: `packages/web/public/prototype.html`.
 
 ## Tests

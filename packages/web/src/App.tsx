@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type {
   AppSnapshot,
+  BoundaryRecord,
   ExportFormat,
   HeatmapDay,
   NoteRecord,
@@ -34,6 +35,7 @@ export default function App() {
   const [outline, setOutline] = useState<OutlineNode[]>([]);
   const [section, setSection] = useState<SectionRecord | null>(null);
   const [notes, setNotes] = useState<NoteRecord[]>([]);
+  const [boundaries, setBoundaries] = useState<BoundaryRecord[]>([]);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
   const [streaming, setStreaming] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,10 +58,12 @@ export default function App() {
         setOutline(detail.outline);
         setSection(detail.currentSection);
         setNotes(detail.notes);
+        setBoundaries(detail.boundaries);
       } else {
         setOutline([]);
         setSection(null);
         setNotes([]);
+        setBoundaries([]);
       }
       setLoadError(null);
     } catch (err) {
@@ -180,6 +184,7 @@ export default function App() {
           topic={topic}
           section={section}
           notes={notes}
+          boundaries={boundaries}
           topics={topics}
           drawerOpen={booksDrawer}
           onDrawerOpen={setBooksDrawer}

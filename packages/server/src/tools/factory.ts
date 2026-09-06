@@ -123,11 +123,17 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         Type.Object({
           title: Type.String(),
           intent: Type.String(),
+          objective: Type.Optional(Type.String()),
+          depends_on: Type.Optional(Type.Array(Type.String())),
+          target_chars: Type.Optional(Type.Number()),
           children: Type.Optional(
             Type.Array(
               Type.Object({
                 title: Type.String(),
                 intent: Type.String(),
+                objective: Type.Optional(Type.String()),
+                depends_on: Type.Optional(Type.Array(Type.String())),
+                target_chars: Type.Optional(Type.Number()),
               }),
             ),
           ),
@@ -141,7 +147,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       }
       const args = params as {
         title: string;
-        nodes: Array<{ title: string; intent: string; children?: Array<{ title: string; intent: string }> }>;
+        nodes: import("@quantum/shared").OutlineDraftNode[];
       };
       if (args.nodes.length === 0) throw new Error("大纲不能为空");
       runtime.store.replaceOutline(topic.id, args.title, args.nodes, "draft");
@@ -239,12 +245,30 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     parameters: Type.Object({
       body: Type.String(),
       section_id: Type.Optional(Type.String()),
+      reason_code: Type.Union([
+        Type.Literal("friction"),
+        Type.Literal("contrast"),
+        Type.Literal("checkpoint"),
+        Type.Literal("transfer"),
+        Type.Literal("correction"),
+        Type.Literal("export_worthy"),
+        Type.Literal("unspecified"),
+      ]),
     }),
     execute: async (_id, params) => {
       const topic = runtime.requireTopic();
-      const args = params as { body: string; section_id?: string };
+      const args = params as {
+        body: string;
+        section_id?: string;
+        reason_code: import("@quantum/shared").NoteReasonCode;
+      };
       if (!args.body.trim()) throw new Error("笔记不能为空");
-      const note = runtime.store.appendNote(topic.id, args.body, args.section_id);
+      const note = runtime.store.appendNote(
+        topic.id,
+        args.body,
+        args.section_id,
+        args.reason_code ?? "unspecified",
+      );
       runtime.emit({ type: "note_appended", topicId: topic.id, noteId: note.id });
       return textResult(`已追加笔记 ${note.id}`);
     },
