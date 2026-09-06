@@ -34,6 +34,7 @@ describe("build_tutor_context", () => {
     assert.equal(ctx.L1.snapshot.chunk_budget, "每周 3 小时");
     assert.equal(ctx.L1.snapshot.scope_out, "没有");
     assert.equal(ctx.L1.snapshot.depth, "能讲清");
+    assert.equal(ctx.L1.body, "");
     assert.equal(ctx.L2.tree[0]?.objective, "能指出接入点");
     assert.equal(ctx.L4, undefined);
 

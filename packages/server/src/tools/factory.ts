@@ -9,6 +9,7 @@ import {
   snapshotFromRecords,
 } from "../learning/boundary-snapshot.js";
 import { evaluateOutlineDraft } from "../learning/outline-constraints.js";
+import { collectPrereqEdges, ensureDraftPrereqEdges } from "../learning/prereq-edges.js";
 import { evaluateAppendNote } from "../learning/note-policy.js";
 import { flattenOutline } from "../store/repos.js";
 import { addTurnCitation, peekTurnMeta } from "../agent/turn-meta.js";
@@ -164,7 +165,8 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         nodes: OutlineDraftNode[];
       };
       const snapshot = snapshotFromRecords(runtime.store.listBoundaries(topic.id));
-      const constraints = evaluateOutlineDraft(args.nodes, snapshot);
+      const nodes = ensureDraftPrereqEdges(args.nodes);
+      const constraints = evaluateOutlineDraft(nodes, snapshot);
       if (!constraints.ok) {
         return textResult(`大纲未通过约束：${constraints.errors.join("；")}`, {
           ok: false,
@@ -173,13 +175,14 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
           leafCap: constraints.leafCap,
         });
       }
-      runtime.store.replaceOutline(topic.id, args.title, args.nodes, "draft");
+      const outline = runtime.store.replaceOutline(topic.id, args.title, nodes, "draft");
       runtime.emit({ type: "outline_updated", topicId: topic.id });
       runtime.emit({ type: "topic_updated", topicId: topic.id });
       return textResult(`已起草大纲「${args.title}」，共 ${args.nodes.length} 个一级节点。`, {
         ok: true,
         leafCount: constraints.leafCount,
         leafCap: constraints.leafCap,
+        prereqEdges: collectPrereqEdges(outline).length,
       });
     },
   };
@@ -193,10 +196,10 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     }),
     execute: async (_id, params) => {
       const topic = runtime.requireTopic();
-      const outline = runtime.store.getOutline(topic.id);
-      if (outline.length === 0) throw new Error("还没有大纲，先 draft_outline");
+      const draft = runtime.store.getOutline(topic.id);
+      if (draft.length === 0) throw new Error("还没有大纲，先 draft_outline");
       const args = params as { title?: string };
-      runtime.store.finalizeOutline(topic.id, args.title);
+      const outline = runtime.store.finalizeOutline(topic.id, args.title);
       runtime.emit({ type: "outline_finalized", topic_id: topic.id, phase: "learning" });
       runtime.emit({
         type: "phase_changed",
@@ -206,7 +209,9 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       });
       runtime.emit({ type: "outline_updated", topicId: topic.id });
       runtime.emit({ type: "topic_updated", topicId: topic.id });
-      return textResult("大纲已锁定，进入学习。请为第一片叶子 generate_section。");
+      return textResult("大纲已锁定，进入学习。请为第一片叶子 generate_section。", {
+        prereqEdges: collectPrereqEdges(outline).length,
+      });
     },
   };
 

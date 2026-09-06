@@ -78,6 +78,7 @@ describe("coach boundary → outline", () => {
     ]);
     const draft = planCoachTurn(store, topic.id, "边界已齐");
     assert.equal(draft.tool?.name, "draft_outline");
+    assert.equal(draft.strategy, "SCAFFOLD");
     const args = draft.tool?.args as { title: string; nodes: unknown[] };
     store.replaceOutline(topic.id, args.title, args.nodes as never, "draft");
     const lock = planCoachTurn(store, topic.id, "可以");

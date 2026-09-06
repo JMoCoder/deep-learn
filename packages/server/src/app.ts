@@ -8,6 +8,7 @@ import { snapshotFromAnswers } from "@quantum/shared";
 import { AgentHost } from "./agent/runtime.js";
 import { bus } from "./agent/bus.js";
 import { config } from "./config.js";
+import { collectPrereqEdges } from "./learning/prereq-edges.js";
 import { Store } from "./store/repos.js";
 
 export function createApp(store = new Store(), host = new AgentHost(store)) {
@@ -55,17 +56,24 @@ export function createApp(store = new Store(), host = new AgentHost(store)) {
       return c.json({
         topic_title: "",
         section_title: "",
+        section_id: null,
         outline: [],
+        prereq_edges: [],
         phase: "",
       });
     }
     const topic = store.requireTopic(currentTopicId);
     const currentSectionId = store.getCurrentSectionId();
-    const section = currentSectionId ? store.getSection(currentSectionId) : null;
+    const section =
+      (currentSectionId ? store.getSection(currentSectionId) : null) ??
+      (currentSectionId ? store.getSectionByOutline(currentSectionId) : null);
+    const outline = store.getOutline(currentTopicId);
     return c.json({
       topic_title: topic.title,
       section_title: section?.title ?? "",
-      outline: store.getOutline(currentTopicId),
+      section_id: section?.id ?? currentSectionId,
+      outline,
+      prereq_edges: collectPrereqEdges(outline),
       phase: topic.phase,
     });
   });

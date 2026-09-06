@@ -136,6 +136,7 @@ function planOutline(store: Store, topicId: string, last: string): CoachPlan {
     const drafted = outlineFromBoundaries(store.listBoundaries(topicId));
     return {
       text: "按定向 → 先修 → 核心 → 应用 → 迁移起草。确认后说「可以」我就锁定。",
+      strategy: "SCAFFOLD",
       tool: { name: "draft_outline", args: drafted },
     };
   }
@@ -172,9 +173,44 @@ function planLearning(store: Store, topicId: string, last: string): CoachPlan {
     };
   }
 
+  if (last && !looksLikeKickoff(last) && looksLikeAdvance(last)) {
+    const next = nextUnprojectedLeaf(store, outline, currentNode?.id) ?? nextLeaf(outline, currentNode?.id);
+    if (next) {
+      return {
+        text: `推进到「${next.title}」。`,
+        strategy: "ADVANCE",
+        tool: {
+          name: "generate_section",
+          args: {
+            outline_node_id: next.id,
+            title: next.title,
+            body_md: scaffoldSectionBody(
+              next,
+              topic.title,
+              store.listBoundaries(topicId),
+              outline,
+            ),
+          },
+        },
+      };
+    }
+  }
+
+  if (section && last && looksLikeGroundAsk(last)) {
+    return {
+      text: "对着落盘正文讲这一节。",
+      strategy: "GROUND",
+      tool: {
+        name: "get_section",
+        args: { outline_node_id: section.outlineNodeId },
+      },
+    };
+  }
+
   if (!section && currentNode) {
     return {
       text: "先把当前叶子投影到学习页。",
+      strategy: "SCAFFOLD",
       tool: {
         name: "generate_section",
         args: {
@@ -219,4 +255,33 @@ function nextKindAfter(kind: BoundaryKind): BoundaryKind | null {
 
 function looksLikeKickoff(text: string): boolean {
   return /开始边界|新建主题|继续引导|请开始/.test(text);
+}
+
+function looksLikeAdvance(text: string): boolean {
+  return /下一节|下一块|下一叶|推进|继续下一/.test(text);
+}
+
+function looksLikeGroundAsk(text: string): boolean {
+  return /这段|这一节|讲什么|什么意思|解释|复述|读盘|正文/.test(text);
+}
+
+function nextLeaf(
+  outline: ReturnType<typeof flattenOutline>,
+  currentId?: string,
+): (typeof outline)[number] | undefined {
+  if (!currentId) return outline.find((n) => n.children.length === 0);
+  const leaves = outline.filter((n) => n.children.length === 0);
+  const idx = leaves.findIndex((n) => n.id === currentId);
+  return leaves[idx + 1] ?? leaves[idx];
+}
+
+function nextUnprojectedLeaf(
+  store: Store,
+  outline: ReturnType<typeof flattenOutline>,
+  currentId?: string,
+) {
+  const leaves = outline.filter((n) => n.children.length === 0);
+  const start = Math.max(0, leaves.findIndex((n) => n.id === currentId));
+  return leaves.slice(start + 1).find((n) => !store.getSectionByOutline(n.id))
+    ?? leaves.find((n) => !store.getSectionByOutline(n.id));
 }

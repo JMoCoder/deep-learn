@@ -17,6 +17,10 @@ import type {
 } from "@quantum/shared";
 import { noteTypeFromReason, parseNoteReasonCode } from "@quantum/shared";
 import { id } from "../ids.js";
+import {
+  resolveDependsOnIds,
+  sequentialLeafDependsOn,
+} from "../learning/prereq-edges.js";
 import { getDb } from "./db.js";
 
 export type ModelSettings = {
@@ -276,6 +280,7 @@ export class Store {
     };
     nodes.forEach((node, index) => insert(node, null, index));
     this.updateTopic(topicId, { title });
+    this.writeDependsOn(topicId, resolveDependsOnIds(nodes, this.getOutline(topicId)));
     return this.getOutline(topicId);
   }
 
@@ -287,10 +292,22 @@ export class Store {
       phase: "learning",
       title: title || this.requireTopic(topicId).title,
     });
-    const outline = this.getOutline(topicId);
+    let outline = this.getOutline(topicId);
+    const hasEdge = flattenOutline(outline).some((n) => n.dependsOn.length > 0);
+    if (!hasEdge) {
+      this.writeDependsOn(topicId, sequentialLeafDependsOn(outline));
+      outline = this.getOutline(topicId);
+    }
     const firstLeaf = firstLeafId(outline);
     if (firstLeaf) this.setCurrentSection(firstLeaf);
     return outline;
+  }
+
+  private writeDependsOn(topicId: string, byId: Map<string, string[]>): void {
+    const stmt = this.db.prepare("UPDATE outline_nodes SET depends_on = ? WHERE id = ? AND topic_id = ?");
+    for (const [nodeId, deps] of byId) {
+      stmt.run(JSON.stringify(deps), nodeId, topicId);
+    }
   }
 
   getOutline(topicId: string): OutlineNode[] {

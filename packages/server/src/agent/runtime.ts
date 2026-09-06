@@ -165,7 +165,7 @@ export class AgentHost {
           if (text) {
             const packed = build_tutor_context(this.store, topicId);
             const metaNow = peekTurnMeta(topicId);
-            if (packed?.L0.strategyHint && metaNow.strategy !== "REFUSE_OFFSCOPE") {
+            if (!metaNow.strategy && packed?.L0.strategyHint) {
               setTurnStrategy(topicId, packed.L0.strategyHint);
             }
             const meta = peekTurnMeta(topicId);

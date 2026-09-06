@@ -26,10 +26,17 @@ export function build_tutor_context(
   const outline = store.getOutline(topicId);
   const flat = flattenOutline(outline);
   const currentId = store.getCurrentSectionId();
-  const currentIndex = Math.max(0, flat.findIndex((n) => n.id === currentId));
-  const node = currentId ? (flat.find((n) => n.id === currentId) ?? flat[currentIndex]) : flat[0];
-  const current = currentId ? store.getSection(currentId) : null;
+  const current =
+    (currentId ? store.getSection(currentId) : null) ??
+    (currentId ? store.getSectionByOutline(currentId) : null);
+  const node =
+    (current ? flat.find((n) => n.id === current.outlineNodeId) : undefined) ??
+    (currentId ? flat.find((n) => n.id === currentId) : undefined) ??
+    flat[0];
+  const currentIndex = Math.max(0, node ? flat.findIndex((n) => n.id === node.id) : 0);
   const body = current?.bodyMd ?? "";
+  const excerpt = body.slice(0, SECTION_CHARS);
+  const truncated = body.length > SECTION_CHARS;
   const compactTree = flat.slice(0, 16).map((n) => ({
     id: n.id,
     title: n.title,
@@ -44,9 +51,15 @@ export function build_tutor_context(
       phase: topic.phase,
       exportState: topic.exportState,
       coachMode: store.hasLiveModel() ? "live" : "stub",
-      strategyHint: hintStrategy(topic.phase, Boolean(current)),
+      strategyHint: hintStrategy(topic.phase, Boolean(current?.bodyMd.trim())),
     },
-    L1: { snapshot },
+    L1: {
+      snapshot,
+      body: excerpt,
+      sectionId: current?.id ?? null,
+      title: current?.title ?? node?.title ?? null,
+      truncated,
+    },
     L2: {
       currentId: node?.id ?? null,
       currentTitle: node?.title ?? null,
@@ -59,8 +72,8 @@ export function build_tutor_context(
     L3: {
       sectionId: current?.id ?? null,
       title: current?.title ?? null,
-      body: body.slice(0, SECTION_CHARS),
-      truncated: body.length > SECTION_CHARS,
+      body: excerpt,
+      truncated,
     },
   };
 
@@ -89,7 +102,11 @@ export function renderTutorContext(ctx: TutorContext): string {
     "## TutorContext（服务器装配 L0–L3；L4 后置。勿复读密钥或整本 Session）",
     `L0 主题：${ctx.L0.title} (${ctx.L0.topicId}) 阶段：${ctx.L0.phase} 导出：${ctx.L0.exportState} 模式：${ctx.L0.coachMode} 策略提示：${ctx.L0.strategyHint}`,
     "",
-    "L1 BoundarySnapshot",
+    "L1 读盘正文 + BoundarySnapshot",
+    ctx.L1.body
+      ? `节「${ctx.L1.title ?? "未命名"}」摘录：\n${ctx.L1.body}`
+      : "（当前叶子尚无正文）",
+    ctx.L1.truncated ? "…(truncated)" : "",
     `- goal_outcome: ${s.goal_outcome || "（空）"}`,
     `- prior_level: ${s.prior_level || "（空）"}`,
     `- scope_out: ${s.scope_out || "（空）"}`,

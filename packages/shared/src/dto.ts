@@ -70,10 +70,20 @@ export type SessionMessage = {
   citations?: SessionCitation[];
 };
 
+export type PrereqEdge = {
+  from_id: string;
+  to_id: string;
+  from_title: string;
+  to_title: string;
+};
+
 export type TopicProjection = {
   topic_title: string;
   section_title: string;
+  section_id: string | null;
   outline: OutlineNode[];
+  /** Resolved outline-node edges for the learn/outline UI. */
+  prereq_edges: PrereqEdge[];
   phase: TopicPhase | "";
 };
 

@@ -145,7 +145,14 @@ export type TutorContext = {
     /** Learning-phase hint only. Not a scored pedagogy engine. */
     strategyHint: TutorStrategy;
   };
-  L1: { snapshot: BoundarySnapshot };
+  L1: {
+    snapshot: BoundarySnapshot;
+    /** Disk excerpt of the current section. Empty only when the leaf has no body yet. */
+    body: string;
+    sectionId: string | null;
+    title: string | null;
+    truncated: boolean;
+  };
   L2: {
     currentId: string | null;
     currentTitle: string | null;
