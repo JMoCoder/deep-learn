@@ -8,7 +8,7 @@ Manual + automated checks for Core 1 (onboarding) and Core 2 (sidebar). Pedagogy
 - [ ] Topic drawer opens from the **RIGHT**. First card = 新建主题.
 - [ ] 新建主题 sets the only `current_topic_id` and starts `boundary_interview`.
 - [ ] Coach/live agent asks boundaries via `ask_boundary` (not a form).
-- [ ] `finalize_boundary` refused without `goal` + `prior`.
+- [ ] `finalize_boundary` refused (`ok: false`) without `goal_outcome`, `prior_level`, `scope_out`, `depth`, `chunk_budget`.
 - [ ] After finalize, phase is `outline_draft`; `draft_outline` produces orientation-first tree with `objective` / `depends_on` / `target_chars` fields present (values may be scaffolded).
 - [ ] Confirm「可以」→ `finalize_outline` → `learning` → first leaf `generate_section`.
 - [ ] Docs name the 8-step snapshot and mark steps 4 / 8 as TODO (`docs/core1-onboarding-research-v0.md`).
@@ -17,7 +17,7 @@ Manual + automated checks for Core 1 (onboarding) and Core 2 (sidebar). Pedagogy
 ## Core 2 — Right-side session
 
 - [ ] 学习 body has **no** session composer; right drawer does.
-- [ ] System prompt is packed by internal `build_tutor_context` (L0–L4), not by pasting keys or other topics.
+- [ ] System prompt is packed by internal `build_tutor_context` (L0–L3; L4 deferred), not by pasting keys or other topics.
 - [ ] A real learner line in `learning` can become exactly one `append_note` with a `reason_code`; no user「记一笔」.
 - [ ] After `append_note` tool result, the stub coach **stops** (no loop).
 - [ ] 书籍 notes list shows AI notes only; export modal offers `md | html | epub` via `export_topic`.

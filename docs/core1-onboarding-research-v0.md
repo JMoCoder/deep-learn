@@ -31,7 +31,7 @@ v0 UI/coach still asks a **shorter live script** (`goal → prior → time → d
 | 7. Constraints | `constraint` | ADDIE context | yes |
 | 8. Support preference | `scaffold_pref` | How much structure they want on day one | **TODO** |
 
-`finalize_boundary` **requires** `goal` and `prior`. `time` is stored even if `"unspecified"`.
+`finalize_boundary` **requires** `goal_outcome`, `prior_level`, `scope_out`, `depth`, `chunk_budget` (filled by the live kinds above). Missing → `{ ok: false }` and the phase stays `boundary_interview`.
 
 ## Outline constraints (from the snapshot)
 

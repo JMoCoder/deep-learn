@@ -1,8 +1,15 @@
 import type { AgentTool } from "@mariozechner/pi-agent-core";
-import type { ExportFormat } from "@quantum/shared";
+import type { ExportFormat, OutlineDraftNode } from "@quantum/shared";
 import { Type } from "typebox";
 import { exportTopic } from "../export/index.js";
-import { canFinalize, questionFor } from "../learning/boundary-interview.js";
+import { questionFor } from "../learning/boundary-interview.js";
+import {
+  evaluateFinalize,
+  mergeAnswersIntoRecords,
+  snapshotFromRecords,
+} from "../learning/boundary-snapshot.js";
+import { evaluateOutlineDraft } from "../learning/outline-constraints.js";
+import { evaluateAppendNote } from "../learning/note-policy.js";
 import { flattenOutline } from "../store/repos.js";
 import type { SessionRuntime } from "../agent/types.js";
 
@@ -13,6 +20,10 @@ const Kind = Type.Union([
   Type.Literal("depth"),
   Type.Literal("constraint"),
   Type.Literal("success"),
+  Type.Literal("goal_outcome"),
+  Type.Literal("prior_level"),
+  Type.Literal("scope_out"),
+  Type.Literal("chunk_budget"),
 ]);
 
 function textResult(text: string, details: Record<string, unknown> = {}) {
@@ -63,7 +74,8 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
   const finalizeBoundary: AgentTool = {
     name: "finalize_boundary",
     label: "锁定边界",
-    description: "写入结构化边界并进入 outline_draft。至少需要 goal 与 prior。",
+    description:
+      "写入 BoundarySnapshot 并进入 outline_draft。必填：goal_outcome, prior_level, scope_out, depth, chunk_budget。缺则 ok:false，不改相位。",
     parameters: Type.Object({
       answers: Type.Array(
         Type.Object({
@@ -78,28 +90,14 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       const args = params as {
         answers: Array<{ kind: Parameters<typeof questionFor>[0]; question: string; answer: string }>;
       };
-      const merged = runtime.store.listBoundaries(topic.id).map((b) => ({
-        kind: b.kind,
-        question: b.question,
-        answer: args.answers.find((a) => a.kind === b.kind)?.answer || b.answer,
-      }));
-      for (const extra of args.answers) {
-        if (!merged.some((m) => m.kind === extra.kind)) merged.push(extra);
-      }
-      const check = canFinalize(
-        merged.map((m, i) => ({
-          id: String(i),
-          topicId: topic.id,
-          kind: m.kind,
-          question: m.question,
-          answer: m.answer,
-          status: "answered" as const,
-          sortOrder: i,
-          createdAt: Date.now(),
-        })),
-      );
+      const merged = mergeAnswersIntoRecords(runtime.store.listBoundaries(topic.id), args.answers);
+      const check = evaluateFinalize(merged);
       if (!check.ok) {
-        throw new Error(`还不能定稿，缺少：${check.missing.join(", ")}`);
+        return textResult(`还不能定稿，缺少：${check.missing.join(", ")}`, {
+          ok: false,
+          missing: check.missing,
+          snapshot: check.snapshot,
+        });
       }
       runtime.store.finalizeBoundaries(topic.id, merged);
       runtime.emit({
@@ -109,7 +107,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         exportState: "idle",
       });
       runtime.emit({ type: "topic_updated", topicId: topic.id });
-      return textResult("边界已锁定，进入大纲起草。");
+      return textResult("边界已锁定，进入大纲起草。", { ok: true, snapshot: check.snapshot });
     },
   };
 
@@ -147,13 +145,26 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       }
       const args = params as {
         title: string;
-        nodes: import("@quantum/shared").OutlineDraftNode[];
+        nodes: OutlineDraftNode[];
       };
-      if (args.nodes.length === 0) throw new Error("大纲不能为空");
+      const snapshot = snapshotFromRecords(runtime.store.listBoundaries(topic.id));
+      const constraints = evaluateOutlineDraft(args.nodes, snapshot);
+      if (!constraints.ok) {
+        return textResult(`大纲未通过约束：${constraints.errors.join("；")}`, {
+          ok: false,
+          errors: constraints.errors,
+          leafCount: constraints.leafCount,
+          leafCap: constraints.leafCap,
+        });
+      }
       runtime.store.replaceOutline(topic.id, args.title, args.nodes, "draft");
       runtime.emit({ type: "outline_updated", topicId: topic.id });
       runtime.emit({ type: "topic_updated", topicId: topic.id });
-      return textResult(`已起草大纲「${args.title}」，共 ${args.nodes.length} 个一级节点。`);
+      return textResult(`已起草大纲「${args.title}」，共 ${args.nodes.length} 个一级节点。`, {
+        ok: true,
+        leafCount: constraints.leafCount,
+        leafCap: constraints.leafCap,
+      });
     },
   };
 
@@ -199,11 +210,13 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         (n) => n.id === args.outline_node_id,
       );
       if (!node) throw new Error(`找不到大纲节点 ${args.outline_node_id}`);
+      const cap = node.targetChars > 0 ? node.targetChars : 0;
+      const body = cap > 0 && args.body_md.length > cap ? args.body_md.slice(0, cap) : args.body_md;
       const section = runtime.store.upsertSection(
         topic.id,
         args.outline_node_id,
         args.title || node.title,
-        args.body_md,
+        body,
       );
       runtime.emit({ type: "section_updated", topicId: topic.id, sectionId: section.id });
       return textResult(`已写入章节「${section.title}」。`);
@@ -246,6 +259,10 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       body: Type.String(),
       section_id: Type.Optional(Type.String()),
       reason_code: Type.Union([
+        Type.Literal(1),
+        Type.Literal(2),
+        Type.Literal(3),
+        Type.Literal(4),
         Type.Literal("friction"),
         Type.Literal("contrast"),
         Type.Literal("checkpoint"),
@@ -260,17 +277,28 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       const args = params as {
         body: string;
         section_id?: string;
-        reason_code: import("@quantum/shared").NoteReasonCode;
+        reason_code?: unknown;
       };
-      if (!args.body.trim()) throw new Error("笔记不能为空");
+      const judged = evaluateAppendNote(args.body, args.reason_code);
+      if (!judged.ok) {
+        return textResult(judged.error ?? "笔记未写入", {
+          ok: false,
+          reason_code: judged.reason_code,
+        });
+      }
       const note = runtime.store.appendNote(
         topic.id,
-        args.body,
+        judged.body,
         args.section_id,
-        args.reason_code ?? "unspecified",
+        judged.reason_name,
       );
       runtime.emit({ type: "note_appended", topicId: topic.id, noteId: note.id });
-      return textResult(`已追加笔记 ${note.id}`);
+      return textResult(`已追加笔记 ${note.id}`, {
+        ok: true,
+        note_id: note.id,
+        reason_code: judged.reason_code,
+        reason_name: judged.reason_name,
+      });
     },
   };
 

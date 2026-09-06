@@ -22,6 +22,10 @@ export const BOUNDARY_KINDS = [
   "depth",
   "constraint",
   "success",
+  "goal_outcome",
+  "prior_level",
+  "scope_out",
+  "chunk_budget",
 ] as const;
 
 export type BoundaryKind = (typeof BOUNDARY_KINDS)[number];

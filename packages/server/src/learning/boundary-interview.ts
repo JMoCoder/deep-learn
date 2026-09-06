@@ -1,4 +1,5 @@
-import type { BoundaryKind, BoundaryRecord } from "@quantum/shared";
+import type { BoundaryKind, BoundaryRecord, FinalizeRequiredField } from "@quantum/shared";
+import { evaluateFinalize } from "./boundary-snapshot.js";
 
 /**
  * Draft interview policy. Sources: Knowles (need-to-know / prior experience),
@@ -39,7 +40,14 @@ export const BOUNDARY_SCRIPT: Array<{
   },
 ];
 
-export const REQUIRED_TO_FINALIZE: BoundaryKind[] = ["goal", "prior"];
+/** Interview kinds that fill the five operational required snapshot fields. */
+export const REQUIRED_TO_FINALIZE: BoundaryKind[] = [
+  "goal",
+  "prior",
+  "time",
+  "depth",
+  "constraint",
+];
 
 export function nextBoundaryKind(existing: BoundaryRecord[]): BoundaryKind | null {
   const have = new Set(existing.filter((b) => b.answer.trim() || b.status === "asked").map((b) => b.kind));
@@ -53,12 +61,11 @@ export function questionFor(kind: BoundaryKind): string {
   return BOUNDARY_SCRIPT.find((s) => s.kind === kind)?.question ?? "还有什么边界需要说清？";
 }
 
-export function canFinalize(existing: BoundaryRecord[]): { ok: boolean; missing: BoundaryKind[] } {
-  const answered = new Set(
-    existing.filter((b) => b.answer.trim()).map((b) => b.kind),
-  );
-  const missing = REQUIRED_TO_FINALIZE.filter((k) => !answered.has(k));
-  return { ok: missing.length === 0, missing };
+export function canFinalize(existing: BoundaryRecord[]): {
+  ok: boolean;
+  missing: FinalizeRequiredField[];
+} {
+  return evaluateFinalize(existing);
 }
 
 export function digestBoundaries(existing: BoundaryRecord[]): string {

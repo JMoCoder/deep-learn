@@ -14,6 +14,7 @@ export const TUTOR_STRATEGIES = [
 
 export type TutorStrategy = (typeof TUTOR_STRATEGIES)[number];
 
+/** Stored names. Tool I/O also accepts 1–4 (see NOTE_REASON_BY_CODE). */
 export const NOTE_REASON_CODES = [
   "friction",
   "contrast",
@@ -26,32 +27,71 @@ export const NOTE_REASON_CODES = [
 
 export type NoteReasonCode = (typeof NOTE_REASON_CODES)[number];
 
-/** Packed interview. Required-to-finalize: goal + prior. */
+export const NOTE_REASON_BY_CODE = {
+  1: "friction",
+  2: "contrast",
+  3: "checkpoint",
+  4: "transfer",
+} as const;
+
+export type NoteReasonNumber = keyof typeof NOTE_REASON_BY_CODE;
+
+export const APPEND_NOTE_MAX_CHARS = 300;
+
+/**
+ * Packed interview. Operational required-to-finalize (v0.5 lock):
+ * goal_outcome, prior_level, scope_out, depth, chunk_budget.
+ * Interview kinds map: goal→goal_outcome, prior→prior_level,
+ * constraint→scope_out, time→chunk_budget.
+ */
 export type BoundarySnapshot = {
-  goal: string;
-  prior: string;
-  time: string;
-  success: string;
+  goal_outcome: string;
+  prior_level: string;
+  scope_out: string;
   depth: string;
-  constraint: string;
-  /** TODO (product research): own ask_boundary kind vs folded into prior */
+  chunk_budget: string;
+  success: string;
   first_gap: string;
-  /** TODO (product research): ask in v0 interview or after first section */
   scaffold_pref: string;
 };
 
 export const BOUNDARY_SNAPSHOT_FIELDS = [
-  "goal",
-  "prior",
-  "time",
-  "success",
+  "goal_outcome",
+  "prior_level",
+  "scope_out",
   "depth",
-  "constraint",
+  "chunk_budget",
+  "success",
   "first_gap",
   "scaffold_pref",
 ] as const satisfies ReadonlyArray<keyof BoundarySnapshot>;
 
-export const BOUNDARY_SNAPSHOT_REQUIRED = ["goal", "prior"] as const;
+export const FINALIZE_REQUIRED_FIELDS = [
+  "goal_outcome",
+  "prior_level",
+  "scope_out",
+  "depth",
+  "chunk_budget",
+] as const;
+
+export type FinalizeRequiredField = (typeof FINALIZE_REQUIRED_FIELDS)[number];
+
+export const KIND_TO_SNAPSHOT: Record<string, keyof BoundarySnapshot> = {
+  goal: "goal_outcome",
+  goal_outcome: "goal_outcome",
+  prior: "prior_level",
+  prior_level: "prior_level",
+  constraint: "scope_out",
+  scope_out: "scope_out",
+  depth: "depth",
+  time: "chunk_budget",
+  chunk_budget: "chunk_budget",
+  success: "success",
+  gap: "first_gap",
+  first_gap: "first_gap",
+  scaffold: "scaffold_pref",
+  scaffold_pref: "scaffold_pref",
+};
 
 export type TutorContext = {
   L0: {
@@ -60,6 +100,8 @@ export type TutorContext = {
     phase: TopicPhase;
     exportState: ExportSubstate;
     coachMode: "stub" | "live";
+    /** Learning-phase hint only. Not a scored pedagogy engine. */
+    strategyHint: TutorStrategy;
   };
   L1: { snapshot: BoundarySnapshot };
   L2: {
@@ -77,8 +119,8 @@ export type TutorContext = {
     body: string;
     truncated: boolean;
   };
-  L4: {
+  /** Deferred. Default packer omits L4 (no vector retrieval, no note dump). */
+  L4?: {
     recentNotes: Array<{ body: string; reasonCode: NoteReasonCode; createdAt: number }>;
-    strategyHint: TutorStrategy;
   };
 };

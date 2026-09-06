@@ -42,16 +42,22 @@ idle → boundary_interview → outline_draft → learning
 
 `BoundarySnapshot` is the durable, packed form of the interview. Kinds still flow through `ask_boundary`.
 
+Interview kinds still flow through `ask_boundary`. They map onto snapshot fields:
+
+`goal→goal_outcome` · `prior→prior_level` · `constraint→scope_out` · `time→chunk_budget` · `depth→depth`
+
 | Field | Required to finalize? | Notes |
 | --- | --- | --- |
-| `goal` | **yes** | Performance, not a catalog title |
-| `prior` | **yes** | What they can already do / first stuck point |
-| `time` | snapshot field **yes**; value may be `"unspecified"` | Width cap |
+| `goal_outcome` | **yes** | Performance, not a catalog title |
+| `prior_level` | **yes** | What they can already do / first stuck point |
+| `scope_out` | **yes** | Out of scope (「没有」is a valid answer) |
+| `depth` | **yes** | Browse / explain / perform |
+| `chunk_budget` | **yes** | Width cap (hours / week or minutes) |
 | `success` | field exists; may be empty | UbD evidence. **TODO**: require after first section? |
-| `depth` | no | Browse / explain / perform |
-| `constraint` | no | Tools, language, must-avoid |
 | `first_gap` | no | 8-step item. **TODO**: own `kind` vs folded into `prior` |
 | `scaffold_pref` | no | 8-step item. **TODO**: whether to ask in v0 interview |
+
+`finalize_boundary` returns `{ ok: false, missing }` and **does not** change phase when required fields are absent.
 
 See `docs/core1-onboarding-research-v0.md`.
 
@@ -78,9 +84,11 @@ Internal only. Built by `build_tutor_context(store, topicId)` (`packages/server/
 | L1 | Boundary snapshot | `BoundarySnapshot` digest |
 | L2 | Outline position | current / prev / next, `objective`, `depends_on` |
 | L3 | Grounded section | current section body, truncated |
-| L4 | Notes + strategy hint | last N `append_note` rows (`reason_code`) + last `TutorStrategy` |
+| L4 | Deferred | Not packed on the default learning turn. No vector retrieval. |
 
-**TODO:** token budget vs always-full outline; whether L4 should include a model-chosen strategy or only a hint.
+`build_tutor_context(store, topicId)` defaults to **L0–L3**. `strategyHint` sits on L0. Pass `{ includeL4: true }` only for explicit post-pass work.
+
+**TODO:** token budget vs always-full outline; whether a later L4 should include notes or embeddings.
 
 ## Strategy enums
 
@@ -100,11 +108,18 @@ Draft use (see `docs/core2-sidebar-ai-research-v0.md`):
 
 ## `append_note.reason_code`
 
-Required on the tool. Closed set:
+Tool I/O accepts **1–4** or the stored names. Body **≤ 300** chars. `ok: false` if over limit.
 
-`friction` · `contrast` · `checkpoint` · `transfer` · `correction` · `export_worthy` · `unspecified`
+| Code | Name |
+| --- | --- |
+| 1 | `friction` |
+| 2 | `contrast` |
+| 3 | `checkpoint` |
+| 4 | `transfer` |
 
-Learner UI never picks these. **TODO:** which codes predict a useful export preface.
+Also stored (not in 1–4): `correction` · `export_worthy` · `unspecified`.
+
+Learner UI never picks these. No `POST /notes`. **TODO:** which codes predict a useful export preface.
 
 ## Tool surface
 

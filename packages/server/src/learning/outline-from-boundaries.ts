@@ -8,7 +8,8 @@ import type { BoundaryRecord, OutlineDraftNode } from "@quantum/shared";
  */
 
 export function inferWeeklyMinutes(boundaries: BoundaryRecord[]): number {
-  const time = boundaries.find((b) => b.kind === "time")?.answer ?? "";
+  const time =
+    boundaries.find((b) => b.kind === "time" || b.kind === "chunk_budget")?.answer ?? "";
   const hour = time.match(/(\d+(?:\.\d+)?)\s*小时/);
   if (hour) return Math.round(Number(hour[1]) * 60);
   const minutes = time.match(/(\d+)\s*分钟/);
@@ -24,7 +25,7 @@ export function leafBudget(weeklyMinutes: number, weeks = 4): number {
 }
 
 export function titleFromBoundaries(boundaries: BoundaryRecord[], fallback = "未命名主题"): string {
-  const goal = boundaries.find((b) => b.kind === "goal")?.answer.trim();
+  const goal = boundaries.find((b) => b.kind === "goal" || b.kind === "goal_outcome")?.answer.trim();
   if (!goal) return fallback;
   const cleaned = goal.replace(/^我能/, "").replace(/[。！？!?]+$/, "");
   return cleaned.slice(0, 24) || fallback;
@@ -34,10 +35,16 @@ export function outlineFromBoundaries(boundaries: BoundaryRecord[]): {
   title: string;
   nodes: OutlineDraftNode[];
 } {
-  const goal = boundaries.find((b) => b.kind === "goal")?.answer.trim() || "尚不明确的表现目标";
-  const prior = boundaries.find((b) => b.kind === "prior")?.answer.trim() || "先验未说明";
+  const goal =
+    boundaries.find((b) => b.kind === "goal" || b.kind === "goal_outcome")?.answer.trim() ||
+    "尚不明确的表现目标";
+  const prior =
+    boundaries.find((b) => b.kind === "prior" || b.kind === "prior_level")?.answer.trim() ||
+    "先验未说明";
   const depth = boundaries.find((b) => b.kind === "depth")?.answer.trim() || "深度未说明，按「能讲清」处理";
-  const constraint = boundaries.find((b) => b.kind === "constraint")?.answer.trim() || "无额外约束";
+  const constraint =
+    boundaries.find((b) => b.kind === "constraint" || b.kind === "scope_out")?.answer.trim() ||
+    "无额外约束";
   const minutes = inferWeeklyMinutes(boundaries);
   const leaves = leafBudget(minutes);
 

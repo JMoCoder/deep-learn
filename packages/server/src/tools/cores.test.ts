@@ -1,0 +1,139 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import type { AgentTool } from "@mariozechner/pi-agent-core";
+import { createApp } from "../app.js";
+import { openMemoryDb } from "../store/db.js";
+import { Store } from "../store/repos.js";
+import { build_tutor_context } from "../agent/tutor-context.js";
+import { createQuantumTools } from "./factory.js";
+
+function toolsFor(store: Store, topicId: string) {
+  return createQuantumTools({
+    store,
+    topicId,
+    requireTopic: () => store.requireTopic(topicId),
+    emit: () => undefined,
+  });
+}
+
+async function exec(tool: AgentTool, args: Record<string, unknown>) {
+  return tool.execute("call", args as never);
+}
+
+describe("two cores backend", () => {
+  it("finalize_boundary rejects missing required snapshot fields with ok:false", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("缺字段");
+    const finalize = toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!;
+    const result = await exec(finalize, {
+      answers: [
+        { kind: "goal", question: "g", answer: "我能做" },
+        { kind: "prior", question: "p", answer: "零基础" },
+      ],
+    });
+    assert.equal(result.details.ok, false);
+    assert.ok((result.details.missing as string[]).includes("scope_out"));
+    assert.ok((result.details.missing as string[]).includes("depth"));
+    assert.ok((result.details.missing as string[]).includes("chunk_budget"));
+    assert.equal(store.requireTopic(topic.id).phase, "boundary_interview");
+  });
+
+  it("finalize_boundary accepts the five required fields", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("齐了");
+    const finalize = toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!;
+    const result = await exec(finalize, {
+      answers: [
+        { kind: "goal_outcome", question: "g", answer: "我能独立画一遍" },
+        { kind: "prior_level", question: "p", answer: "只会定义" },
+        { kind: "scope_out", question: "s", answer: "弦论" },
+        { kind: "depth", question: "d", answer: "能讲清" },
+        { kind: "chunk_budget", question: "c", answer: "每周 2 小时" },
+      ],
+    });
+    assert.equal(result.details.ok, true);
+    assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
+  });
+
+  it("draft_outline respects chunk_budget and scope_out", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("约束");
+    await exec(toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!, {
+      answers: [
+        { kind: "goal", question: "g", answer: "我能做" },
+        { kind: "prior", question: "p", answer: "零" },
+        { kind: "constraint", question: "s", answer: "弦论" },
+        { kind: "depth", question: "d", answer: "能讲清" },
+        { kind: "time", question: "c", answer: "每周 1 小时" },
+      ],
+    });
+    const draft = toolsFor(store, topic.id).find((t) => t.name === "draft_outline")!;
+    const banned = await exec(draft, {
+      title: "坏大纲",
+      nodes: [
+        {
+          title: "定向：地图",
+          intent: "地图",
+          objective: "能指出",
+          children: Array.from({ length: 20 }, (_, i) => ({
+            title: i === 0 ? "弦论入门" : `叶${i}`,
+            intent: "堆砌",
+            objective: "x",
+          })),
+        },
+      ],
+    });
+    assert.equal(banned.details.ok, false);
+  });
+
+  it("build_tutor_context always has L0+L1 and omits L4 by default", () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("窗");
+    store.finalizeBoundaries(topic.id, [
+      { kind: "goal", question: "g", answer: "我能独立画一遍" },
+      { kind: "prior", question: "p", answer: "只会定义" },
+      { kind: "time", question: "t", answer: "每周 2 小时" },
+      { kind: "depth", question: "d", answer: "能讲清" },
+      { kind: "constraint", question: "s", answer: "没有" },
+    ]);
+    const ctx = build_tutor_context(store, topic.id);
+    assert.ok(ctx);
+    assert.equal(ctx.L0.topicId, topic.id);
+    assert.ok(ctx.L0.strategyHint);
+    assert.equal(ctx.L1.snapshot.goal_outcome, "我能独立画一遍");
+    assert.equal(ctx.L1.snapshot.prior_level, "只会定义");
+    assert.equal(ctx.L1.snapshot.chunk_budget, "每周 2 小时");
+    assert.equal(ctx.L4, undefined);
+    const packed = JSON.stringify(ctx);
+    assert.ok(!packed.includes("apiKey"));
+    assert.ok(!packed.includes("sk-"));
+  });
+
+  it("append_note is tool-loop only and enforces body≤300 + reason_code 1–4", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("笔记");
+    const { app } = createApp(store);
+    const post = await app.request("/api/notes", { method: "POST", body: "{}" });
+    assert.equal(post.status, 404);
+
+    const append = toolsFor(store, topic.id).find((t) => t.name === "append_note")!;
+    const tooLong = await exec(append, { body: "x".repeat(301), reason_code: 1 });
+    assert.equal(tooLong.details.ok, false);
+    assert.equal(store.listNotes(topic.id).length, 0);
+
+    const ok = await exec(append, { body: "卡在投影公设", reason_code: 1 });
+    assert.equal(ok.details.ok, true);
+    assert.equal(ok.details.reason_code, 1);
+    assert.equal(store.listNotes(topic.id)[0]?.reasonCode, "friction");
+  });
+
+  it("keeps a single current_topic_id", () => {
+    const store = new Store(openMemoryDb());
+    const a = store.createTopic("甲");
+    const b = store.createTopic("乙");
+    assert.equal(store.getCurrentTopicId(), b.id);
+    store.setCurrentTopic(a.id);
+    assert.equal(store.getCurrentTopicId(), a.id);
+    assert.notEqual(store.getCurrentTopicId(), b.id);
+  });
+});
