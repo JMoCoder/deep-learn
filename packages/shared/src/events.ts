@@ -22,6 +22,19 @@ export const SESSION_EVENT_TYPES = [
 
 export type SessionEventType = (typeof SESSION_EVENT_TYPES)[number];
 
+/** Domain events `packages/web` subscribes to. Older aliases are ignored. */
+export const CLIENT_SSE_EVENTS = [
+  "phase_changed",
+  "boundary_finalized",
+  "outline_finalized",
+  "section_status",
+  "section_ready",
+  "note_appended",
+  "export_ready",
+] as const;
+
+export type ClientSseEvent = (typeof CLIENT_SSE_EVENTS)[number];
+
 export type SessionEvent =
   | { type: "session_start"; topicId: string }
   | { type: "session_end"; topicId: string }

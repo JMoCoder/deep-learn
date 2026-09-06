@@ -1,4 +1,11 @@
-import type { OutlineNode, SessionMessage, TutorStrategy } from "@quantum/shared";
+import {
+  noteTypeFromReason,
+  parseNoteReasonCode,
+  type NoteType,
+  type OutlineNode,
+  type SessionMessage,
+  type TutorStrategy,
+} from "@quantum/shared";
 
 export type LiveSessionRow = {
   id: string;
@@ -7,6 +14,7 @@ export type LiveSessionRow = {
   title: string;
   summary: string;
   status: "running" | "done" | "error";
+  strategy?: TutorStrategy;
   citations?: Citation[];
   createdAt: number;
 };
@@ -77,12 +85,25 @@ export function strategyFromTool(toolName?: string): TutorStrategy | null {
   }
 }
 
+export function uiNoteType(reason: unknown, fallback?: string): NoteType {
+  const code = parseNoteReasonCode(reason);
+  if (code) return noteTypeFromReason(code);
+  if (fallback === "思考" || fallback === "疑问" || fallback === "拓展") return fallback;
+  return "思考";
+}
+
+export function citationLabel(cite: { section_id: string; note_id?: string }): string {
+  return cite.note_id ? `章节 ${cite.section_id} · 笔记 ${cite.note_id}` : `章节 ${cite.section_id}`;
+}
+
 export function lastStrategy(
   messages: SessionMessage[],
   liveRows: LiveSessionRow[],
 ): TutorStrategy {
   for (let i = liveRows.length - 1; i >= 0; i -= 1) {
-    const next = strategyFromTool(liveRows[i]?.toolName);
+    const row = liveRows[i];
+    if (row?.strategy) return row.strategy;
+    const next = strategyFromTool(row?.toolName);
     if (next) return next;
   }
   for (let i = messages.length - 1; i >= 0; i -= 1) {

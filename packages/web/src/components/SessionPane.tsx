@@ -4,6 +4,7 @@ import { CiteRow, NoteSystemRow, StrategyChip, ToolSystemRow } from "@/component
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  citationLabel,
   citationsFromTool,
   isCiteTool,
   lastStrategy,
@@ -62,20 +63,26 @@ export function SessionPane({
         ) : null}
         {messages.map((m) =>
           m.role === "tool" ? (
-            <ToolBundle key={m.id} toolName={m.toolName} summary={m.text} status="done" />
+            <ToolBundle
+              key={m.id}
+              toolName={m.toolName}
+              summary={m.text}
+              status="done"
+              strategy={m.strategy}
+              citations={m.citations}
+            />
           ) : (
             <article key={m.id} className="space-y-2 text-sm">
               <div className="mb-0.5 text-[11px] uppercase tracking-wide text-paper-muted">
                 {m.role === "user" ? "你" : "向导"}
                 {m.strategy ? ` · ${m.strategy}` : ""} · {formatTime(m.createdAt)}
               </div>
+              {m.role === "assistant" && m.strategy ? (
+                <StrategyChip strategy={m.strategy} lit />
+              ) : null}
               <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
               {m.role === "assistant" && m.citations?.length ? (
-                <CiteRow
-                  citations={m.citations.map((c) => ({
-                    title: c.note_id ? `章节 ${c.section_id} · 笔记 ${c.note_id}` : `章节 ${c.section_id}`,
-                  }))}
-                />
+                <CiteRow citations={m.citations.map((c) => ({ title: citationLabel(c) }))} />
               ) : null}
             </article>
           ),
@@ -107,28 +114,28 @@ function ToolBundle({
   toolName,
   summary,
   status,
+  strategy,
+  citations,
 }: {
   toolName?: string;
   summary: string;
   status: LiveSessionRow["status"];
+  strategy?: SessionMessage["strategy"];
+  citations?: SessionMessage["citations"];
 }) {
-  if (toolName === "append_note") {
-    return (
-      <div className="space-y-2">
-        <ToolSystemRow toolName={toolName} summary={summary} status={status} />
-        <NoteSystemRow summary={summary} />
-      </div>
-    );
-  }
-  if (isCiteTool(toolName)) {
-    return (
-      <div className="space-y-2">
-        <ToolSystemRow toolName={toolName} summary={summary} status={status} />
-        <CiteRow citations={citationsFromTool(toolName ?? "", summary)} source={toolName} />
-      </div>
-    );
-  }
-  return <ToolSystemRow toolName={toolName} summary={summary} status={status} />;
+  const citeRows = citations?.length
+    ? citations.map((c) => ({ title: citationLabel(c) }))
+    : isCiteTool(toolName)
+      ? citationsFromTool(toolName ?? "", summary)
+      : [];
+  return (
+    <div className="space-y-2">
+      {strategy ? <StrategyChip strategy={strategy} lit /> : null}
+      <ToolSystemRow toolName={toolName} summary={summary} status={status} />
+      {citeRows.length ? <CiteRow citations={citeRows} source={toolName} /> : null}
+      {toolName === "append_note" ? <NoteSystemRow summary={summary} /> : null}
+    </div>
+  );
 }
 
 function LiveBundle({ row }: { row: LiveSessionRow }) {

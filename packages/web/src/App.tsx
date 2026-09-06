@@ -18,6 +18,7 @@ import { LearnTab } from "@/tabs/LearnTab";
 import { MeTab } from "@/tabs/MeTab";
 import { api, connectEvents } from "@/lib/api";
 import type { LiveSessionRow } from "@/lib/session-display";
+import { citationLabel, uiNoteType } from "@/lib/session-display";
 import { cn } from "@/lib/utils";
 
 type Tab = "learn" | "books" | "me";
@@ -89,32 +90,10 @@ export default function App() {
         case "session_end":
           setBusy(false);
           setStreaming("");
-          void refresh().then(() => setLiveRows([]));
+          void refresh();
           break;
         case "text_delta":
           setStreaming((s) => s + event.text);
-          break;
-        case "tool_start":
-          setLiveRows((rows) => upsertToolRow(rows, {
-            id: event.toolCallId,
-            kind: "tool",
-            toolName: event.toolName,
-            title: event.toolName,
-            summary: "",
-            status: "running",
-            createdAt: Date.now(),
-          }));
-          break;
-        case "tool_end":
-          setLiveRows((rows) => upsertToolRow(rows, {
-            id: event.toolCallId,
-            kind: "tool",
-            toolName: event.toolName,
-            title: event.toolName,
-            summary: event.summary,
-            status: event.ok ? "done" : "error",
-            createdAt: Date.now(),
-          }));
           break;
         case "error":
           setError(event.message);
@@ -125,36 +104,51 @@ export default function App() {
           void refresh();
           break;
         case "message": {
-          const cites = event.role === "assistant" ? event.citations ?? [] : [];
-          if (cites.length) {
-            setLiveRows((rows) => [
-              ...rows,
-              {
-                id: `cite-${cites.map((c) => c.section_id).join("-")}`,
+          if (event.role !== "assistant") break;
+          const cites = event.citations ?? [];
+          const strategy = event.strategy;
+          if (!strategy && cites.length === 0) break;
+          setLiveRows((rows) => {
+            const next = rows.filter((r) => r.id !== "tutor-meta" && r.id !== "tutor-cites");
+            if (strategy) {
+              next.push({
+                id: "tutor-meta",
+                kind: "tool",
+                title: strategy,
+                summary: "",
+                status: "done",
+                strategy,
+                createdAt: Date.now(),
+              });
+            }
+            if (cites.length) {
+              next.push({
+                id: "tutor-cites",
                 kind: "cite",
                 title: "引用",
                 summary: cites.map((c) => c.section_id).join(" · "),
                 status: "done",
-                citations: cites.map((c) => ({
-                  title: c.note_id ? `章节 ${c.section_id} · 笔记 ${c.note_id}` : `章节 ${c.section_id}`,
-                })),
+                strategy,
+                citations: cites.map((c) => ({ title: citationLabel(c) })),
                 createdAt: Date.now(),
-              },
-            ]);
-          }
+              });
+            }
+            return next;
+          });
           break;
         }
-        case "note_appended":
+        case "note_appended": {
+          const mapped = uiNoteType(event.reason_code, event.note_type);
           setLiveRows((rows) => {
-            if (rows.some((r) => r.toolName === "append_note")) return rows;
+            if (rows.some((r) => r.kind === "note" && r.id === `note-${event.note_id}`)) return rows;
             return [
               ...rows,
               {
                 id: `note-${event.note_id}`,
                 kind: "note",
                 toolName: "append_note",
-                title: event.note_type,
-                summary: event.note_type,
+                title: mapped,
+                summary: mapped,
                 status: "done",
                 createdAt: Date.now(),
               },
@@ -162,14 +156,12 @@ export default function App() {
           });
           void refresh();
           break;
+        }
         case "phase_changed":
         case "boundary_finalized":
         case "outline_finalized":
         case "section_status":
         case "section_ready":
-        case "topic_updated":
-        case "section_updated":
-        case "outline_updated":
           void refresh();
           break;
         default:
@@ -282,14 +274,6 @@ export default function App() {
       </nav>
     </div>
   );
-}
-
-function upsertToolRow(rows: LiveSessionRow[], next: LiveSessionRow): LiveSessionRow[] {
-  const index = rows.findIndex((r) => r.id === next.id && r.kind === "tool");
-  if (index === -1) return [...rows, next];
-  const copy = rows.slice();
-  copy[index] = { ...copy[index], ...next };
-  return copy;
 }
 
 function TabButton({

@@ -1,13 +1,14 @@
-import type {
-  AppSnapshot,
-  HeatmapDay,
-  PublicSettings,
-  SessionEvent,
-  SessionMessage,
-  SettingsInput,
-  TopicDetail,
-  TopicProjection,
-  TopicSummary,
+import {
+  CLIENT_SSE_EVENTS,
+  type AppSnapshot,
+  type HeatmapDay,
+  type PublicSettings,
+  type SessionEvent,
+  type SessionMessage,
+  type SettingsInput,
+  type TopicDetail,
+  type TopicProjection,
+  type TopicSummary,
 } from "@quantum/shared";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -56,27 +57,15 @@ export const api = {
   projection: () => req<TopicProjection>("/api/topics/current/projection"),
 };
 
+/** Frozen domain names only. Aliases like topic_updated / section_updated / outline_updated / tool_* are ignored. */
+export const WEB_SSE_EVENTS = CLIENT_SSE_EVENTS;
+
+/** Stream transport for composer + tutor metadata (`strategy`, `citations[]`). Not domain aliases. */
+const STREAM_SSE_EVENTS = ["session_start", "session_end", "text_delta", "message", "error"] as const;
+
 export function connectEvents(onEvent: (event: SessionEvent) => void): () => void {
   const es = new EventSource("/api/session/events");
-  const types = [
-    "session_start",
-    "session_end",
-    "text_delta",
-    "message",
-    "tool_start",
-    "tool_end",
-    "phase_changed",
-    "boundary_finalized",
-    "outline_finalized",
-    "section_status",
-    "section_ready",
-    "topic_updated",
-    "section_updated",
-    "note_appended",
-    "outline_updated",
-    "export_ready",
-    "error",
-  ];
+  const types = [...WEB_SSE_EVENTS, ...STREAM_SSE_EVENTS];
   for (const type of types) {
     es.addEventListener(type, (raw) => {
       try {

@@ -121,7 +121,7 @@ Learner UI never picks these. No `POST /notes`. **TODO:** which codes belong in 
 
 ## Session SSE (frozen names)
 
-`GET /api/session/events`. Event names must not drift. Web subscribes to:
+`GET /api/session/events`. **Client (`packages/web`) subscribes only to this frozen set.** Older aliases (`topic_updated`, `section_updated`, `outline_updated`, `tool_start`, `tool_end`) are ignored.
 
 | Event | Notes |
 | --- | --- |
@@ -133,7 +133,9 @@ Learner UI never picks these. No `POST /notes`. **TODO:** which codes belong in 
 | `note_appended` | `{ note_id, note_type, reason_code?, section_id? }` — `note_type` is `Note.type`（思考/疑问/拓展）. Wire field is `note_type` because SSE `type` is the event name. |
 | `export_ready` | `{ topicId, format, filename, downloadPath }` |
 
-Assistant `message` metadata (same SSE): `strategy?`, `citations?: [{ section_id, note_id? }]`.
+Stream transport (composer only, not domain aliases): `session_start` / `session_end` / `text_delta` / `message` / `error`.
+Assistant and tool stream rows read `strategy?` and `citations?: [{ section_id, note_id? }]`.
+`note_appended.reason_code` 1–4 is mapped in the UI: 1→思考, 2→疑问, 3→拓展, 4→疑问.
 
 `GET /api/topics/current/projection` shape: `{ topic_title, section_title, outline, phase }`.
 

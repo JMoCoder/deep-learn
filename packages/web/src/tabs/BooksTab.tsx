@@ -11,7 +11,7 @@ import type {
 import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { countOutlineLeaves } from "@/lib/session-display";
+import { countOutlineLeaves, uiNoteType } from "@/lib/session-display";
 import { formatTime, phaseLabel } from "@/lib/utils";
 
 export function BooksTab({
@@ -91,7 +91,7 @@ export function BooksTab({
                     <li key={n.id} className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm">
                       <p>{n.body}</p>
                       <p className="mt-1 text-[11px] text-paper-muted">
-                        {n.type} · {n.reasonCode} · {formatTime(n.createdAt)}
+                        {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} · {formatTime(n.createdAt)}
                       </p>
                     </li>
                   ))}
