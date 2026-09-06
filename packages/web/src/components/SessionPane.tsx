@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 import type { BoundarySnapshot, SessionMessage, TopicPhase } from "@quantum/shared";
 import { isRefuseOffscopeSignal, refuseRedirectCopy } from "@quantum/shared";
+import { AcceptHint } from "@/components/AcceptHint";
 import { InterviewGuide, composerPlaceholder } from "@/components/InterviewGuide";
 import { CiteRow, NoteSystemRow, RefuseRedirectRow, StrategyChip, ToolSystemRow } from "@/components/SessionRows";
 import { Button } from "@/components/ui/button";
@@ -8,9 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   citationLabel,
   citationsFromTool,
-  isCiteTool,
   lastStrategy,
   messageIsRefuse,
+  visibleCitations,
   visibleLiveRows,
   type LiveSessionRow,
 } from "@/lib/session-display";
@@ -32,6 +33,9 @@ export function SessionPane({
   pendingOutline,
   scopeIn,
   scopeOut,
+  onCiteSection,
+  canOpenCite,
+  sectionTitles,
 }: {
   messages: SessionMessage[];
   liveRows: LiveSessionRow[];
@@ -48,6 +52,9 @@ export function SessionPane({
   pendingOutline: boolean;
   scopeIn?: string;
   scopeOut?: string;
+  onCiteSection?: (sectionId: string) => void;
+  canOpenCite?: (sectionId: string) => boolean;
+  sectionTitles?: Map<string, string>;
 }) {
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,6 +71,7 @@ export function SessionPane({
   const hasTrace =
     messages.some((m) => m.role === "tool" || Boolean(m.strategy)) || extras.length > 0;
   const showGuide = phase === "boundary_interview" || pendingBoundary;
+  const citeProps = { onOpenSection: onCiteSection, canOpenSection: canOpenCite };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -74,6 +82,12 @@ export function SessionPane({
             : "已连接模型代理。密钥不会出现在对话或工具参数里。"}
         </p>
         <StrategyChip strategy={strategy} lit={hasTrace && strategy !== "HOLD"} />
+        <AcceptHint
+          phase={phase}
+          pendingBoundary={pendingBoundary}
+          pendingOutline={pendingOutline}
+          hasTopic={Boolean(phase)}
+        />
         {showGuide ? (
           <InterviewGuide
             snapshot={snapshot}
@@ -112,9 +126,18 @@ export function SessionPane({
                 status="done"
                 strategy={m.strategy}
                 citations={m.citations}
+                citeProps={citeProps}
+                sectionTitles={sectionTitles}
               />
             );
           }
+          const cites = visibleCitations(
+            m.citations?.map((c) => ({
+              title: citationLabel(c, sectionTitles),
+              section_id: c.section_id,
+              note_id: c.note_id,
+            })),
+          );
           return (
             <article key={m.id} className="space-y-2 text-sm">
               <div className="mb-0.5 text-[11px] uppercase tracking-wide text-paper-muted">
@@ -125,14 +148,21 @@ export function SessionPane({
                 <StrategyChip strategy={m.strategy} lit />
               ) : null}
               <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
-              {m.role === "assistant" && m.citations?.length ? (
-                <CiteRow citations={m.citations.map((c) => ({ title: citationLabel(c) }))} />
+              {m.role === "assistant" ? (
+                <CiteRow citations={cites} {...citeProps} />
               ) : null}
             </article>
           );
         })}
         {extras.map((row) => (
-          <LiveBundle key={row.id} row={row} scopeIn={scopeIn} scopeOut={scopeOut} />
+          <LiveBundle
+            key={row.id}
+            row={row}
+            scopeIn={scopeIn}
+            scopeOut={scopeOut}
+            citeProps={citeProps}
+            sectionTitles={sectionTitles}
+          />
         ))}
         {streaming ? (
           <article className="text-sm">
@@ -164,33 +194,47 @@ export function SessionPane({
   );
 }
 
+type CiteProps = {
+  onOpenSection?: (sectionId: string) => void;
+  canOpenSection?: (sectionId: string) => boolean;
+};
+
 function ToolBundle({
   toolName,
   summary,
   status,
   strategy,
   citations,
+  citeProps,
+  sectionTitles,
 }: {
   toolName?: string;
   summary: string;
   status: LiveSessionRow["status"];
   strategy?: SessionMessage["strategy"];
   citations?: SessionMessage["citations"];
+  citeProps: CiteProps;
+  sectionTitles?: Map<string, string>;
 }) {
   if (isRefuseOffscopeSignal({ strategy, text: summary, toolName })) {
     const copy = refuseRedirectCopy({ text: summary });
     return <RefuseRedirectRow refuse={copy.refuse} redirect={copy.redirect} />;
   }
-  const citeRows = citations?.length
-    ? citations.map((c) => ({ title: citationLabel(c) }))
-    : isCiteTool(toolName)
-      ? citationsFromTool(toolName ?? "", summary)
-      : [];
+  const fromWire = visibleCitations(
+    citations?.map((c) => ({
+      title: citationLabel(c, sectionTitles),
+      section_id: c.section_id,
+      note_id: c.note_id,
+    })),
+  );
+  const citeRows = fromWire.length ? fromWire : citationsFromTool(toolName ?? "", summary);
   return (
     <div className="space-y-2">
       {strategy ? <StrategyChip strategy={strategy} lit /> : null}
-      <ToolSystemRow toolName={toolName} summary={summary} status={status} />
-      {citeRows.length ? <CiteRow citations={citeRows} source={toolName} /> : null}
+      {summary || status === "running" ? (
+        <ToolSystemRow toolName={toolName} summary={summary} status={status} />
+      ) : null}
+      <CiteRow citations={citeRows} source={toolName} {...citeProps} />
       {toolName === "append_note" ? <NoteSystemRow summary={summary} /> : null}
     </div>
   );
@@ -200,21 +244,42 @@ function LiveBundle({
   row,
   scopeIn,
   scopeOut,
+  citeProps,
+  sectionTitles,
 }: {
   row: LiveSessionRow;
   scopeIn?: string;
   scopeOut?: string;
+  citeProps: CiteProps;
+  sectionTitles?: Map<string, string>;
 }) {
   if (row.kind === "refuse" || isRefuseOffscopeSignal({ strategy: row.strategy, text: row.summary })) {
     const copy = refuseRedirectCopy({ scopeIn, scopeOut, text: row.summary });
     return <RefuseRedirectRow refuse={copy.refuse} redirect={copy.redirect} />;
   }
   if (row.kind === "cite") {
-    return <CiteRow citations={row.citations ?? citationsFromTool(row.toolName ?? "", row.summary)} source={row.toolName} />;
+    return (
+      <CiteRow
+        citations={visibleCitations(row.citations)}
+        source={row.toolName}
+        {...citeProps}
+      />
+    );
   }
   if (row.kind === "note") {
     return <NoteSystemRow summary={row.summary} />;
   }
-  return <ToolBundle toolName={row.toolName} summary={row.summary} status={row.status} />;
+  if (!row.summary && row.strategy && row.status === "done") {
+    return <StrategyChip strategy={row.strategy} lit />;
+  }
+  return (
+    <ToolBundle
+      toolName={row.toolName}
+      summary={row.summary}
+      status={row.status}
+      strategy={row.strategy}
+      citeProps={citeProps}
+      sectionTitles={sectionTitles}
+    />
+  );
 }
-

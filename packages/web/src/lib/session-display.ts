@@ -23,6 +23,8 @@ export type LiveSessionRow = {
 export type Citation = {
   title: string;
   url?: string;
+  section_id?: string;
+  note_id?: string;
 };
 
 const CITE_TOOLS = new Set(["generate_section", "get_section", "list_outline"]);
@@ -76,6 +78,7 @@ export function strategyFromTool(toolName?: string): TutorStrategy | null {
     case "finalize_outline":
       return "SCAFFOLD";
     case "generate_section":
+      return null;
     case "get_section":
     case "list_outline":
       return "GROUND";
@@ -96,8 +99,38 @@ export function uiNoteType(reason: unknown, fallback?: string): NoteType {
   return "思考";
 }
 
-export function citationLabel(cite: { section_id: string; note_id?: string }): string {
-  return cite.note_id ? `章节 ${cite.section_id} · 笔记 ${cite.note_id}` : `章节 ${cite.section_id}`;
+export function citationLabel(
+  cite: { section_id: string; note_id?: string },
+  titles?: Map<string, string>,
+): string {
+  const name = titles?.get(cite.section_id);
+  const head = name || `章节 ${cite.section_id.slice(0, 8)}`;
+  return cite.note_id ? `${head} · 笔记` : head;
+}
+
+export function citationsFromWire(
+  cites: Array<{ section_id: string; note_id?: string }> | undefined,
+  titles?: Map<string, string>,
+): Citation[] {
+  if (!cites?.length) return [];
+  return cites
+    .filter((c) => c.section_id?.trim())
+    .map((c) => ({
+      section_id: c.section_id,
+      note_id: c.note_id,
+      title: citationLabel(c, titles),
+    }));
+}
+
+export function visibleCitations(cites: Citation[] | undefined | null): Citation[] {
+  if (!cites?.length) return [];
+  return cites.filter((c) => {
+    const title = (c.title ?? "").trim();
+    if (c.section_id?.trim()) return title !== "当前章节" && title !== "当前大纲";
+    if (!title) return false;
+    if (title === "当前章节" || title === "当前大纲") return false;
+    return true;
+  });
 }
 
 export function lastStrategy(
@@ -123,28 +156,27 @@ export function lastStrategy(
 
 export function citationsFromTool(toolName: string, summary: string): Citation[] {
   if (!isCiteTool(toolName)) return [];
-  const urls = summary.match(/https?:\/\/[^\s)]+/g) ?? [];
-  if (urls.length) {
-    return [...new Set(urls)].map((url) => ({ title: url, url }));
-  }
   const trimmed = summary.trim();
+  if (!trimmed) return [];
   try {
     const parsed = JSON.parse(trimmed) as {
-      sources?: Array<{ title?: string; url?: string }>;
-      citations?: Array<{ title?: string; url?: string }>;
+      sources?: Array<{ title?: string; url?: string; section_id?: string }>;
+      citations?: Array<{ title?: string; url?: string; section_id?: string }>;
     };
     const list = parsed.sources ?? parsed.citations ?? [];
-    if (list.length) {
-      return list.map((item) => ({
-        title: item.title || item.url || "来源",
-        url: item.url,
-      }));
-    }
+    return visibleCitations(
+      list
+        .filter((item) => item.section_id || item.url || item.title)
+        .map((item) => ({
+          title: item.title || item.url || "",
+          url: item.url,
+          section_id: item.section_id,
+        })),
+    );
   } catch {
-    /* not json */
+    /* tool dumps are not cites */
   }
-  if (trimmed) return [{ title: trimmed.slice(0, 140) }];
-  return [{ title: toolName === "list_outline" ? "当前大纲" : "当前章节" }];
+  return [];
 }
 
 export function countOutlineLeaves(nodes: OutlineNode[]): { ready: number; total: number } {

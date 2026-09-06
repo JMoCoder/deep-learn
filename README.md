@@ -73,6 +73,8 @@ pnpm test
 pnpm --filter @quantum/web build
 ```
 
+银时五步 +「下一节」ADVANCE + scope_out 手点：`docs/hand-click-five-steps.md`。学习页「银时手点」条随相位提示。
+
 ### Retest 1.2 / 1.3 / 2.7 (UI)
 
 Stub walks the 8 interview dims. The UI must not claim unasked dims are complete.

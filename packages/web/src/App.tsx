@@ -7,11 +7,14 @@ import type {
   HeatmapDay,
   NoteRecord,
   OutlineNode,
+  PrereqEdge,
   PublicSettings,
   SectionRecord,
+  SessionCitation,
   SessionEvent,
   SessionMessage,
   TopicSummary,
+  TutorStrategy,
 } from "@quantum/shared";
 import {
   emptyBoundarySnapshot,
@@ -28,8 +31,9 @@ import { LearnTab } from "@/tabs/LearnTab";
 import { MeTab } from "@/tabs/MeTab";
 import { api, connectEvents } from "@/lib/api";
 import { readBoundaryConfirmed, writeBoundaryConfirmed } from "@/lib/boundary-session";
+import { mergePrereqEdges, outlineTitleMap } from "@/lib/prereq-display";
 import type { LiveSessionRow } from "@/lib/session-display";
-import { citationLabel, uiNoteType } from "@/lib/session-display";
+import { citationsFromWire, uiNoteType } from "@/lib/session-display";
 import { cn } from "@/lib/utils";
 
 type Tab = "learn" | "books" | "me";
@@ -62,6 +66,11 @@ export default function App() {
   const [booksDrawer, setBooksDrawer] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [liveRows, setLiveRows] = useState<LiveSessionRow[]>([]);
+  const [prereqEdges, setPrereqEdges] = useState<PrereqEdge[]>([]);
+  const [overlays, setOverlays] = useState<
+    Array<{ text: string; strategy?: TutorStrategy; citations?: SessionCitation[] }>
+  >([]);
+  const outlineRef = useRef<OutlineNode[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -73,7 +82,14 @@ export default function App() {
       if (state.currentTopicId) {
         const detail = await api.topic(state.currentTopicId);
         setOutline(detail.outline);
+        outlineRef.current = detail.outline;
         setSection(detail.currentSection);
+        try {
+          const proj = await api.projection();
+          setPrereqEdges(mergePrereqEdges(proj.prereq_edges, detail.outline));
+        } catch {
+          setPrereqEdges(mergePrereqEdges(undefined, detail.outline));
+        }
         setNotes(detail.notes);
         setBoundaries(detail.boundaries);
         const packed = detail.boundary_snapshot ?? snapshotFromAnswers(detail.boundaries);
@@ -82,6 +98,8 @@ export default function App() {
         setBoundaryConfirmed(pastGate || readBoundaryConfirmed(state.currentTopicId));
       } else {
         setOutline([]);
+        outlineRef.current = [];
+        setPrereqEdges([]);
         setSection(null);
         setNotes([]);
         setBoundaries([]);
@@ -149,6 +167,13 @@ export default function App() {
             break;
           }
           if (!strategy && cites.length === 0) break;
+          const titles = outlineTitleMap(outlineRef.current);
+          const labeled = citationsFromWire(cites, titles);
+          setOverlays((prev) => {
+            const next = prev.filter((o) => o.text !== event.text);
+            next.push({ text: event.text, strategy, citations: cites });
+            return next.slice(-40);
+          });
           setLiveRows((rows) => {
             const next = rows.filter((r) => r.id !== "tutor-meta" && r.id !== "tutor-cites");
             if (strategy) {
@@ -162,15 +187,15 @@ export default function App() {
                 createdAt: Date.now(),
               });
             }
-            if (cites.length) {
+            if (labeled.length) {
               next.push({
                 id: "tutor-cites",
                 kind: "cite",
                 title: "引用",
-                summary: cites.map((c) => c.section_id).join(" · "),
+                summary: labeled.map((c) => c.title).join(" · "),
                 status: "done",
                 strategy,
-                citations: cites.map((c) => ({ title: citationLabel(c) })),
+                citations: labeled,
                 createdAt: Date.now(),
               });
             }
@@ -279,6 +304,17 @@ export default function App() {
     setSessionOpen(true);
   }
 
+  const displayMessages = messages.map((m) => {
+    if (m.role !== "assistant") return m;
+    const hit = overlays.find((o) => o.text === m.text);
+    if (!hit) return m;
+    return {
+      ...m,
+      strategy: m.strategy ?? hit.strategy,
+      citations: m.citations?.length ? m.citations : hit.citations,
+    };
+  });
+
   const topic = snapshot?.topic ?? null;
   const coachMode = snapshot?.coachMode ?? "stub";
   const settings = snapshot?.settings ?? emptySettings;
@@ -311,13 +347,14 @@ export default function App() {
           topic={topic}
           section={section}
           outline={outline}
+          prereqEdges={prereqEdges}
           currentSectionId={snapshot?.currentSectionId ?? null}
           outlineOpen={outlineOpen}
           sessionOpen={sessionOpen}
           onOutlineOpen={setOutlineOpen}
           onSessionOpen={setSessionOpen}
           onSelectSection={(id) => void selectSection(id)}
-          messages={messages}
+          messages={displayMessages}
           liveRows={liveRows}
           streaming={streaming}
           busy={busy}

@@ -3,23 +3,34 @@ import { List, Sparkles } from "lucide-react";
 import type {
   BoundarySnapshot,
   OutlineNode,
+  PrereqEdge,
   SectionRecord,
   SessionMessage,
   TopicPhase,
   TopicSummary,
 } from "@quantum/shared";
+import { AcceptHint } from "@/components/AcceptHint";
 import { BoundaryCard } from "@/components/BoundaryCard";
 import { Drawer } from "@/components/Drawer";
 import { OutlineConfirmCard } from "@/components/OutlineConfirmCard";
 import { OutlineTree } from "@/components/OutlineTree";
+import { PrereqEdgeList } from "@/components/PrereqEdgeList";
 import { SessionPane } from "@/components/SessionPane";
 import { Button } from "@/components/ui/button";
+import {
+  findOutlineNode,
+  mergePrereqEdges,
+  outlineTitleMap,
+  prereqsPointingAt,
+  sectionHasProjectedBody,
+} from "@/lib/prereq-display";
 import type { LiveSessionRow } from "@/lib/session-display";
 
 export function LearnTab({
   topic,
   section,
   outline,
+  prereqEdges,
   currentSectionId,
   outlineOpen,
   sessionOpen,
@@ -43,6 +54,7 @@ export function LearnTab({
   topic: TopicSummary | null;
   section: SectionRecord | null;
   outline: OutlineNode[];
+  prereqEdges: PrereqEdge[];
   currentSectionId: string | null;
   outlineOpen: boolean;
   sessionOpen: boolean;
@@ -67,6 +79,12 @@ export function LearnTab({
     ? `${topic.title}·${section?.title ?? "章节"}`
     : "主题·章节";
   const phase: TopicPhase | "" = topic?.phase ?? "";
+  const edges = mergePrereqEdges(prereqEdges, outline);
+  const titles = outlineTitleMap(outline);
+  const currentNode =
+    findOutlineNode(outline, section?.outlineNodeId ?? null) ??
+    findOutlineNode(outline, currentSectionId);
+  const currentPrereqs = currentNode ? prereqsPointingAt(currentNode.id, edges) : [];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -107,6 +125,7 @@ export function LearnTab({
         ) : pendingOutline ? (
           <OutlineConfirmCard
             nodes={outline}
+            edges={edges}
             onConfirm={() => onSend("可以")}
             onRevise={() => onSessionOpen(true)}
           />
@@ -117,9 +136,25 @@ export function LearnTab({
           />
         ) : (
           <article className="prose-quantum mx-auto max-w-2xl">
+            {currentPrereqs.length ? (
+              <div className="mb-4 rounded-lg border border-paper-line bg-paper-deep/40 px-3 py-2 not-prose">
+                <p className="text-[11px] font-semibold tracking-wide text-pine">先修</p>
+                <PrereqEdgeList edges={currentPrereqs} compact />
+              </div>
+            ) : null}
             <Markdown>{section.bodyMd}</Markdown>
           </article>
         )}
+        {topic && !pendingBoundary ? (
+          <div className="mx-auto mt-6 max-w-2xl">
+            <AcceptHint
+              phase={phase}
+              pendingBoundary={pendingBoundary}
+              pendingOutline={pendingOutline}
+              hasTopic
+            />
+          </div>
+        ) : null}
       </div>
 
       <Drawer
@@ -131,6 +166,7 @@ export function LearnTab({
         <OutlineTree
           nodes={outline}
           currentId={currentSectionId}
+          edges={edges}
           onSelect={(id) => {
             onSelectSection(id);
             onOutlineOpen(false);
@@ -160,6 +196,9 @@ export function LearnTab({
           pendingOutline={pendingOutline}
           scopeIn={snapshot.scope_in}
           scopeOut={snapshot.scope_out}
+          sectionTitles={titles}
+          onCiteSection={onSelectSection}
+          canOpenCite={(id) => sectionHasProjectedBody(id, section, outline)}
         />
       </Drawer>
     </div>

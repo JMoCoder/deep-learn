@@ -1,16 +1,22 @@
-import type { OutlineNode } from "@quantum/shared";
+import type { OutlineNode, PrereqEdge } from "@quantum/shared";
+import { PrereqEdgeList } from "@/components/PrereqEdgeList";
 import { Button } from "@/components/ui/button";
+import { mergePrereqEdges, outlineTitleMap, resolveDependsOnTitles } from "@/lib/prereq-display";
 
 export function OutlineConfirmCard({
   nodes,
+  edges,
   onConfirm,
   onRevise,
 }: {
   nodes: OutlineNode[];
+  edges?: PrereqEdge[];
   onConfirm: () => void;
   onRevise: () => void;
 }) {
   const leaves = flattenLeaves(nodes);
+  const titles = outlineTitleMap(nodes);
+  const resolved = mergePrereqEdges(edges, nodes);
 
   return (
     <section className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-paper-line bg-white/70">
@@ -21,24 +27,35 @@ export function OutlineConfirmCard({
           看每叶的 objective、先修与篇幅。确认后进入学习投影，不再另开计划页。
         </p>
       </header>
+      {resolved.length > 0 ? (
+        <div className="border-b border-paper-line px-5 py-3">
+          <p className="text-[11px] font-semibold tracking-wide text-pine">先修序</p>
+          <div className="mt-1.5">
+            <PrereqEdgeList edges={resolved} />
+          </div>
+        </div>
+      ) : null}
       {leaves.length === 0 ? (
         <p className="px-5 py-6 text-sm text-paper-muted">大纲还在起草。稍等，或在右侧会话催一句。</p>
       ) : (
         <ol className="space-y-2 px-5 py-4">
-          {leaves.map((leaf, i) => (
-            <li key={leaf.id} className="rounded-lg border border-paper-line px-3 py-2">
-              <p className="text-sm font-medium">
-                {i + 1}. {leaf.title}
-              </p>
-              <p className="mt-1 text-sm text-paper-ink/85">
-                {leaf.objective || leaf.intent || "（无 objective）"}
-              </p>
-              <p className="mt-1 text-[11px] text-paper-muted">
-                先修 {leaf.dependsOn.length ? leaf.dependsOn.join(" → ") : "无"} · 篇幅{" "}
-                {leaf.targetChars > 0 ? `${leaf.targetChars} 字` : "未声明"}
-              </p>
-            </li>
-          ))}
+          {leaves.map((leaf, i) => {
+            const prereqTitles = resolveDependsOnTitles(leaf.dependsOn, titles);
+            return (
+              <li key={leaf.id} className="rounded-lg border border-paper-line px-3 py-2">
+                <p className="text-sm font-medium">
+                  {i + 1}. {leaf.title}
+                </p>
+                <p className="mt-1 text-sm text-paper-ink/85">
+                  {leaf.objective || leaf.intent || "（无 objective）"}
+                </p>
+                <p className="mt-1 text-[11px] text-paper-muted">
+                  先修 {prereqTitles.length ? prereqTitles.join(" → ") : "无"} · 篇幅{" "}
+                  {leaf.targetChars > 0 ? `${leaf.targetChars} 字` : "未声明"}
+                </p>
+              </li>
+            );
+          })}
         </ol>
       )}
       <footer className="flex flex-wrap gap-2 border-t border-paper-line px-5 py-3">

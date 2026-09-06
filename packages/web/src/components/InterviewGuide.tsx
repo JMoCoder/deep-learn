@@ -79,5 +79,8 @@ export function composerPlaceholder(input: {
     };
     return id ? map[id] : "直接回答当前这一问";
   }
+  if (input.phase === "learning") {
+    return "问这一节，或说「下一节」推进；踩排除区会被拒回流";
+  }
   return "直接回答，或说卡住了哪里";
 }

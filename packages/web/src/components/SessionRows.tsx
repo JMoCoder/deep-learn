@@ -12,6 +12,8 @@ export function StrategyChip({
 }) {
   return (
     <div
+      data-testid="strategy-chip"
+      data-strategy={strategy}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] tracking-wide",
         lit
@@ -26,24 +28,54 @@ export function StrategyChip({
   );
 }
 
-export function CiteRow({ citations, source }: { citations: Citation[]; source?: string }) {
+export function CiteRow({
+  citations,
+  source,
+  onOpenSection,
+  canOpenSection,
+}: {
+  citations: Citation[];
+  source?: string;
+  onOpenSection?: (sectionId: string) => void;
+  canOpenSection?: (sectionId: string) => boolean;
+}) {
+  if (citations.length === 0) return null;
   return (
-    <article className="rounded-lg border border-pine/20 bg-pine/5 px-3 py-2 text-sm">
+    <article className="rounded-lg border border-pine/20 bg-pine/5 px-3 py-2 text-sm" data-testid="cite-row">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-pine">
         引用{source ? ` · ${toolLabel(source)}` : ""}
       </div>
       <ul className="mt-1.5 space-y-1">
-        {citations.map((c, i) => (
-          <li key={`${c.title}-${i}`} className="leading-relaxed text-paper-ink/90">
-            {c.url ? (
-              <a href={c.url} className="underline decoration-pine/40 underline-offset-2" target="_blank" rel="noreferrer">
-                {c.title}
-              </a>
-            ) : (
-              c.title
-            )}
-          </li>
-        ))}
+        {citations.map((c, i) => {
+          const open =
+            Boolean(c.section_id) &&
+            Boolean(onOpenSection) &&
+            (canOpenSection?.(c.section_id!) ?? false);
+          return (
+            <li key={`${c.section_id ?? c.title}-${i}`} className="leading-relaxed text-paper-ink/90">
+              {open ? (
+                <button
+                  type="button"
+                  className="text-left underline decoration-pine/40 underline-offset-2"
+                  onClick={() => onOpenSection?.(c.section_id!)}
+                >
+                  {c.title}
+                </button>
+              ) : c.url ? (
+                <a
+                  href={c.url}
+                  className="underline decoration-pine/40 underline-offset-2"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {c.title}
+                </a>
+              ) : (
+                c.title
+              )}
+            </li>
+          );
+        })}
       </ul>
     </article>
   );
