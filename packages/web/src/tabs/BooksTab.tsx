@@ -4,18 +4,21 @@ import type {
   BoundaryRecord,
   ExportFormat,
   NoteRecord,
+  OutlineNode,
   SectionRecord,
   TopicSummary,
 } from "@quantum/shared";
 import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { countOutlineLeaves } from "@/lib/session-display";
 import { formatTime, phaseLabel } from "@/lib/utils";
 
 export function BooksTab({
   topic,
   section,
   notes,
+  outline,
   boundaries,
   topics,
   drawerOpen,
@@ -27,6 +30,7 @@ export function BooksTab({
   topic: TopicSummary | null;
   section: SectionRecord | null;
   notes: NoteRecord[];
+  outline: OutlineNode[];
   boundaries: BoundaryRecord[];
   topics: TopicSummary[];
   drawerOpen: boolean;
@@ -36,35 +40,15 @@ export function BooksTab({
   onExport: (id: string, format: ExportFormat) => void;
 }) {
   const [exportId, setExportId] = useState<string | null>(null);
-  const goal = boundaries.find((b) => b.kind === "goal")?.answer.trim();
+  const goal =
+    boundaries.find((b) => b.kind === "goal_outcome" || b.kind === "goal")?.answer.trim() || "";
+  const leaves = countOutlineLeaves(outline);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-b border-paper-line">
-        <div className="flex items-stretch gap-2 px-3 py-3">
-          <div className="min-w-0 flex-1 rounded-xl border border-paper-line bg-paper-deep/70 px-4 py-3">
-            {topic ? (
-              <>
-                <p className="text-[11px] tracking-wide text-paper-muted">
-                  {phaseLabel(topic.phase)}
-                  {topic.exportState !== "idle" ? ` · 导出 ${topic.exportState}` : ""}
-                </p>
-                <h1 className="mt-1 truncate font-serif text-xl leading-tight">{topic.title}</h1>
-                {goal ? (
-                  <p className="mt-1 truncate text-xs text-paper-muted">{goal}</p>
-                ) : (
-                  <p className="mt-1 text-xs text-paper-muted">当前主题 · 边界未齐时先走右侧会话</p>
-                )}
-              </>
-            ) : (
-              <>
-                <h1 className="font-serif text-xl leading-tight">还没有当前主题</h1>
-                <p className="mt-1 text-xs text-paper-muted">
-                  点右侧打开主题抽屉，先「新建主题」。没有页面标题「书籍」。
-                </p>
-              </>
-            )}
-          </div>
+      <header className="border-b border-paper-line px-3 py-3">
+        <div className="flex items-stretch gap-2">
+          <TopicHero topic={topic} goal={goal} noteCount={notes.length} leaves={leaves} />
           <Button
             variant="ghost"
             size="icon"
@@ -179,5 +163,62 @@ export function BooksTab({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function TopicHero({
+  topic,
+  goal,
+  noteCount,
+  leaves,
+}: {
+  topic: TopicSummary | null;
+  goal: string;
+  noteCount: number;
+  leaves: { ready: number; total: number };
+}) {
+  return (
+    <section className="hero-topic relative min-w-0 flex-1 overflow-hidden rounded-[1.35rem] border border-paper-line/90 px-4 py-4 pl-5">
+      <span aria-hidden className="hero-accent" />
+      <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">当前主题</p>
+      {topic ? (
+        <>
+          <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
+          {goal ? (
+            <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
+          ) : (
+            <p className="mt-2 text-sm text-paper-muted">边界未齐时，先打开学习页右上角会话。</p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <MetaChip>
+              章节 {leaves.ready}/{leaves.total || "—"}
+            </MetaChip>
+            <MetaChip>笔记 {noteCount}</MetaChip>
+            <MetaChip>
+              {phaseLabel(topic.phase)}
+              {topic.exportState !== "idle" ? ` · 导出 ${topic.exportState}` : ""}
+            </MetaChip>
+          </div>
+        </>
+      ) : (
+        <>
+          <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">还没有当前主题</h1>
+          <p className="mt-2 text-sm text-paper-muted">点右侧打开主题抽屉，先「新建主题」。</p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <MetaChip>章节 —</MetaChip>
+            <MetaChip>笔记 0</MetaChip>
+            <MetaChip>未开始</MetaChip>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function MetaChip({ children }: { children: string }) {
+  return (
+    <span className="meta-chip inline-flex items-center rounded-full border border-cinnabar/15 bg-white/55 px-2.5 py-0.5 text-[11px] text-paper-ink/80">
+      {children}
+    </span>
   );
 }

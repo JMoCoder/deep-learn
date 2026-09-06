@@ -68,3 +68,20 @@ body {
   padding: 0.1em 0.35em;
   border-radius: 4px;
 }
+
+.hero-topic {
+  background:
+    linear-gradient(135deg, #fffaf2 0%, #f4efe4 42%, #f6e4d8 100%);
+  box-shadow: 0 12px 28px #2b2a2610;
+}
+
+.hero-accent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.38rem;
+  background: linear-gradient(180deg, var(--color-cinnabar), var(--color-cinnabar-soft));
+}
+
+.meta-chip {
+  backdrop-filter: blur(6px);
+}

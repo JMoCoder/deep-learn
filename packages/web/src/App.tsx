@@ -17,6 +17,7 @@ import { BooksTab } from "@/tabs/BooksTab";
 import { LearnTab } from "@/tabs/LearnTab";
 import { MeTab } from "@/tabs/MeTab";
 import { api, connectEvents } from "@/lib/api";
+import type { LiveSessionRow } from "@/lib/session-display";
 import { cn } from "@/lib/utils";
 
 type Tab = "learn" | "books" | "me";
@@ -45,6 +46,7 @@ export default function App() {
   const [sessionOpen, setSessionOpen] = useState(false);
   const [booksDrawer, setBooksDrawer] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [liveRows, setLiveRows] = useState<LiveSessionRow[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -82,14 +84,37 @@ export default function App() {
           setBusy(true);
           setStreaming("");
           setError(null);
+          setLiveRows([]);
           break;
         case "session_end":
           setBusy(false);
           setStreaming("");
-          void refresh();
+          void refresh().then(() => setLiveRows([]));
           break;
         case "text_delta":
           setStreaming((s) => s + event.text);
+          break;
+        case "tool_start":
+          setLiveRows((rows) => upsertToolRow(rows, {
+            id: event.toolCallId,
+            kind: "tool",
+            toolName: event.toolName,
+            title: event.toolName,
+            summary: "",
+            status: "running",
+            createdAt: Date.now(),
+          }));
+          break;
+        case "tool_end":
+          setLiveRows((rows) => upsertToolRow(rows, {
+            id: event.toolCallId,
+            kind: "tool",
+            toolName: event.toolName,
+            title: event.toolName,
+            summary: event.summary,
+            status: event.ok ? "done" : "error",
+            createdAt: Date.now(),
+          }));
           break;
         case "error":
           setError(event.message);
@@ -99,10 +124,27 @@ export default function App() {
           window.open(event.downloadPath, "_blank");
           void refresh();
           break;
+        case "note_appended":
+          setLiveRows((rows) => {
+            if (rows.some((r) => r.toolName === "append_note")) return rows;
+            return [
+              ...rows,
+              {
+                id: `note-${event.noteId}`,
+                kind: "note",
+                toolName: "append_note",
+                title: "笔记已写入",
+                summary: "append_note",
+                status: "done",
+                createdAt: Date.now(),
+              },
+            ];
+          });
+          void refresh();
+          break;
         case "phase_changed":
         case "topic_updated":
         case "section_updated":
-        case "note_appended":
         case "outline_updated":
           void refresh();
           break;
@@ -122,6 +164,7 @@ export default function App() {
   }
 
   async function createTopic() {
+    setLiveRows([]);
     await api.createTopic();
     setTab("learn");
     setSessionOpen(true);
@@ -129,6 +172,7 @@ export default function App() {
   }
 
   async function switchTopic(id: string) {
+    setLiveRows([]);
     await api.switchTopic(id);
     setTab("learn");
     await refresh();
@@ -171,6 +215,7 @@ export default function App() {
           onSessionOpen={setSessionOpen}
           onSelectSection={(id) => void selectSection(id)}
           messages={messages}
+          liveRows={liveRows}
           streaming={streaming}
           busy={busy}
           coachMode={coachMode}
@@ -184,6 +229,7 @@ export default function App() {
           topic={topic}
           section={section}
           notes={notes}
+          outline={outline}
           boundaries={boundaries}
           topics={topics}
           drawerOpen={booksDrawer}
@@ -212,6 +258,14 @@ export default function App() {
       </nav>
     </div>
   );
+}
+
+function upsertToolRow(rows: LiveSessionRow[], next: LiveSessionRow): LiveSessionRow[] {
+  const index = rows.findIndex((r) => r.id === next.id && r.kind === "tool");
+  if (index === -1) return [...rows, next];
+  const copy = rows.slice();
+  copy[index] = { ...copy[index], ...next };
+  return copy;
 }
 
 function TabButton({

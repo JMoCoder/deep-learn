@@ -12,8 +12,12 @@
       header.bar { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; border-bottom: 1px solid var(--line); padding: 8px; }
       header.bar h1 { margin: 0; text-align: center; font-family: "Noto Serif SC", serif; font-size: 15px; }
       header.hero { display: flex; gap: 8px; align-items: stretch; padding: 12px; border-bottom: 1px solid var(--line); }
-      .hero-card { flex: 1; border: 1px solid var(--line); background: var(--deep); border-radius: 12px; padding: 12px 14px; }
-      .hero-card h1 { margin: 4px 0 0; font-family: "Noto Serif SC", serif; font-size: 20px; }
+      .hero-card { flex: 1; position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; padding: 14px 14px 14px 18px; background: linear-gradient(135deg, #fffaf2, #f4efe4 45%, #f6e4d8); box-shadow: 0 10px 24px #2b2a2610; }
+      .hero-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--cin); }
+      .hero-card .eye { margin: 0; font-size: 11px; letter-spacing: .16em; color: var(--cin); font-weight: 600; }
+      .hero-card h1 { margin: 6px 0 0; font-family: "Noto Serif SC", serif; font-size: 24px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      .chip { font-size: 11px; border: 1px solid #8c2f1926; background: #fff8; border-radius: 999px; padding: 2px 8px; }
       main { flex: 1; padding: 20px 18px 80px; }
       nav { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); }
       nav button, .icon { background: none; border: 0; padding: 10px; font: inherit; color: var(--muted); }
@@ -58,9 +62,14 @@
       <div id="books" hidden>
         <header class="hero">
           <div class="hero-card">
-            <p class="muted">学习中</p>
+            <p class="eye">当前主题</p>
             <h1>当前主题标题</h1>
-            <p class="muted">我能……（来自 BoundarySnapshot.goal）</p>
+            <p class="muted">我能……（来自 BoundarySnapshot.goal_outcome）</p>
+            <div class="chips">
+              <span class="chip">章节 1/4</span>
+              <span class="chip">笔记 2</span>
+              <span class="chip">学习中</span>
+            </div>
           </div>
           <button class="icon" onclick="openDrawer('topics')">☰</button>
         </header>

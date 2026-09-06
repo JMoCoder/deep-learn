@@ -5,6 +5,7 @@ import { Drawer } from "@/components/Drawer";
 import { OutlineTree } from "@/components/OutlineTree";
 import { SessionPane } from "@/components/SessionPane";
 import { Button } from "@/components/ui/button";
+import type { LiveSessionRow } from "@/lib/session-display";
 
 export function LearnTab({
   topic,
@@ -17,6 +18,7 @@ export function LearnTab({
   onSessionOpen,
   onSelectSection,
   messages,
+  liveRows,
   streaming,
   busy,
   coachMode,
@@ -33,6 +35,7 @@ export function LearnTab({
   onSessionOpen: (open: boolean) => void;
   onSelectSection: (id: string) => void;
   messages: SessionMessage[];
+  liveRows: LiveSessionRow[];
   streaming: string;
   busy: boolean;
   coachMode: "stub" | "live";
@@ -69,12 +72,12 @@ export function LearnTab({
         {!topic ? (
           <Empty
             title="还没有当前主题"
-            body="打开「书籍」，从右侧抽屉点「新建主题」。会话入口只在顶栏右侧，不会出现在正文里。"
+            body="打开底栏「书籍」，从右侧抽屉点「新建主题」。会话只在顶栏右侧，正文里没有入口。"
           />
         ) : !section ? (
           <Empty
             title="正文尚未投影"
-            body="大纲确定后，助手会把章节写到这里。若还在访谈，请点右上角继续对话。"
+            body="大纲确定后，助手会把章节写到这里。若还在访谈，点顶栏右侧继续会话。"
           />
         ) : (
           <article className="prose-quantum mx-auto max-w-2xl">
@@ -107,6 +110,7 @@ export function LearnTab({
       >
         <SessionPane
           messages={messages}
+          liveRows={liveRows}
           streaming={streaming}
           busy={busy}
           coachMode={coachMode}
