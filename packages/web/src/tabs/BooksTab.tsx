@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Library } from "lucide-react";
 import type {
   BoundaryRecord,
@@ -215,7 +215,7 @@ function TopicHero({
   );
 }
 
-function MetaChip({ children }: { children: string }) {
+function MetaChip({ children }: { children: ReactNode }) {
   return (
     <span className="meta-chip inline-flex items-center rounded-full border border-cinnabar/15 bg-white/55 px-2.5 py-0.5 text-[11px] text-paper-ink/80">
       {children}
