@@ -1,31 +1,44 @@
-# Two cores — acceptance checklist (v0)
+# Quantum — 两核验收清单 v0
 
-Manual + automated checks for Core 1 (onboarding) and Core 2 (sidebar). Pedagogy items are **behavior** checks, not science claims.
+> 作者：结野主税（产品）  
+> 日期：2026-09-06  
+> 依据：`core1-onboarding-research-v0.md` + `core2-sidebar-ai-research-v0.md`；基线 v0.4/v0.5；IA v1.3.1  
+> 用途：首迭代演示 / 冒烟验收；过了再谈热力图·导出版式等 §6
 
-## Core 1 — New-topic guidance
+---
 
-- [ ] 书籍 hero has **no** page title「书籍」; tab label「书籍」remains in the bottom nav.
-- [ ] Topic drawer opens from the **RIGHT**. First card = 新建主题.
-- [ ] 新建主题 sets the only `current_topic_id` and starts `boundary_interview`.
-- [ ] Coach/live agent asks boundaries via `ask_boundary` (not a form).
-- [ ] `finalize_boundary` refused (`ok: false`) without `goal_outcome`, `prior_level`, `scope_out`, `depth`, `chunk_budget`.
-- [ ] After finalize, phase is `outline_draft`; `draft_outline` produces orientation-first tree with `objective` / `depends_on` / `target_chars` fields present (values may be scaffolded).
-- [ ] Confirm「可以」→ `finalize_outline` → `learning` → first leaf `generate_section`.
-- [ ] Docs name the 8-step snapshot and mark steps 4 / 8 as TODO (`docs/core1-onboarding-research-v0.md`).
-- [ ] Automated: `pnpm test` store phase helpers + coach interview/outline tests.
+## 核① 新建主题引导
 
-## Core 2 — Right-side session
+| # | 验收项 | 过线标准 |
+|---|--------|----------|
+| 1.1 | 入口 | 仅从书籍右侧主题侧栏**首卡「新建主题」**进入；无表单页旁路 |
+| 1.2 | 提问维度 | 引导覆盖：动机、终点表现、成功证据、先验、先修轻探、scope_in/out、深度、负荷（可合并问，不可缺维） |
+| 1.3 | 边界卡 | `finalize_boundary` 后可展示结构化边界卡；必填齐（goal_outcome / prior_level / scope_out / depth / chunk_budget） |
+| 1.4 | 大纲质量 | 草稿含 `objective`、可见先修序（`depends_on` 或等价）、`target_chars` 服从 chunk_budget；不踩 scope_out |
+| 1.5 | 反模式 | 无「先填章节名再倒推」；无只问主题名+三档难度就出大纲 |
+| 1.6 | 计划形态 | 确认大纲后进入学习投影；不另起甘特/CRUD 计划页 |
 
-- [ ] 学习 body has **no** session composer; right drawer does.
-- [ ] System prompt is packed by internal `build_tutor_context` (L0–L3; L4 deferred), not by pasting keys or other topics.
-- [ ] A real learner line in `learning` can become exactly one `append_note` with frozen `reason_code` 1–4 → Note.type 思考/疑问/拓展; no user「记一笔」.
-- [ ] After `append_note` tool result, the stub coach **stops** (no loop).
-- [ ] 书籍 notes list shows AI notes only; export modal offers `md | html | epub` via `export_topic`.
-- [ ] Strategy enum exists in shared types; live firing policy remains TODO (`docs/core2-sidebar-ai-research-v0.md`).
-- [ ] Automated: coach “does not repeat append_note”; `build_tutor_context` exposes L0–L4.
+## 核② 侧栏 AI 交互
 
-## Cross-cutting
+| # | 验收项 | 过线标准 |
+|---|--------|----------|
+| 2.1 | 入口 | 学习页仅顶栏**右侧**开会话；内容区无会话入口；与书籍主题侧栏同时只开一个右抽屉 |
+| 2.2 | 上下文 | 学习相位每轮带 L0（边界摘要+当前节 objective）+ L1（读盘正文片段）；脱节正文可判为 bug |
+| 2.3 | 接地 | 解释本段类问题能 cite / 复述落盘要点（UI 可见 cite 或等价提示） |
+| 2.4 | 策略痕迹 | mock/真流中可见合理策略行为（追问/脚手架/指回正文），非一律长文终局答案 |
+| 2.5 | 笔记联动 | 值得沉淀时出现 `append_note`（可带 reason_code）；书籍笔记只读可见；Note ≠ 聊天原文 |
+| 2.5b | reason_code 枚举（冻） | `1` 稳定结论/心得（思考）；`2` 可复查误解或未解（疑问）；`3` 超 objective 旁支且用户想留（拓展）；`4` 同题往返≥2 轮未解（疑问）。数值不改名，验收对文案 |
+| 2.6 | 未生成节 | 不假装已读盘；引导或经确认走 `generate_section` |
+| 2.7 | 边界 | 踩 scope_out 被拒并给回流；密钥不进会话 |
 
-- [ ] `pnpm test` and `pnpm build` pass.
-- [ ] Settings key never appears in SSE, logs, or tool args (`hasApiKey` only on the client).
-- [ ] No invented “mastery %” or forgetting-curve UI.
+## 联调冒烟（演示路径）
+
+1. 书籍 → 切换侧栏（右出）→ 新建主题 → 走完边界 → 确认边界卡  
+2. 确认大纲（看 objective / 先修 / 篇幅）→ 进入学习  
+3. 顶栏右开会话 → 针对当前节追问 → 见 cite/读盘锚定  
+4. 触发至少一条 AI 笔记 → 书籍「笔记」只读可见该条  
+5. 主题卡导出弹 md|html|epub 之一（可 mock）
+
+## 本清单不管（后置）
+
+热力图统计口径、导出三格式版式细节、向量检索 L4、大纲细粒度编辑交互、原生 App。

@@ -1,89 +1,95 @@
-# Quantum IA — Agent v1.3.2
+# Quantum — Agent 向信息架构（修订稿 v1.3.2）
 
-Locked information architecture for the first PWA slice (chrome aligned with internal prototype **v0.3.4**). Native clients come later; this document is the product contract for `packages/web`.
+> 选型基线：Pi（`@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`）
+> 已锁口径：同时只开一个「当前学习」；笔记由 AI 在交互中落盘（非用户手记）
+> 原则：主路径是 **agent 会话 + 工具 + 落盘**，不是页面堆 CRUD
+> 修订（2026-09-06）：底栏三页；书籍收正文/笔记/主题；会话侧开；取消用户「记一笔」
+> 修订（2026-09-06 v1.2）：学习顶栏居中「主题·章节」，左大纲右会话抽屉；内容区无会话入口；书籍正文·笔记只跟当前主题
+> 修订（2026-09-06 v1.3）：书籍主题操作收进侧栏卡片；首卡「新建主题」，下挂历史主题卡（切换 / 导出）；导出弹窗选 md · html · epub；书籍顶栏不再单独挂新建/导出
+> 修订（2026-09-06 v1.3.1）：书籍「切换」主题侧栏从**右侧**弹出（与学习会话抽屉同侧；同时只开一个）
+> 修订（2026-09-06 v1.3.2）：书籍页顶栏去掉「书籍」字样，直接展示**当前主题**；当前主题卡需有明确视觉层级（非弱文案条）
 
-## Product shape
+## 1. 用户可见面（极简）
 
-Quantum is an **agent session + tools + persistence** product, not a CRUD notebook.
+### 底栏三页：学习 / 书籍 / 我的
 
-- One `current_topic_id` at a time.
-- Notes are written **only** by the agent via `append_note` in the tool loop.
-- There is **no** user「记一笔」control anywhere.
-- Learning content is **projected** into the 学习 tab. The session lives in a drawer, never as an inline entry in the content body.
+#### 学习
+- 当前学习会话的可见投影（主路径所在页）
+- **顶栏**：标题居中，格式「主题·章节」；**左侧按钮**展开大纲抽屉；**右侧按钮**展开 agent 会话抽屉
+- **中央内容区**：仅当前节正文（agent 按大纲现场生成，已生成则读盘）；**不放会话入口**（会话只从顶栏右侧进）
+- 无「当前学习」时：空态；引导去「书籍」侧栏新建/切换主题
+- 大纲 / 会话均为侧向抽屉，与顶栏左右按钮一一对应
 
-## Bottom tabs
+#### 书籍
+- **顶栏**：不显示「书籍」页名；直接展示**当前主题**（主题名为主标题）。无当前主题时用空态文案，不回退成页名「书籍」
+- **当前主题卡**：须有明确设计层级（卡片感：主标题 + 次要信息如进度/节数/更新日期；可点「切换」打开主题侧栏），禁止弱文案条
+- **正文 / 笔记**（主内容区）：只展示**当前主题**下已落盘内容；切换主题后一并换绑，不混显其他主题
+- **主题侧栏**（本页唯一主题操作面，**从右侧弹出**；顶栏/主区**不**再单独挂「新建」「导出」）：
+  - **首卡：新建主题** → 启动边界问卷 agent 流（侧开会话，非表单页）
+  - **以下：历史主题卡片**（每卡对应一主题）
+    - **切换**：设为 `current_topic_id`（同时仅一个活跃）
+    - **导出**：弹出格式选择 → `md` / `html` / `epub` 三选一后导出（正文 + 笔记式总结，非聊天流水）
+  - 顶栏「切换」入口语义 = 打开上述主题侧栏
 
-| Tab | Name | Role |
-| --- | --- | --- |
-| Learn | **学习** | Current topic content projection |
-| Books | **书籍** | Current-topic hero + body + notes; topic history |
-| Me | **我的** | Settings (model proxy) + heatmap placeholder |
+#### 我的
+- 热力图（按学习落盘/完成日；统计口径仍待拍）
+- 系统与大模型设置（provider/model/key 走配置，不进聊天）
 
-The word **书籍** is a **tab label only**. It is not a page title on the books surface.
+## 2. Agent 主路径（一次主题生命周期）
 
-## 学习
+```
+新建主题（书籍侧栏首卡 → 侧开会话）
+  → 边界问卷 agent（多轮问基础/目标深度/篇长/总长等，可增删题）
+  → 用户确认边界快照（落盘）
+  → 大纲 agent（据边界生成大纲，用户可改/确认）
+  → 大纲确认快照（落盘）
+  → 学习 agent 循环：
+        选节（大纲抽屉）→ generate_section → 正文落盘
+        学习中 chat（顶栏右侧会话抽屉）→ AI 判断值得沉淀时调用 append_note
+  → 可选：从主题卡「导出」选 md | html | epub（正文 + 笔记式交互总结，非聊天流水账）
+```
 
-Content canvas for the active topic only.
+同时只允许一个 `current_topic_id`。切换主题 = 换会话上下文，不并行双开；书籍正文/笔记投影绑定该 id。
 
-### Top bar
+## 3. 核心工具（Pi AgentTool，示意名）
 
-- **Center**: `主题·章节` (topic title · current section title). Truncate; do not wrap into a second toolbar.
-- **Left control**: opens the **outline drawer** (from the **left**).
-- **Right control**: opens the **agent session drawer** (from the **right**).
+| 工具 | 作用 |
+|------|------|
+| `ask_boundary` / `finalize_boundary` | 问卷轮次与边界快照落盘 |
+| `draft_outline` / `finalize_outline` | 大纲草稿与确认落盘 |
+| `generate_section` | 按节生成正文并落盘 |
+| `get_section` / `list_outline` | 读已落盘内容（学习投影与书籍浏览均走盘；书籍侧按 current_topic 过滤） |
+| `append_note` | **仅由 AI 在会话 tool-loop 中调用**，写入「疑问/思考/拓展」；无用户「记一笔」入口 |
+| `summarize_notes_for_export` | 导出前整理笔记（仍非聊天原文；原 `summarize_notes_for_epub` 泛化为多格式） |
+| `export_topic` | 按 `format ∈ {md, html, epub}` 导出（正文 + 笔记）；取代仅 epub 的单一入口 |
 
-### Invariants
+模型通过 tool-loop 推进；UI 订阅 Pi 事件流（`message_update` / `tool_execution_*`）做流式展示。导出由主题卡 UI 触发格式选择后调用（非学习内容区入口）。
 
-- No session composer, transcript, or「打开对话」affordance inside the content body.
-- Empty body copy points the learner to the right-side session, not to a notes form.
-- Outline navigation updates the projected section and the packed agent context (TutorContext L2).
+## 4. 落盘对象（逻辑模型，非表设计定稿）
 
-## 书籍 (v1.3.2)
+- `Topic`：主题元数据、边界快照、大纲快照、状态
+- `Section`：节正文、生成状态、字数
+- `Note`：类型∈{疑问,思考,拓展}、关联节、时间、摘要正文（来源=AI tool call）
+- `Session`：Pi 消息/轨迹（与笔记分离；导出不直接倾倒 Session）
+- `Settings`：模型与系统偏好
 
-The books surface is a **current-topic hero**, not a library title page.
+全局：`AppState.current_topic_id` — 学习投影与书籍正文/笔记共同绑定。
 
-### Top bar = current topic hero only
+## 5. 对原型的回灌点
 
-- **No** page title「书籍」in the top bar or as an H1.
-- The top chrome is a **hero card** of `current_topic_id`: title, phase (and export substate if not idle), optional goal line from the boundary snapshot.
-- Empty current topic: hero reads as「还没有当前主题」and points at the right-hand drawer — still no「书籍」heading.
-- Right control on the hero opens the **topic switcher drawer**.
+1. 底栏固定三页：**学习 / 书籍 / 我的**。
+2. 学习顶栏固定结构：**左 = 大纲抽屉，中 =「主题·章节」，右 = 会话抽屉**；内容区禁止再放会话入口。
+3. 书籍顶栏展示**当前主题**（无「书籍」字样），当前主题卡要有设计感；主题操作只在**右侧侧栏卡片**：首卡新建，历史卡仅 **切换 / 导出**；禁止再挂独立「新建」「导出」按钮。
+4. 导出必须弹窗三选一：`md` / `html` / `epub`。
+5. 书籍正文/笔记**只跟当前主题**；点「切换」后两列表同步过滤。
+6. 聊天与笔记分流：聊在右侧会话抽屉；笔记由 AI 调 `append_note`；用户在「书籍」只浏览。
+7. 进度以工具落盘为准，刷新可恢复。
+8. PWA 优先；原生 App 后置，不挡本闸。
 
-### Body
+## 6. 待拍细节（不挡 IA 骨架）
 
-- Current topic section excerpt / notes only.
-- Notes list is read-only `append_note` output. No composer.
-
-### Topic switcher
-
-- Opens from the **RIGHT**.
-- **First card**: 新建主题. Creates a topic, sets `current_topic_id`, starts `boundary_interview`.
-- **History cards**: 切换 + 导出.
-- 导出 opens a modal: `md | html | epub`. The modal asks the session to run tool `export_topic({ format })` — it does not export in the browser.
-
-## 我的
-
-- **Settings → model proxy only** for credentials: provider, model id, optional base URL, API key.
-- Keys are stored server-side. They must never appear in chat, SSE payloads, logs, or tool arguments.
-- **Heatmap**: visual placeholder for future spaced-review cadence. v0 may tick cells from coarse learning activity; this is not a finished memory-science feature.
-
-## Drawers (summary)
-
-| Surface | Side | Content |
-| --- | --- | --- |
-| 学习 · outline | Left | Tree of the current topic |
-| 学习 · session | Right | Agent transcript + composer |
-| 书籍 · topics | Right | 新建主题 + history |
-
-## Phases (UX-visible)
-
-`idle → boundary_interview → outline_draft → learning`
-
-Export is a **substate** of `learning` (`exporting` / `ready`), not a fourth primary phase.
-
-## Out of scope for v1 chrome
-
-- Native shells
-- Multi-topic split view
-- User-authored notes UI
-- Session entry embedded in the section body
-- Fake “mastery %” or invented pedagogy presented as science
+- 边界问卷默认题库与可增删交互
+- 大纲用户可编辑粒度
+- 热力图统计口径（学习分钟 / 落盘节数 / 完成主题）
+- 各导出格式的版式细节（md/html/epub 目录与笔记呈现）
+- AI 触发 `append_note` 的启发式边界（何时记、记多长；不挡工具契约）
