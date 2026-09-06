@@ -191,6 +191,30 @@ export function missingFinalizeFields(snapshot: BoundarySnapshot): FinalizeRequi
   return FINALIZE_REQUIRED_FIELDS.filter((field) => !snapshot[field].trim());
 }
 
+/**
+ * Full interview walk (core1 §3.1). The five operational required fields stay
+ * FINALIZE_REQUIRED_FIELDS; these extras must also be filled before finalize.
+ */
+export const INTERVIEW_WALK_FIELDS = [
+  "motivation",
+  "success_evidence",
+  "prior_gaps",
+  "scope_in",
+] as const;
+
+export type InterviewWalkField = (typeof INTERVIEW_WALK_FIELDS)[number];
+
+export function missingInterviewWalk(snapshot: BoundarySnapshot): InterviewWalkField[] {
+  const missing: InterviewWalkField[] = [];
+  if (!snapshot.motivation.trim()) missing.push("motivation");
+  if (!snapshot.success_evidence.trim() && !snapshot.success.trim()) missing.push("success_evidence");
+  if (!snapshot.prior_gaps.trim() && !snapshot.prior_known.trim() && !snapshot.first_gap.trim()) {
+    missing.push("prior_gaps");
+  }
+  if (!snapshot.scope_in.trim()) missing.push("scope_in");
+  return missing;
+}
+
 export function canConfirmBoundaryCard(snapshot: BoundarySnapshot): boolean {
   return missingFinalizeFields(snapshot).length === 0;
 }

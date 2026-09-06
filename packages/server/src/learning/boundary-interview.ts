@@ -1,4 +1,4 @@
-import type { BoundaryKind, BoundaryRecord, FinalizeRequiredField } from "@quantum/shared";
+import type { BoundaryKind, BoundaryRecord } from "@quantum/shared";
 import { evaluateFinalize } from "./boundary-snapshot.js";
 
 /**
@@ -81,10 +81,7 @@ export function questionFor(kind: BoundaryKind): string {
   return BOUNDARY_SCRIPT.find((s) => s.kind === kind)?.question ?? "还有什么边界需要说清？";
 }
 
-export function canFinalize(existing: BoundaryRecord[]): {
-  ok: boolean;
-  missing: FinalizeRequiredField[];
-} {
+export function canFinalize(existing: BoundaryRecord[]) {
   return evaluateFinalize(existing);
 }
 

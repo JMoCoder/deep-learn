@@ -6,10 +6,12 @@ import {
   isRefuseOffscopeSignal,
   looksLikeOutlineConfirm,
   missingFinalizeFields,
+  missingInterviewWalk,
   shouldShowBoundaryCard,
   shouldShowOutlineConfirm,
   snapshotFromAnswers,
 } from "@quantum/shared";
+import { BOUNDARY_SCRIPT } from "./boundary-interview.js";
 
 describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
   it("packs full dimensions and keeps required-five finalize gate", () => {
@@ -100,6 +102,32 @@ describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
     );
     assert.equal(looksLikeOutlineConfirm("可以"), true);
     assert.equal(looksLikeOutlineConfirm("卡在符号"), false);
+  });
+
+  it("lists stub interview kinds in core1 §3.1 order", () => {
+    assert.deepEqual(
+      BOUNDARY_SCRIPT.map((s) => s.kind),
+      [
+        "motivation",
+        "goal",
+        "success_evidence",
+        "prior",
+        "prior_gaps",
+        "scope_in",
+        "constraint",
+        "depth",
+        "time",
+      ],
+    );
+    const fiveOnly = snapshotFromAnswers([
+      { kind: "goal_outcome", answer: "我能做" },
+      { kind: "prior_level", answer: "零" },
+      { kind: "scope_out", answer: "没有" },
+      { kind: "depth", answer: "认路" },
+      { kind: "chunk_budget", answer: "20 分钟" },
+    ]);
+    assert.deepEqual(missingFinalizeFields(fiveOnly), []);
+    assert.ok(missingInterviewWalk(fiveOnly).includes("motivation"));
   });
 
   it("detects REFUSE_OFFSCOPE without inventing a new SSE domain name", () => {

@@ -20,6 +20,22 @@ async function exec(tool: AgentTool, args: Record<string, unknown>) {
   return tool.execute("call", args as never);
 }
 
+const FIVE_REQUIRED = [
+  { kind: "goal_outcome", question: "g", answer: "我能独立画一遍" },
+  { kind: "prior_level", question: "p", answer: "只会定义" },
+  { kind: "scope_out", question: "s", answer: "弦论" },
+  { kind: "depth", question: "d", answer: "能讲清" },
+  { kind: "chunk_budget", question: "c", answer: "每周 2 小时" },
+];
+
+const FULL_WALK = [
+  { kind: "motivation", question: "m", answer: "因为工作要用" },
+  ...FIVE_REQUIRED,
+  { kind: "success_evidence", question: "e", answer: "能给同事讲 10 分钟" },
+  { kind: "prior_gaps", question: "g2", answer: "会：态矢量；不会：投影公设" },
+  { kind: "scope_in", question: "i", answer: "测量公设" },
+];
+
 describe("two cores backend", () => {
   it("finalize_boundary rejects missing required snapshot fields with ok:false", async () => {
     const store = new Store(openMemoryDb());
@@ -38,21 +54,31 @@ describe("two cores backend", () => {
     assert.equal(store.requireTopic(topic.id).phase, "boundary_interview");
   });
 
-  it("finalize_boundary accepts the five required fields", async () => {
+  it("finalize_boundary keeps five required fields but rejects an incomplete interview walk", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("只五必填");
+    const finalize = toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!;
+    const result = await exec(finalize, { answers: FIVE_REQUIRED });
+    assert.equal(result.details.ok, false);
+    assert.deepEqual(result.details.missing, []);
+    const unasked = result.details.unasked as string[];
+    assert.ok(unasked.includes("motivation"));
+    assert.ok(unasked.includes("success_evidence"));
+    assert.ok(unasked.includes("prior_gaps"));
+    assert.ok(unasked.includes("scope_in"));
+    assert.equal(store.requireTopic(topic.id).phase, "boundary_interview");
+  });
+
+  it("finalize_boundary succeeds only after the full interview walk", async () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("齐了");
     const finalize = toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!;
-    const result = await exec(finalize, {
-      answers: [
-        { kind: "goal_outcome", question: "g", answer: "我能独立画一遍" },
-        { kind: "prior_level", question: "p", answer: "只会定义" },
-        { kind: "scope_out", question: "s", answer: "弦论" },
-        { kind: "depth", question: "d", answer: "能讲清" },
-        { kind: "chunk_budget", question: "c", answer: "每周 2 小时" },
-      ],
-    });
+    const result = await exec(finalize, { answers: FULL_WALK });
     assert.equal(result.details.ok, true);
     assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
+    const snap = result.details.snapshot as { motivation: string; scope_in: string };
+    assert.equal(snap.motivation, "因为工作要用");
+    assert.equal(snap.scope_in, "测量公设");
   });
 
   it("draft_outline respects chunk_budget and scope_out", async () => {
@@ -60,8 +86,12 @@ describe("two cores backend", () => {
     const topic = store.createTopic("约束");
     await exec(toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!, {
       answers: [
+        { kind: "motivation", question: "m", answer: "因为要用" },
         { kind: "goal", question: "g", answer: "我能做" },
+        { kind: "success_evidence", question: "e", answer: "能讲清一页" },
         { kind: "prior", question: "p", answer: "零" },
+        { kind: "prior_gaps", question: "g2", answer: "不会：投影" },
+        { kind: "scope_in", question: "i", answer: "测量" },
         { kind: "constraint", question: "s", answer: "弦论" },
         { kind: "depth", question: "d", answer: "能讲清" },
         { kind: "time", question: "c", answer: "每周 1 小时" },
@@ -151,8 +181,12 @@ describe("two cores backend", () => {
 
     await exec(tools.find((t) => t.name === "finalize_boundary")!, {
       answers: [
+        { kind: "motivation", question: "m", answer: "因为工作要用" },
         { kind: "goal_outcome", question: "g", answer: "我能独立画一遍" },
+        { kind: "success_evidence", question: "e", answer: "能讲 10 分钟" },
         { kind: "prior_level", question: "p", answer: "只会定义" },
+        { kind: "prior_gaps", question: "g2", answer: "不会：投影" },
+        { kind: "scope_in", question: "i", answer: "测量公设" },
         { kind: "scope_out", question: "s", answer: "没有" },
         { kind: "depth", question: "d", answer: "能讲清" },
         { kind: "chunk_budget", question: "c", answer: "每周 2 小时" },
@@ -222,7 +256,7 @@ describe("two cores backend", () => {
     };
     assert.equal(detail.boundary_snapshot.goal_outcome, "我能独立画一遍");
     assert.equal(detail.boundary_snapshot.scope_out, "没有");
-    assert.equal(detail.boundary_snapshot.motivation, "");
+    assert.equal(detail.boundary_snapshot.motivation, "因为工作要用");
   });
 
   it("keeps a single current_topic_id", () => {

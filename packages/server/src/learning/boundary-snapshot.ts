@@ -2,8 +2,14 @@ import type {
   BoundaryRecord,
   BoundarySnapshot,
   FinalizeRequiredField,
+  InterviewWalkField,
 } from "@quantum/shared";
-import { KIND_TO_SNAPSHOT, missingFinalizeFields, snapshotFromAnswers } from "@quantum/shared";
+import {
+  KIND_TO_SNAPSHOT,
+  missingFinalizeFields,
+  missingInterviewWalk,
+  snapshotFromAnswers,
+} from "@quantum/shared";
 
 export function snapshotFromRecords(records: BoundaryRecord[]): BoundarySnapshot {
   return snapshotFromAnswers(records);
@@ -35,6 +41,7 @@ export function mergeAnswersIntoRecords(
 export function evaluateFinalize(records: Array<{ kind: string; answer: string }>): {
   ok: boolean;
   missing: FinalizeRequiredField[];
+  unasked: InterviewWalkField[];
   snapshot: BoundarySnapshot;
 } {
   const snapshot = snapshotFromRecords(
@@ -50,5 +57,11 @@ export function evaluateFinalize(records: Array<{ kind: string; answer: string }
     })),
   );
   const missing = missingFinalizeFields(snapshot);
-  return { ok: missing.length === 0, missing, snapshot };
+  const unasked = missingInterviewWalk(snapshot);
+  return {
+    ok: missing.length === 0 && unasked.length === 0,
+    missing,
+    unasked,
+    snapshot,
+  };
 }
