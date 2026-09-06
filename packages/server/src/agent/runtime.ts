@@ -9,6 +9,7 @@ import { modelFromSettings, stubModel } from "./model.js";
 import { baseSystemPrompt, phasePrompt } from "./prompts.js";
 import { safeLog } from "../redact.js";
 import { createStubStreamFn } from "./stub-stream.js";
+import { topicHitsScopeOut } from "../learning/scope-out.js";
 import { beginTurn, endTurn, peekTurnMeta, setTurnStrategy } from "./turn-meta.js";
 import { build_tutor_context } from "./tutor-context.js";
 import type { SessionRuntime } from "./types.js";
@@ -56,7 +57,10 @@ export class AgentHost {
     const agent = this.ensure(topic);
     this.refreshPrompt(agent, topic.id);
     const packed = build_tutor_context(this.store, topicId);
-    beginTurn(topicId, packed?.L0.strategyHint);
+    const refuse =
+      topic.phase === "learning" && topicHitsScopeOut(this.store, topicId, text);
+    beginTurn(topicId, refuse ? "REFUSE_OFFSCOPE" : packed?.L0.strategyHint);
+    if (refuse) setTurnStrategy(topicId, "REFUSE_OFFSCOPE");
     bus.emit({ type: "session_start", topicId });
     try {
       await agent.prompt(text);
@@ -160,7 +164,10 @@ export class AgentHost {
           const text = messageText(msg);
           if (text) {
             const packed = build_tutor_context(this.store, topicId);
-            if (packed?.L0.strategyHint) setTurnStrategy(topicId, packed.L0.strategyHint);
+            const metaNow = peekTurnMeta(topicId);
+            if (packed?.L0.strategyHint && metaNow.strategy !== "REFUSE_OFFSCOPE") {
+              setTurnStrategy(topicId, packed.L0.strategyHint);
+            }
             const meta = peekTurnMeta(topicId);
             bus.emit({
               type: "message",

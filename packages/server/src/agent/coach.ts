@@ -1,4 +1,4 @@
-import type { BoundaryKind } from "@quantum/shared";
+import type { BoundaryKind, TutorStrategy } from "@quantum/shared";
 import {
   BOUNDARY_SCRIPT,
   nextBoundaryKind,
@@ -6,6 +6,7 @@ import {
 } from "../learning/boundary-interview.js";
 import { outlineFromBoundaries } from "../learning/outline-from-boundaries.js";
 import { scaffoldSectionBody } from "../learning/section-scaffold.js";
+import { learningRefuseReply, topicHitsScopeOut } from "../learning/scope-out.js";
 import { flattenOutline, type Store } from "../store/repos.js";
 
 export type CoachToolCall = {
@@ -16,6 +17,7 @@ export type CoachToolCall = {
 export type CoachPlan = {
   text: string;
   tool?: CoachToolCall;
+  strategy?: TutorStrategy;
 };
 
 export type CoachTurnInput = {
@@ -154,6 +156,13 @@ function planLearning(store: Store, topicId: string, last: string): CoachPlan {
   const currentId = store.getCurrentSectionId() ?? outline[0]?.id;
   const currentNode = outline.find((n) => n.id === currentId) ?? outline[0];
   const section = currentId ? store.getSectionByOutline(currentId) : null;
+
+  if (last && !looksLikeKickoff(last) && topicHitsScopeOut(store, topicId, last)) {
+    return {
+      text: learningRefuseReply(store, topicId, section?.title ?? currentNode?.title),
+      strategy: "REFUSE_OFFSCOPE",
+    };
+  }
 
   if (/导出|epub|markdown|html/.test(last)) {
     const format = last.includes("html") ? "html" : last.includes("epub") ? "epub" : "md";

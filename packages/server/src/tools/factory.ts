@@ -11,7 +11,7 @@ import {
 import { evaluateOutlineDraft } from "../learning/outline-constraints.js";
 import { evaluateAppendNote } from "../learning/note-policy.js";
 import { flattenOutline } from "../store/repos.js";
-import { addTurnCitation } from "../agent/turn-meta.js";
+import { addTurnCitation, peekTurnMeta } from "../agent/turn-meta.js";
 import type { SessionRuntime } from "../agent/types.js";
 
 const Kind = Type.Union([
@@ -220,6 +220,12 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     execute: async (_id, params) => {
       const topic = runtime.requireTopic();
       if (topic.phase !== "learning") throw new Error("先 finalize_outline 再写正文");
+      if (peekTurnMeta(topic.id).strategy === "REFUSE_OFFSCOPE") {
+        return textResult("REFUSE_OFFSCOPE：踩了排除区，不生成无关节。", {
+          ok: false,
+          strategy: "REFUSE_OFFSCOPE",
+        });
+      }
       const args = params as { outline_node_id: string; title: string; body_md: string };
       const node = flattenOutline(runtime.store.getOutline(topic.id)).find(
         (n) => n.id === args.outline_node_id,
@@ -308,6 +314,12 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         section_id?: string;
         reason_code?: unknown;
       };
+      if (peekTurnMeta(topic.id).strategy === "REFUSE_OFFSCOPE") {
+        return textResult("REFUSE_OFFSCOPE：踩界内容不记笔记。", {
+          ok: false,
+          strategy: "REFUSE_OFFSCOPE",
+        });
+      }
       const judged = evaluateAppendNote(args.body, args.reason_code);
       if (!judged.ok || judged.reason_code === 0) {
         return textResult(judged.error ?? "笔记未写入", {

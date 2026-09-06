@@ -37,6 +37,7 @@ goal 与 prior 齐了就可以 finalize_boundary；time 缺失就在大纲里写
       return `阶段：learning。
 正文写在 generate_section，学习页会投影它。
 学习者出现稳定心得（1）、可复查误解（2）、想留的旁支（3）、或同题往返未解（4）时，用 append_note。
+若用户发言踩到 boundary_snapshot.scope_out：策略必须是 REFUSE_OFFSCOPE，短拒并拉回当前节/scope_in。此时禁止 append_note，禁止 generate 无关节。
 需要导出时用 summarize_notes_for_export，再 export_topic({format})。
 不要在会话里贴整章代替投影。`;
     default:

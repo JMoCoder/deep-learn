@@ -8,6 +8,7 @@ import {
 } from "@mariozechner/pi-ai";
 import type { Store } from "../store/repos.js";
 import { planCoachTurn, type CoachPlan } from "./coach.js";
+import { setTurnStrategy } from "./turn-meta.js";
 
 export function createStubStreamFn(store: Store, topicId: string) {
   return (
@@ -21,6 +22,7 @@ export function createStubStreamFn(store: Store, topicId: string) {
       const output = emptyAssistant(model);
       try {
         const plan = planCoachTurn(store, topicId, lastTurn(context));
+        if (plan.strategy) setTurnStrategy(topicId, plan.strategy);
         stream.push({ type: "start", partial: output });
         await emitPlan(stream, output, plan, options?.signal);
         if (options?.signal?.aborted) {
