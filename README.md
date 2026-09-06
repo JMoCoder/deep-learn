@@ -31,7 +31,7 @@ Optional model proxy: set `QUANTUM_MODEL_*` in a compose `environment:` block, o
 
 `curl -sS http://127.0.0.1:43128/api/health` should return `{"ok":true,"name":"quantum",...}`.
 
-Compose services: `web` (nginx + built PWA, `:43127` → container `:80`) and `server` (Hono, `:43128`). `/api` is proxied from the PWA origin. Tailscale is out of scope.
+Compose services: `server` (Hono on `:43128`, also publishes PWA `:43127` → `:80`) and `web` (nginx + built PWA). `web` uses `network_mode: service:server` so `/api` and SSE proxy to `127.0.0.1:43128` on the PWA origin. Tailscale is out of scope.
 
 ## Packages
 
