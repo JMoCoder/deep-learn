@@ -18,12 +18,25 @@ export type CoachPlan = {
   tool?: CoachToolCall;
 };
 
+export type CoachTurnInput = {
+  lastUserText: string;
+  lastRole: string;
+  lastToolName?: string;
+};
+
 /**
  * Local coach for no-key mode. Drives the same tools as a live model.
+ * After a tool result, only advance when the next phase step is required —
+ * never repeat append_note / ask_boundary against the same user turn.
  */
-export function planCoachTurn(store: Store, topicId: string, lastUserText: string): CoachPlan {
+export function planCoachTurn(store: Store, topicId: string, input: CoachTurnInput | string): CoachPlan {
+  const turn = typeof input === "string" ? { lastUserText: input, lastRole: "user" } : input;
   const topic = store.requireTopic(topicId);
-  const last = lastUserText.trim();
+  const last = turn.lastUserText.trim();
+
+  if (turn.lastRole === "toolResult") {
+    return planAfterTool(store, topicId, turn.lastToolName ?? "", last);
+  }
 
   if (topic.phase === "boundary_interview") {
     return planInterview(store, topicId, last);
@@ -32,6 +45,35 @@ export function planCoachTurn(store: Store, topicId: string, lastUserText: strin
     return planOutline(store, topicId, last);
   }
   return planLearning(store, topicId, last);
+}
+
+function planAfterTool(store: Store, topicId: string, toolName: string, last: string): CoachPlan {
+  const topic = store.requireTopic(topicId);
+  if (toolName === "ask_boundary") {
+    const asked = [...store.listBoundaries(topicId)].reverse().find((b) => b.status === "asked");
+    return { text: asked?.question ?? "请直接回答这一问。" };
+  }
+  if (toolName === "finalize_boundary" || (topic.phase === "outline_draft" && store.getOutline(topicId).length === 0)) {
+    return planOutline(store, topicId, last);
+  }
+  if (toolName === "draft_outline") {
+    return { text: "大纲已起草。要改结构直接说；确认就回复「可以」。" };
+  }
+  if (toolName === "finalize_outline") {
+    return planLearning(store, topicId, "请开始");
+  }
+  if (toolName === "generate_section") {
+    const section = store.getCurrentSectionId();
+    const rec = section ? store.getSection(section) : null;
+    return { text: rec ? `「${rec.title}」已投影到学习页。卡住就直接说。` : "正文已写入。" };
+  }
+  if (toolName === "append_note") {
+    return { text: "已记下。还可以继续问这一节，或说「下一节」。" };
+  }
+  if (toolName === "export_topic") {
+    return { text: "导出已完成，可从下载链接取回。" };
+  }
+  return { text: "继续。" };
 }
 
 function planInterview(store: Store, topicId: string, last: string): CoachPlan {

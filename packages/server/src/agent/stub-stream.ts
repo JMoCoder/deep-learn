@@ -20,8 +20,7 @@ export function createStubStreamFn(store: Store, topicId: string) {
     void (async () => {
       const output = emptyAssistant(model);
       try {
-        const lastUser = lastUserText(context);
-        const plan = planCoachTurn(store, topicId, lastUser);
+        const plan = planCoachTurn(store, topicId, lastTurn(context));
         stream.push({ type: "start", partial: output });
         await emitPlan(stream, output, plan, options?.signal);
         if (options?.signal?.aborted) {
@@ -115,6 +114,22 @@ async function emitPlan(
   }
 
   void signal;
+}
+
+function lastTurn(context: Context): {
+  lastUserText: string;
+  lastRole: string;
+  lastToolName?: string;
+} {
+  const last = context.messages[context.messages.length - 1];
+  return {
+    lastUserText: lastUserText(context),
+    lastRole: last && "role" in last ? String(last.role) : "none",
+    lastToolName:
+      last && last.role === "toolResult" && "toolName" in last
+        ? String(last.toolName)
+        : undefined,
+  };
 }
 
 function lastUserText(context: Context): string {

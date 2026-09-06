@@ -14,6 +14,7 @@ import type { SessionRuntime } from "./types.js";
 export class AgentHost {
   private agents = new Map<string, Agent>();
   private controllers = new Map<string, AbortController>();
+  private tails = new Map<string, Promise<void>>();
 
   constructor(private readonly store: Store) {}
 
@@ -40,6 +41,15 @@ export class AgentHost {
   }
 
   async prompt(topicId: string, text: string): Promise<void> {
+    const prev = this.tails.get(topicId) ?? Promise.resolve();
+    const run = prev
+      .catch(() => undefined)
+      .then(() => this.runPrompt(topicId, text));
+    this.tails.set(topicId, run);
+    await run;
+  }
+
+  private async runPrompt(topicId: string, text: string): Promise<void> {
     const topic = this.store.requireTopic(topicId);
     const agent = this.ensure(topic);
     this.refreshPrompt(agent, topic.id);

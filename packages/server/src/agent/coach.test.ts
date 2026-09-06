@@ -36,4 +36,21 @@ describe("coach boundary → outline", () => {
     const lock = planCoachTurn(store, topic.id, "可以");
     assert.equal(lock.tool?.name, "finalize_outline");
   });
+
+  it("does not repeat append_note after a tool result", () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("循环");
+    store.finalizeBoundaries(topic.id, [
+      { kind: "goal", question: "g", answer: "我能做" },
+      { kind: "prior", question: "p", answer: "零基础" },
+    ]);
+    store.replaceOutline(topic.id, "我能做", [{ title: "定向", intent: "地图" }], "finalized");
+    store.finalizeOutline(topic.id);
+    const stop = planCoachTurn(store, topic.id, {
+      lastUserText: "这里看不懂",
+      lastRole: "toolResult",
+      lastToolName: "append_note",
+    });
+    assert.equal(stop.tool, undefined);
+  });
 });
