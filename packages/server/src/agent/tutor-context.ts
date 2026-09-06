@@ -1,4 +1,4 @@
-import type { NoteReasonCode, TutorContext, TutorStrategy } from "@quantum/shared";
+import type { TutorContext, TutorStrategy } from "@quantum/shared";
 import { flattenOutline, type Store } from "../store/repos.js";
 import { snapshotFromRecords } from "../learning/boundary-snapshot.js";
 
@@ -69,6 +69,7 @@ export function build_tutor_context(
       recentNotes: store.listNotes(topicId).slice(-4).map((n) => ({
         body: n.body,
         reasonCode: n.reasonCode,
+        type: n.type,
         createdAt: n.createdAt,
       })),
     };
@@ -111,7 +112,7 @@ export function renderTutorContext(ctx: TutorContext): string {
     lines.push(
       ctx.L4.recentNotes.length === 0
         ? "（无）"
-        : ctx.L4.recentNotes.map((n) => `- [${n.reasonCode}] ${n.body}`).join("\n"),
+        : ctx.L4.recentNotes.map((n) => `- [${n.type}/${n.reasonCode}] ${n.body}`).join("\n"),
     );
   }
 
@@ -124,5 +125,3 @@ function hintStrategy(phase: string, hasSection: boolean): TutorStrategy {
   if (phase === "learning") return hasSection ? "GROUND" : "SCAFFOLD";
   return "HOLD";
 }
-
-export type { NoteReasonCode };

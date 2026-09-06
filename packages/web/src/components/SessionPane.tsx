@@ -41,7 +41,8 @@ export function SessionPane({
 
   const strategy = lastStrategy(messages, liveRows);
   const extras = visibleLiveRows(messages, liveRows);
-  const hasTrace = messages.some((m) => m.role === "tool") || extras.length > 0;
+  const hasTrace =
+    messages.some((m) => m.role === "tool" || Boolean(m.strategy)) || extras.length > 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -63,11 +64,19 @@ export function SessionPane({
           m.role === "tool" ? (
             <ToolBundle key={m.id} toolName={m.toolName} summary={m.text} status="done" />
           ) : (
-            <article key={m.id} className="text-sm">
+            <article key={m.id} className="space-y-2 text-sm">
               <div className="mb-0.5 text-[11px] uppercase tracking-wide text-paper-muted">
-                {m.role === "user" ? "你" : "向导"} · {formatTime(m.createdAt)}
+                {m.role === "user" ? "你" : "向导"}
+                {m.strategy ? ` · ${m.strategy}` : ""} · {formatTime(m.createdAt)}
               </div>
               <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
+              {m.role === "assistant" && m.citations?.length ? (
+                <CiteRow
+                  citations={m.citations.map((c) => ({
+                    title: c.note_id ? `章节 ${c.section_id} · 笔记 ${c.note_id}` : `章节 ${c.section_id}`,
+                  }))}
+                />
+              ) : null}
             </article>
           ),
         )}

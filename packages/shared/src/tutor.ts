@@ -14,27 +14,42 @@ export const TUTOR_STRATEGIES = [
 
 export type TutorStrategy = (typeof TUTOR_STRATEGIES)[number];
 
-/** Stored names. Tool I/O also accepts 1–4 (see NOTE_REASON_BY_CODE). */
-export const NOTE_REASON_CODES = [
-  "friction",
-  "contrast",
-  "checkpoint",
-  "transfer",
-  "correction",
-  "export_worthy",
-  "unspecified",
-] as const;
-
+/**
+ * Frozen numeric `append_note.reason_code`. Do not replace with an English enum.
+ * 1 稳定结论/心得 → 思考
+ * 2 可复查误解或未解 → 疑问
+ * 3 超 objective 旁支且用户想留 → 拓展
+ * 4 同题往返≥2 轮未解 → 疑问
+ */
+export const NOTE_REASON_CODES = [1, 2, 3, 4] as const;
 export type NoteReasonCode = (typeof NOTE_REASON_CODES)[number];
 
-export const NOTE_REASON_BY_CODE = {
-  1: "friction",
-  2: "contrast",
-  3: "checkpoint",
-  4: "transfer",
-} as const;
+export const NOTE_TYPES = ["思考", "疑问", "拓展"] as const;
+export type NoteType = (typeof NOTE_TYPES)[number];
 
-export type NoteReasonNumber = keyof typeof NOTE_REASON_BY_CODE;
+export const NOTE_REASON_MEANING = {
+  1: "稳定结论/心得",
+  2: "可复查误解或未解",
+  3: "超 objective 旁支且用户想留",
+  4: "同题往返≥2 轮未解",
+} as const satisfies Record<NoteReasonCode, string>;
+
+export const NOTE_TYPE_BY_REASON = {
+  1: "思考",
+  2: "疑问",
+  3: "拓展",
+  4: "疑问",
+} as const satisfies Record<NoteReasonCode, NoteType>;
+
+export function parseNoteReasonCode(raw: unknown): NoteReasonCode | null {
+  const n = typeof raw === "string" && /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : raw;
+  if (n === 1 || n === 2 || n === 3 || n === 4) return n;
+  return null;
+}
+
+export function noteTypeFromReason(code: NoteReasonCode): NoteType {
+  return NOTE_TYPE_BY_REASON[code];
+}
 
 export const APPEND_NOTE_MAX_CHARS = 300;
 
@@ -121,6 +136,11 @@ export type TutorContext = {
   };
   /** Deferred. Default packer omits L4 (no vector retrieval, no note dump). */
   L4?: {
-    recentNotes: Array<{ body: string; reasonCode: NoteReasonCode; createdAt: number }>;
+    recentNotes: Array<{
+      body: string;
+      reasonCode: NoteReasonCode;
+      type: NoteType;
+      createdAt: number;
+    }>;
   };
 };

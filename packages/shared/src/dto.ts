@@ -1,6 +1,6 @@
 import type { BoundaryKind, ExportFormat } from "./tools.js";
 import type { ExportSubstate, OutlineNodeStatus, TopicPhase } from "./phases.js";
-import type { NoteReasonCode } from "./tutor.js";
+import type { NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
 
 export type TopicSummary = {
   id: string;
@@ -51,7 +51,13 @@ export type NoteRecord = {
   sectionId: string | null;
   body: string;
   reasonCode: NoteReasonCode;
+  type: NoteType;
   createdAt: number;
+};
+
+export type SessionCitation = {
+  section_id: string;
+  note_id?: string;
 };
 
 export type SessionMessage = {
@@ -60,6 +66,15 @@ export type SessionMessage = {
   text: string;
   toolName?: string;
   createdAt: number;
+  strategy?: TutorStrategy;
+  citations?: SessionCitation[];
+};
+
+export type TopicProjection = {
+  topic_title: string;
+  section_title: string;
+  outline: OutlineNode[];
+  phase: TopicPhase | "";
 };
 
 export type AppSnapshot = {

@@ -6,6 +6,7 @@ import type {
   SessionMessage,
   SettingsInput,
   TopicDetail,
+  TopicProjection,
   TopicSummary,
 } from "@quantum/shared";
 
@@ -52,6 +53,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ format }),
     }),
+  projection: () => req<TopicProjection>("/api/topics/current/projection"),
 };
 
 export function connectEvents(onEvent: (event: SessionEvent) => void): () => void {
@@ -64,6 +66,10 @@ export function connectEvents(onEvent: (event: SessionEvent) => void): () => voi
     "tool_start",
     "tool_end",
     "phase_changed",
+    "boundary_finalized",
+    "outline_finalized",
+    "section_status",
+    "section_ready",
     "topic_updated",
     "section_updated",
     "note_appended",

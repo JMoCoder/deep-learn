@@ -87,6 +87,7 @@ export function lastStrategy(
   }
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const m = messages[i];
+    if (m?.strategy) return m.strategy;
     if (m?.role === "tool") {
       const next = strategyFromTool(m.toolName);
       if (next) return next;

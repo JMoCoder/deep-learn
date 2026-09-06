@@ -11,6 +11,7 @@ import {
 import { evaluateOutlineDraft } from "../learning/outline-constraints.js";
 import { evaluateAppendNote } from "../learning/note-policy.js";
 import { flattenOutline } from "../store/repos.js";
+import { addTurnCitation } from "../agent/turn-meta.js";
 import type { SessionRuntime } from "../agent/types.js";
 
 const Kind = Type.Union([
@@ -100,6 +101,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         });
       }
       runtime.store.finalizeBoundaries(topic.id, merged);
+      runtime.emit({ type: "boundary_finalized", topic_id: topic.id, phase: "outline_draft" });
       runtime.emit({
         type: "phase_changed",
         topicId: topic.id,
@@ -181,6 +183,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       if (outline.length === 0) throw new Error("还没有大纲，先 draft_outline");
       const args = params as { title?: string };
       runtime.store.finalizeOutline(topic.id, args.title);
+      runtime.emit({ type: "outline_finalized", topic_id: topic.id, phase: "learning" });
       runtime.emit({
         type: "phase_changed",
         topicId: topic.id,
@@ -212,12 +215,28 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       if (!node) throw new Error(`找不到大纲节点 ${args.outline_node_id}`);
       const cap = node.targetChars > 0 ? node.targetChars : 0;
       const body = cap > 0 && args.body_md.length > cap ? args.body_md.slice(0, cap) : args.body_md;
+      runtime.emit({
+        type: "section_status",
+        topic_id: topic.id,
+        section_id: args.outline_node_id,
+        status: "generating",
+        outline_node_id: args.outline_node_id,
+      });
       const section = runtime.store.upsertSection(
         topic.id,
         args.outline_node_id,
         args.title || node.title,
         body,
       );
+      addTurnCitation(topic.id, { section_id: section.id });
+      runtime.emit({
+        type: "section_status",
+        topic_id: topic.id,
+        section_id: section.id,
+        status: "ready",
+        outline_node_id: args.outline_node_id,
+      });
+      runtime.emit({ type: "section_ready", topic_id: topic.id, section_id: section.id });
       runtime.emit({ type: "section_updated", topicId: topic.id, sectionId: section.id });
       return textResult(`已写入章节「${section.title}」。`);
     },
@@ -234,6 +253,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       const args = params as { outline_node_id: string };
       const section = runtime.store.getSectionByOutline(args.outline_node_id);
       if (!section) return textResult("这一节还没有正文。");
+      addTurnCitation(runtime.requireTopic().id, { section_id: section.id });
       return textResult(`# ${section.title}\n\n${section.bodyMd}`);
     },
   };
@@ -254,7 +274,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     name: "append_note",
     label: "追加笔记",
     description:
-      "唯一写笔记的途径。学习者没有「记一笔」按钮。记下卡点、对照或值得导出的句子。禁止写入密钥。",
+      "唯一写笔记的途径。学习者没有「记一笔」按钮。reason_code 只能是 1–4（思考/疑问/拓展）。禁止写入密钥。",
     parameters: Type.Object({
       body: Type.String(),
       section_id: Type.Optional(Type.String()),
@@ -263,13 +283,10 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         Type.Literal(2),
         Type.Literal(3),
         Type.Literal(4),
-        Type.Literal("friction"),
-        Type.Literal("contrast"),
-        Type.Literal("checkpoint"),
-        Type.Literal("transfer"),
-        Type.Literal("correction"),
-        Type.Literal("export_worthy"),
-        Type.Literal("unspecified"),
+        Type.Literal("1"),
+        Type.Literal("2"),
+        Type.Literal("3"),
+        Type.Literal("4"),
       ]),
     }),
     execute: async (_id, params) => {
@@ -280,7 +297,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         reason_code?: unknown;
       };
       const judged = evaluateAppendNote(args.body, args.reason_code);
-      if (!judged.ok) {
+      if (!judged.ok || judged.reason_code === 0) {
         return textResult(judged.error ?? "笔记未写入", {
           ok: false,
           reason_code: judged.reason_code,
@@ -290,14 +307,25 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         topic.id,
         judged.body,
         args.section_id,
-        judged.reason_name,
+        judged.reason_code,
       );
-      runtime.emit({ type: "note_appended", topicId: topic.id, noteId: note.id });
+      if (note.sectionId) {
+        addTurnCitation(topic.id, { section_id: note.sectionId, note_id: note.id });
+      }
+      runtime.emit({
+        type: "note_appended",
+        note_id: note.id,
+        note_type: note.type,
+        reason_code: note.reasonCode,
+        section_id: note.sectionId ?? undefined,
+        topic_id: topic.id,
+      });
       return textResult(`已追加笔记 ${note.id}`, {
         ok: true,
         note_id: note.id,
-        reason_code: judged.reason_code,
-        reason_name: judged.reason_name,
+        type: note.type,
+        reason_code: note.reasonCode,
+        section_id: note.sectionId,
       });
     },
   };

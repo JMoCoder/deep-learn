@@ -124,7 +124,97 @@ describe("two cores backend", () => {
     const ok = await exec(append, { body: "卡在投影公设", reason_code: 1 });
     assert.equal(ok.details.ok, true);
     assert.equal(ok.details.reason_code, 1);
-    assert.equal(store.listNotes(topic.id)[0]?.reasonCode, "friction");
+    assert.equal(ok.details.type, "思考");
+    assert.equal(store.listNotes(topic.id)[0]?.reasonCode, 1);
+    assert.equal(store.listNotes(topic.id)[0]?.type, "思考");
+
+    const q = await exec(append, { body: "这个符号还没懂", reason_code: 2 });
+    assert.equal(q.details.type, "疑问");
+    const ext = await exec(append, { body: "想留下这条旁支", reason_code: 3 });
+    assert.equal(ext.details.type, "拓展");
+    const loop = await exec(append, { body: "同一问第二轮仍未解", reason_code: 4 });
+    assert.equal(loop.details.type, "疑问");
+    const rejected = await exec(append, { body: "旧英文名", reason_code: "friction" });
+    assert.equal(rejected.details.ok, false);
+  });
+
+  it("emits frozen session events and serves current projection", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("事件");
+    const captured: Array<{ type: string }> = [];
+    const tools = createQuantumTools({
+      store,
+      topicId: topic.id,
+      requireTopic: () => store.requireTopic(topic.id),
+      emit: (event) => captured.push(event),
+    });
+
+    await exec(tools.find((t) => t.name === "finalize_boundary")!, {
+      answers: [
+        { kind: "goal_outcome", question: "g", answer: "我能独立画一遍" },
+        { kind: "prior_level", question: "p", answer: "只会定义" },
+        { kind: "scope_out", question: "s", answer: "没有" },
+        { kind: "depth", question: "d", answer: "能讲清" },
+        { kind: "chunk_budget", question: "c", answer: "每周 2 小时" },
+      ],
+    });
+    assert.ok(captured.some((e) => e.type === "boundary_finalized"));
+    assert.ok(captured.some((e) => e.type === "phase_changed"));
+
+    await exec(tools.find((t) => t.name === "draft_outline")!, {
+      title: "独立画一遍",
+      nodes: [
+        {
+          title: "定向：地图",
+          intent: "地图",
+          objective: "能指出接入点",
+          children: [{ title: "过关", intent: "证据", objective: "能写出一条证据" }],
+        },
+      ],
+    });
+    await exec(tools.find((t) => t.name === "finalize_outline")!, {});
+    assert.ok(captured.some((e) => e.type === "outline_finalized"));
+
+    const outline = store.getOutline(topic.id);
+    const leaf = outline[0]?.children[0] ?? outline[0]!;
+    await exec(tools.find((t) => t.name === "generate_section")!, {
+      outline_node_id: leaf.id,
+      title: leaf.title,
+      body_md: "第一节。",
+    });
+    assert.ok(captured.some((e) => e.type === "section_status"));
+    assert.ok(captured.some((e) => e.type === "section_ready"));
+
+    const section = store.getSectionByOutline(leaf.id)!;
+    await exec(tools.find((t) => t.name === "append_note")!, {
+      body: "记下这条心得",
+      reason_code: 1,
+      section_id: section.id,
+    });
+    const noteEvent = captured.find((e) => e.type === "note_appended") as {
+      note_id?: string;
+      note_type?: string;
+      reason_code?: number;
+      section_id?: string;
+    };
+    assert.ok(noteEvent?.note_id);
+    assert.equal(noteEvent.note_type, "思考");
+    assert.equal(noteEvent.reason_code, 1);
+    assert.equal(noteEvent.section_id, section.id);
+
+    const { app } = createApp(store);
+    const projection = await app.request("/api/topics/current/projection");
+    assert.equal(projection.status, 200);
+    const body = (await projection.json()) as {
+      topic_title: string;
+      section_title: string;
+      outline: unknown[];
+      phase: string;
+    };
+    assert.equal(body.topic_title, "独立画一遍");
+    assert.equal(body.section_title, leaf.title);
+    assert.ok(Array.isArray(body.outline));
+    assert.equal(body.phase, "learning");
   });
 
   it("keeps a single current_topic_id", () => {

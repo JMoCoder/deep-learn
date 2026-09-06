@@ -91,7 +91,7 @@ export function BooksTab({
                     <li key={n.id} className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm">
                       <p>{n.body}</p>
                       <p className="mt-1 text-[11px] text-paper-muted">
-                        {n.reasonCode} · {formatTime(n.createdAt)}
+                        {n.type} · {n.reasonCode} · {formatTime(n.createdAt)}
                       </p>
                     </li>
                   ))}

@@ -124,17 +124,37 @@ export default function App() {
           window.open(event.downloadPath, "_blank");
           void refresh();
           break;
+        case "message": {
+          const cites = event.role === "assistant" ? event.citations ?? [] : [];
+          if (cites.length) {
+            setLiveRows((rows) => [
+              ...rows,
+              {
+                id: `cite-${cites.map((c) => c.section_id).join("-")}`,
+                kind: "cite",
+                title: "引用",
+                summary: cites.map((c) => c.section_id).join(" · "),
+                status: "done",
+                citations: cites.map((c) => ({
+                  title: c.note_id ? `章节 ${c.section_id} · 笔记 ${c.note_id}` : `章节 ${c.section_id}`,
+                })),
+                createdAt: Date.now(),
+              },
+            ]);
+          }
+          break;
+        }
         case "note_appended":
           setLiveRows((rows) => {
             if (rows.some((r) => r.toolName === "append_note")) return rows;
             return [
               ...rows,
               {
-                id: `note-${event.noteId}`,
+                id: `note-${event.note_id}`,
                 kind: "note",
                 toolName: "append_note",
-                title: "笔记已写入",
-                summary: "append_note",
+                title: event.note_type,
+                summary: event.note_type,
                 status: "done",
                 createdAt: Date.now(),
               },
@@ -143,6 +163,10 @@ export default function App() {
           void refresh();
           break;
         case "phase_changed":
+        case "boundary_finalized":
+        case "outline_finalized":
+        case "section_status":
+        case "section_ready":
         case "topic_updated":
         case "section_updated":
         case "outline_updated":

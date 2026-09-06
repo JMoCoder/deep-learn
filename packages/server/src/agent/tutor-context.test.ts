@@ -22,7 +22,7 @@ describe("build_tutor_context", () => {
       "finalized",
     );
     store.finalizeOutline(topic.id);
-    store.appendNote(topic.id, "卡在符号", undefined, "friction");
+    store.appendNote(topic.id, "卡在符号", undefined, 2);
 
     const ctx = build_tutor_context(store, topic.id);
     assert.ok(ctx);
@@ -38,7 +38,8 @@ describe("build_tutor_context", () => {
     assert.equal(ctx.L4, undefined);
 
     const withL4 = build_tutor_context(store, topic.id, { includeL4: true });
-    assert.equal(withL4?.L4?.recentNotes[0]?.reasonCode, "friction");
+    assert.equal(withL4?.L4?.recentNotes[0]?.reasonCode, 2);
+    assert.equal(withL4?.L4?.recentNotes[0]?.type, "疑问");
 
     const rendered = renderTutorContext(ctx);
     assert.ok(!rendered.includes("apiKey"));

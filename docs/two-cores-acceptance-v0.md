@@ -18,7 +18,7 @@ Manual + automated checks for Core 1 (onboarding) and Core 2 (sidebar). Pedagogy
 
 - [ ] 学习 body has **no** session composer; right drawer does.
 - [ ] System prompt is packed by internal `build_tutor_context` (L0–L3; L4 deferred), not by pasting keys or other topics.
-- [ ] A real learner line in `learning` can become exactly one `append_note` with a `reason_code`; no user「记一笔」.
+- [ ] A real learner line in `learning` can become exactly one `append_note` with frozen `reason_code` 1–4 → Note.type 思考/疑问/拓展; no user「记一笔」.
 - [ ] After `append_note` tool result, the stub coach **stops** (no loop).
 - [ ] 书籍 notes list shows AI notes only; export modal offers `md | html | epub` via `export_topic`.
 - [ ] Strategy enum exists in shared types; live firing policy remains TODO (`docs/core2-sidebar-ai-research-v0.md`).

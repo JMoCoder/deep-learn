@@ -9,6 +9,8 @@ import { modelFromSettings, stubModel } from "./model.js";
 import { baseSystemPrompt, phasePrompt } from "./prompts.js";
 import { safeLog } from "../redact.js";
 import { createStubStreamFn } from "./stub-stream.js";
+import { beginTurn, endTurn, peekTurnMeta, setTurnStrategy } from "./turn-meta.js";
+import { build_tutor_context } from "./tutor-context.js";
 import type { SessionRuntime } from "./types.js";
 
 export class AgentHost {
@@ -53,6 +55,8 @@ export class AgentHost {
     const topic = this.store.requireTopic(topicId);
     const agent = this.ensure(topic);
     this.refreshPrompt(agent, topic.id);
+    const packed = build_tutor_context(this.store, topicId);
+    beginTurn(topicId, packed?.L0.strategyHint);
     bus.emit({ type: "session_start", topicId });
     try {
       await agent.prompt(text);
@@ -63,6 +67,7 @@ export class AgentHost {
     } finally {
       this.store.saveSessionMessages(topicId, agent.state.messages);
       bus.emit({ type: "session_end", topicId });
+      endTurn(topicId);
     }
   }
 
@@ -153,7 +158,19 @@ export class AgentHost {
         const role = (msg as { role?: string }).role;
         if (role === "user" || role === "assistant") {
           const text = messageText(msg);
-          if (text) bus.emit({ type: "message", role, text });
+          if (text) {
+            const packed = build_tutor_context(this.store, topicId);
+            if (packed?.L0.strategyHint) setTurnStrategy(topicId, packed.L0.strategyHint);
+            const meta = peekTurnMeta(topicId);
+            bus.emit({
+              type: "message",
+              role,
+              text,
+              ...(role === "assistant"
+                ? { strategy: meta.strategy, citations: meta.citations }
+                : {}),
+            });
+          }
         }
         break;
       }

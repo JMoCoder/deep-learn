@@ -33,7 +33,9 @@ export async function exportTopic(
     "## 正文",
     ...sections.flatMap((s) => [`### ${s.title}`, "", s.bodyMd, ""]),
     "## 笔记（仅 append_note）",
-    notes.length === 0 ? "（无）" : notes.map((n) => `- ${n.body}`).join("\n"),
+    notes.length === 0
+      ? "（无）"
+      : notes.map((n) => `- [${n.type}/${n.reasonCode}] ${n.body}`).join("\n"),
     "",
   ].join("\n");
 

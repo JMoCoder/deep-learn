@@ -48,6 +48,27 @@ export function createApp(store = new Store(), host = new AgentHost(store)) {
 
   app.get("/api/topics", (c) => c.json(store.listTopics()));
 
+  app.get("/api/topics/current/projection", (c) => {
+    const currentTopicId = store.getCurrentTopicId();
+    if (!currentTopicId) {
+      return c.json({
+        topic_title: "",
+        section_title: "",
+        outline: [],
+        phase: "",
+      });
+    }
+    const topic = store.requireTopic(currentTopicId);
+    const currentSectionId = store.getCurrentSectionId();
+    const section = currentSectionId ? store.getSection(currentSectionId) : null;
+    return c.json({
+      topic_title: topic.title,
+      section_title: section?.title ?? "",
+      outline: store.getOutline(currentTopicId),
+      phase: topic.phase,
+    });
+  });
+
   app.post("/api/topics", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { title?: string };
     const topic = store.createTopic(body.title?.trim() || "未命名主题");
@@ -96,6 +117,12 @@ export function createApp(store = new Store(), host = new AgentHost(store)) {
     const body = (await c.req.json()) as { sectionId?: string };
     if (!body.sectionId) return c.json({ error: "sectionId required" }, 400);
     store.setCurrentSection(body.sectionId);
+    bus.emit({
+      type: "section_status",
+      topic_id: id,
+      section_id: body.sectionId,
+      status: store.getSection(body.sectionId) ? "ready" : "selected",
+    });
     bus.emit({ type: "section_updated", topicId: id, sectionId: body.sectionId });
     return c.json({ currentSectionId: body.sectionId, section: store.getSection(body.sectionId) });
   });

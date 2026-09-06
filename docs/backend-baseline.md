@@ -106,20 +106,36 @@ Draft use (see `docs/core2-sidebar-ai-research-v0.md`):
 - `REDIRECT` — back to the current leaf
 - `HOLD` — talk, do not mutate
 
-## `append_note.reason_code`
+## `append_note.reason_code` (frozen)
 
-Tool I/O accepts **1–4** or the stored names. Body **≤ 300** chars. `ok: false` if over limit.
+Numeric only. **Do not** replace with an English enum. Body **≤ 300** chars. `ok: false` if over limit or if `reason_code` is not 1–4.
 
-| Code | Name |
+| Code | Meaning | `Note.type` |
+| --- | --- | --- |
+| 1 | 稳定结论/心得 | 思考 |
+| 2 | 可复查误解或未解 | 疑问 |
+| 3 | 超 objective 旁支且用户想留 | 拓展 |
+| 4 | 同题往返≥2 轮未解 | 疑问 |
+
+Learner UI never picks these. No `POST /notes`. **TODO:** which codes belong in the export preface.
+
+## Session SSE (frozen names)
+
+`GET /api/session/events`. Event names must not drift. Web subscribes to:
+
+| Event | Notes |
 | --- | --- |
-| 1 | `friction` |
-| 2 | `contrast` |
-| 3 | `checkpoint` |
-| 4 | `transfer` |
+| `phase_changed` | `{ topicId, phase, exportState }` |
+| `boundary_finalized` | `{ topic_id, phase }` |
+| `outline_finalized` | `{ topic_id, phase }` |
+| `section_status` | `{ topic_id, section_id, status, outline_node_id? }` |
+| `section_ready` | `{ topic_id, section_id }` |
+| `note_appended` | `{ note_id, note_type, reason_code?, section_id? }` — `note_type` is `Note.type`（思考/疑问/拓展）. Wire field is `note_type` because SSE `type` is the event name. |
+| `export_ready` | `{ topicId, format, filename, downloadPath }` |
 
-Also stored (not in 1–4): `correction` · `export_worthy` · `unspecified`.
+Assistant `message` metadata (same SSE): `strategy?`, `citations?: [{ section_id, note_id? }]`.
 
-Learner UI never picks these. No `POST /notes`. **TODO:** which codes predict a useful export preface.
+`GET /api/topics/current/projection` shape: `{ topic_title, section_title, outline, phase }`.
 
 ## Tool surface
 

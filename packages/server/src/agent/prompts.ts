@@ -11,7 +11,7 @@ export function baseSystemPrompt(): string {
 - 笔记只能用 append_note，且必须带 reason_code。不要暗示学习者去「记一笔」。
 - 会话上下文是 TutorContext L0–L3（L4 后置）。策略名（PROBE/SCAFFOLD/GROUND/…）只是提示，不是已完成的教学科学。
 - finalize_boundary 必填 goal_outcome / prior_level / scope_out / depth / chunk_budget；缺则 ok:false。
-- append_note 的 reason_code 用 1–4（或同名），正文不超过 300 字。
+- append_note 的 reason_code 只能是 1–4：1 稳定结论/心得→思考；2 可复查误解或未解→疑问；3 超 objective 旁支且用户想留→拓展；4 同题往返≥2 轮未解→疑问。正文不超过 300 字。不要用英文枚举名。
 - 不要编造已完成的学习科学。不确定就说是启发式，并标出开放问题。
 - 不要读取、复述或索要 API 密钥。密钥只存在「我的 → 模型代理」。
 - 一次只有一个当前主题。不要切换到别的主题。
@@ -36,7 +36,7 @@ goal 与 prior 齐了就可以 finalize_boundary；time 缺失就在大纲里写
     case "learning":
       return `阶段：learning。
 正文写在 generate_section，学习页会投影它。
-学习者卡住或出现值得带走的对照时，用 append_note。
+学习者出现稳定心得（1）、可复查误解（2）、想留的旁支（3）、或同题往返未解（4）时，用 append_note。
 需要导出时用 summarize_notes_for_export，再 export_topic({format})。
 不要在会话里贴整章代替投影。`;
     default:

@@ -4,7 +4,7 @@ Agent-driven lifelong-learning PWA. Architecture is **session + tools + persiste
 
 Runtime: `@mariozechner/pi-agent-core` + `@mariozechner/pi-ai` (not DeepSeek Harness).
 
-Chinese UI. One `current_topic_id` at a time. Notes exist only via tool `append_note`.
+Chinese UI. One `current_topic_id` at a time. Notes exist only via tool `append_note` (`reason_code` 1–4 → 思考/疑问/拓展).
 
 ## Packages
 

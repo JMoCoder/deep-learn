@@ -32,11 +32,11 @@ Closed enum. Firing rules are **draft**. The coach/prompts may name a hint; we d
 
 | Strategy | When (heuristic) | Typical tools |
 | --- | --- | --- |
-| `PROBE` | Answer is vague; gap unknown | talk only, or `append_note` friction |
+| `PROBE` | Answer is vague; gap unknown | talk only, or `append_note` reason_code 2 |
 | `SCAFFOLD` | They asked “怎么开始” | short structure; maybe `generate_section` if leaf empty |
 | `GROUND` | They drifted off the projected leaf | point at L3; no new chapter |
 | `ELABORATE` | They want more on the same objective | optional section regen; keep `target_chars` |
-| `CONTRAST` | Two cases mixed | `append_note` contrast |
+| `CONTRAST` | Two cases mixed | `append_note` reason_code 1 or 2 |
 | `CHECK` | They claim “会了” | one observable check, not a quiz product |
 | `REDIRECT` | They asked for another topic | refuse to switch `current_topic_id` from chat |
 | `HOLD` | Social / meta / export small talk | no mutation |
@@ -47,12 +47,12 @@ Local coach (no key) is **not** a full strategy engine. It covers GROUND-ish gen
 
 Notes exist only in the tool loop. The books hero lists them; the learner cannot add one.
 
-Write a note when:
+Write a note when `reason_code` 1–4 applies:
 
-- they name a **friction** (“这一句跟不上”)
-- a **contrast** or correction is worth exporting
-- a **checkpoint** they actually performed
-- a **transfer** attempt (“换个例子”)
+- **1** 稳定结论/心得 → `Note.type` 思考
+- **2** 可复查误解或未解 → 疑问
+- **3** 超 objective 旁支且用户想留 → 拓展
+- **4** 同题往返≥2 轮未解 → 疑问
 
 Do **not** write a note when:
 
@@ -60,7 +60,7 @@ Do **not** write a note when:
 - the turn is kickoff / system
 - the same user text already became a note this turn (coach must stop after `toolResult`)
 
-`reason_code` is required: `friction | contrast | checkpoint | transfer | correction | export_worthy | unspecified`.
+`reason_code` is required and frozen as **1–4**. Do not invent English aliases.
 
 **TODO:** which codes belong in the export preface; whether notes should bind to `depends_on` leaves.
 
