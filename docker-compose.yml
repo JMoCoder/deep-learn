@@ -1,3 +1,7 @@
+# v1 preview: docker compose up --build
+#   PWA  http://127.0.0.1:43127  (nginx :80, published on server)
+#   API  http://127.0.0.1:43128/api/health
+# web shares server netns so /api is same-origin. Volume quantum-data → /data.
 services:
   server:
     build:
