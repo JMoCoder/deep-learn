@@ -1,5 +1,5 @@
-import type { BoundaryRecord, OutlineDraftNode } from "@quantum/shared";
-import { ensureDraftPrereqEdges } from "./prereq-edges.js";
+import type { BoundaryRecord, OutlineDraftNode, OutlineNode } from "@quantum/shared";
+import { collectDraftLeaves, ensureDraftPrereqEdges, flattenDraft } from "./prereq-edges.js";
 
 /**
  * Deterministic outline scaffold used by the local coach and as a prompt example.
@@ -141,5 +141,88 @@ export function outlineFromBoundaries(boundaries: BoundaryRecord[]): {
     },
   ];
 
-  return { title, nodes: ensureDraftPrereqEdges(nodes) };
+  return { title, nodes: trimOutlineToLeafCap(ensureDraftPrereqEdges(nodes), leaves) };
+}
+
+function cloneDraft(nodes: OutlineDraftNode[]): OutlineDraftNode[] {
+  return JSON.parse(JSON.stringify(nodes)) as OutlineDraftNode[];
+}
+
+/** Drop trailing leaves (and emptied section wrappers) until leaf count ≤ cap. Does not raise the cap. */
+export function trimOutlineToLeafCap(nodes: OutlineDraftNode[], cap: number): OutlineDraftNode[] {
+  const tree = cloneDraft(nodes);
+  const limit = Math.max(1, cap);
+  let guard = 0;
+  while (collectDraftLeaves(tree).length > limit && guard < 48) {
+    guard += 1;
+    if (!removeLastLeaf(tree)) break;
+  }
+  return ensureDraftPrereqEdges(repairDependsOn(tree));
+}
+
+function removeLastLeaf(nodes: OutlineDraftNode[]): boolean {
+  const path = lastLeafPath(nodes);
+  if (!path?.length) return false;
+  const leaf = path[path.length - 1]!;
+  leaf.list.splice(leaf.index, 1);
+  for (let i = path.length - 2; i >= 0; i -= 1) {
+    const { list, index } = path[i]!;
+    const node = list[index];
+    if (node?.children && node.children.length === 0) list.splice(index, 1);
+    else break;
+  }
+  return true;
+}
+
+function lastLeafPath(
+  nodes: OutlineDraftNode[],
+): Array<{ list: OutlineDraftNode[]; index: number }> | null {
+  const walk = (
+    list: OutlineDraftNode[],
+    acc: Array<{ list: OutlineDraftNode[]; index: number }>,
+  ): Array<{ list: OutlineDraftNode[]; index: number }> | null => {
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      const node = list[i]!;
+      const here = [...acc, { list, index: i }];
+      if (!node.children?.length) return here;
+      const found = walk(node.children, here);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(nodes, []);
+}
+
+function repairDependsOn(nodes: OutlineDraftNode[]): OutlineDraftNode[] {
+  const titles = new Set(flattenDraft(nodes).map((node) => node.title));
+  const walk = (list: OutlineDraftNode[]) => {
+    for (const node of list) {
+      node.depends_on = (node.depends_on ?? []).filter((title) => titles.has(title));
+      if (node.children?.length) walk(node.children);
+    }
+  };
+  walk(nodes);
+  return nodes;
+}
+
+/** Map stored outline (dependsOn = ids) back to draft shape (depends_on = titles) for constraint checks. */
+export function storedOutlineToDraft(nodes: OutlineNode[]): OutlineDraftNode[] {
+  const byId = new Map<string, OutlineNode>();
+  const index = (list: OutlineNode[]) => {
+    for (const node of list) {
+      byId.set(node.id, node);
+      index(node.children);
+    }
+  };
+  index(nodes);
+  const map = (list: OutlineNode[]): OutlineDraftNode[] =>
+    list.map((node) => ({
+      title: node.title,
+      intent: node.intent,
+      objective: node.objective,
+      depends_on: node.dependsOn.map((dep) => byId.get(dep)?.title ?? dep),
+      target_chars: node.targetChars,
+      children: node.children.length ? map(node.children) : undefined,
+    }));
+  return map(nodes);
 }

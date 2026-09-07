@@ -9,6 +9,7 @@ import {
   snapshotFromRecords,
 } from "../learning/boundary-snapshot.js";
 import { evaluateOutlineDraft } from "../learning/outline-constraints.js";
+import { storedOutlineToDraft, trimOutlineToLeafCap } from "../learning/outline-from-boundaries.js";
 import { collectPrereqEdges, ensureDraftPrereqEdges } from "../learning/prereq-edges.js";
 import { evaluateAppendNote } from "../learning/note-policy.js";
 import { flattenOutline } from "../store/repos.js";
@@ -167,8 +168,12 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         nodes: OutlineDraftNode[];
       };
       const snapshot = snapshotFromRecords(runtime.store.listBoundaries(topic.id));
-      const nodes = ensureDraftPrereqEdges(args.nodes);
-      const constraints = evaluateOutlineDraft(nodes, snapshot);
+      let nodes = ensureDraftPrereqEdges(args.nodes);
+      let constraints = evaluateOutlineDraft(nodes, snapshot);
+      if (!constraints.ok && constraints.leafCount > constraints.leafCap) {
+        nodes = trimOutlineToLeafCap(nodes, constraints.leafCap);
+        constraints = evaluateOutlineDraft(nodes, snapshot);
+      }
       if (!constraints.ok) {
         return textResult(`大纲未通过约束：${constraints.errors.join("；")}`, {
           ok: false,
@@ -200,6 +205,16 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       const topic = runtime.requireTopic();
       const draft = runtime.store.getOutline(topic.id);
       if (draft.length === 0) throw new Error("还没有大纲，先 draft_outline");
+      const snapshot = snapshotFromRecords(runtime.store.listBoundaries(topic.id));
+      const check = evaluateOutlineDraft(storedOutlineToDraft(draft), snapshot);
+      if (!check.ok) {
+        return textResult(`大纲未通过约束：${check.errors.join("；")}`, {
+          ok: false,
+          errors: check.errors,
+          leafCount: check.leafCount,
+          leafCap: check.leafCap,
+        });
+      }
       const args = params as { title?: string };
       const outline = runtime.store.finalizeOutline(topic.id, args.title);
       runtime.emit({ type: "outline_finalized", topic_id: topic.id, phase: "learning" });

@@ -5,8 +5,9 @@ import {
   nextBoundaryKind,
   questionFor,
 } from "../learning/boundary-interview.js";
-import { evaluateFinalize } from "../learning/boundary-snapshot.js";
-import { outlineFromBoundaries } from "../learning/outline-from-boundaries.js";
+import { evaluateFinalize, snapshotFromRecords } from "../learning/boundary-snapshot.js";
+import { evaluateOutlineDraft } from "../learning/outline-constraints.js";
+import { outlineFromBoundaries, storedOutlineToDraft } from "../learning/outline-from-boundaries.js";
 import { scaffoldSectionBody } from "../learning/section-scaffold.js";
 import { learningRefuseReply, topicHitsScopeOut } from "../learning/scope-out.js";
 import { flattenOutline, type Store } from "../store/repos.js";
@@ -73,7 +74,23 @@ function planAfterTool(store: Store, topicId: string, toolName: string, last: st
     return planOutline(store, topicId, last);
   }
   if (toolName === "draft_outline") {
-    return { text: "大纲已起草。要改结构直接说；确认就回复「可以」。" };
+    const snapshot = snapshotFromRecords(store.listBoundaries(topicId));
+    const stored = store.getOutline(topicId);
+    if (stored.length === 0) {
+      return {
+        text: "这一稿没落盘。说「减叶」或「重拟」我按负荷上限再砍一刀，不要回「可以」。",
+      };
+    }
+    const check = evaluateOutlineDraft(storedOutlineToDraft(stored), snapshot);
+    if (!check.ok) {
+      const drafted = outlineFromBoundaries(store.listBoundaries(topicId));
+      return {
+        text: "上一稿超负荷预算。已按上限砍叶重拟，请再看一眼。",
+        strategy: "SCAFFOLD",
+        tool: { name: "draft_outline", args: drafted },
+      };
+    }
+    return { text: "大纲已起草。要改结构或减叶直接说；确认就回复「可以」。" };
   }
   if (toolName === "finalize_outline") {
     return planLearning(store, topicId, "请开始");
@@ -156,23 +173,35 @@ function finalizeInterviewPlan(
 }
 
 function planOutline(store: Store, topicId: string, last: string): CoachPlan {
-  const outline = store.getOutline(topicId);
-  if (outline.length === 0) {
-    const drafted = outlineFromBoundaries(store.listBoundaries(topicId));
+  const boundaries = store.listBoundaries(topicId);
+  const drafted = outlineFromBoundaries(boundaries);
+  const snapshot = snapshotFromRecords(boundaries);
+  const stored = store.getOutline(topicId);
+  const check =
+    stored.length > 0
+      ? evaluateOutlineDraft(storedOutlineToDraft(stored), snapshot)
+      : { ok: false, errors: ["还没有落盘大纲"], leafCount: 0, leafCap: 0 };
+
+  if (stored.length === 0 || !check.ok || looksLikeLeafCut(last)) {
     return {
-      text: "按定向 → 先修 → 核心 → 应用 → 迁移起草。确认后说「可以」我就锁定。",
+      text: check.ok
+        ? "按负荷预算砍叶重拟。"
+        : stored.length === 0
+          ? "按定向 → 先修 → 核心 → 应用 → 迁移起草。确认后说「可以」我就锁定。"
+          : "超负荷预算，正在按上限砍叶重拟。",
       strategy: "SCAFFOLD",
       tool: { name: "draft_outline", args: drafted },
     };
   }
-  if (last && !looksLikeKickoff(last) && /(可以|锁定|定稿|开始学|行|好的|确认)/.test(last)) {
+
+  if (last && !looksLikeKickoff(last) && looksLikeOutlineLock(last)) {
     return {
       text: "锁定大纲，进入学习。",
       tool: { name: "finalize_outline", args: { title: store.requireTopic(topicId).title } },
     };
   }
   return {
-    text: "大纲已在左侧。要改结构直接说；若可以，回复「可以」我再 finalize_outline。",
+    text: "大纲已在左侧。超负荷就说「减叶」或「重拟」；约束通过后再回复「可以」。",
   };
 }
 
@@ -282,6 +311,15 @@ function nextKindAfter(kind: BoundaryKind): BoundaryKind | null {
 
 function looksLikeKickoff(text: string): boolean {
   return /开始边界|新建主题|继续引导|请开始/.test(text);
+}
+
+function looksLikeLeafCut(text: string): boolean {
+  return /减叶|重拟|砍叶|减到|少几叶|收一叶/.test(text.trim());
+}
+
+function looksLikeOutlineLock(text: string): boolean {
+  return /^(可以|锁定|定稿|开始学|好的|好|确认大纲)[。.!！]*$/.test(text.trim())
+    || (/确认大纲|锁定大纲/.test(text.trim()) && text.trim().length <= 16);
 }
 
 function looksLikeAdvance(text: string): boolean {
