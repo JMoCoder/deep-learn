@@ -52,6 +52,9 @@ export function useSetLocale(): (next: Locale) => void {
 export function useT(): TFunction {
   const ctx = useContext(LocaleContext);
   const locale = ctx?.locale ?? readStoredLocale();
-  if (ctx) return ctx.t;
-  return (key, vars) => translate(locale, key, vars);
+  const provided = ctx?.t;
+  return useMemo(
+    () => provided ?? ((key: MessageKey, vars?: Vars) => translate(locale, key, vars)),
+    [provided, locale],
+  );
 }

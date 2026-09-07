@@ -6,6 +6,7 @@ import { act } from "react";
 import { describe, it, afterEach } from "node:test";
 import { emptyBoundarySnapshot } from "@quantum/shared";
 import App from "../App.tsx";
+import { LocaleProvider } from "@/i18n";
 
 const settings = {
   provider: "openai",
@@ -90,7 +91,7 @@ describe("1.1 create topic posts /api/topics", () => {
     document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => {
-      root.render(createElement(App));
+      root.render(createElement(LocaleProvider, null, createElement(App)));
     });
     await act(async () => {
       await new Promise((r) => setTimeout(r, 20));
