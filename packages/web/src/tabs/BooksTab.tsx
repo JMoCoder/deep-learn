@@ -106,11 +106,15 @@ export function BooksTab({
         <div className="space-y-3 p-3">
           <button
             type="button"
-            onClick={() => {
+            data-testid="create-topic"
+            aria-label="新建主题"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
               onCreate();
-              onDrawerOpen(false);
             }}
-            className="w-full rounded-lg border border-dashed border-cinnabar/40 bg-paper-deep px-3 py-4 text-left"
+            className="relative z-10 w-full rounded-lg border border-dashed border-cinnabar/40 bg-paper-deep px-3 py-4 text-left"
           >
             <div className="font-serif text-base text-cinnabar">新建主题</div>
             <p className="mt-1 text-xs text-paper-muted">设为当前主题，并从边界访谈开始。</p>

@@ -90,6 +90,7 @@ export default function App() {
     Array<{ text: string; strategy?: TutorStrategy; citations?: SessionCitation[] }>
   >([]);
   const outlineRef = useRef<OutlineNode[]>([]);
+  const creatingTopic = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -398,18 +399,30 @@ export default function App() {
   }
 
   async function createTopic() {
+    if (creatingTopic.current) return;
+    creatingTopic.current = true;
     setLiveRows([]);
-    const created = await api.createTopic();
-    writeCachedTopicId(created.id);
-    writeBoundaryConfirmed(created.id, false);
-    writeBoundaryFinalized(created.id, false);
-    setBoundaryConfirmed(false);
-    setBoundaryFinalized(false);
-    setTopicPointerNote(null);
-    setDraftRejected(false);
-    setTab("learn");
-    setSessionOpen(true);
-    await refresh();
+    setLoadError(null);
+    try {
+      const created = await api.createTopic();
+      writeCachedTopicId(created.id);
+      writeBoundaryConfirmed(created.id, false);
+      writeBoundaryFinalized(created.id, false);
+      setBoundaryConfirmed(false);
+      setBoundaryFinalized(false);
+      setTopicPointerNote(null);
+      setDraftRejected(false);
+      setBooksDrawer(false);
+      setTab("learn");
+      setSessionOpen(true);
+      await refresh();
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "新建主题失败");
+      setTab("books");
+      setBooksDrawer(true);
+    } finally {
+      creatingTopic.current = false;
+    }
   }
 
   async function switchTopic(id: string) {
