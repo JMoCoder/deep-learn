@@ -17,8 +17,9 @@ release dates that were never tagged.
 
 ### Notes
 
-- Server-rendered operational strings (health, persist errors, default topic names from
-  user text) are not localized. They are not PWA chrome.
+- No server locale needed. Settings have no `locale` field. Health/persist errors and
+  default topic titles are data or machine strings, not PWA chrome. Stub/coach copy
+  follows the user's input language.
 
 ## [0.1.0]
 

@@ -101,6 +101,8 @@ browser  :43127  →  nginx / vite (PWA)
 
 Agent **没有**单独的语言开关。回复跟随用户输入的语言。界面开关不会往模型 prompt 里塞强制 locale。
 
+服务端 API 没有 locale 字段。Stub / 教练话术跟用户输入语种；PWA 空态和壳层由前端翻译。**不需要服务端 locale。**
+
 ## 模型代理（密钥）
 
 打开 **我的 → 模型代理**，或在 Compose 里传入：

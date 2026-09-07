@@ -94,12 +94,14 @@ Current-topic hero (no page title). Topic drawer from the right. First card = **
 
 ### Settings (Me)
 
-Model proxy and a placeholder heatmap. **Interface language** (`中文` / `English`) switches PWA chrome only.
+Model proxy and a placeholder heatmap. **Interface language** (Chinese / English) switches PWA chrome only.
 
 - First visit: follow the browser language (`en*` → English, `zh*` → Chinese). Anything else falls back to zh-CN.
 - After you pick a language, it is stored in `localStorage` (`quantum.locale`).
 
 The agent does **not** have a separate language switch. Replies follow the language of the user's message. The UI toggle does not inject a forced locale into model prompts.
+
+Server APIs have no locale field. Stub/coach copy follows the user's input language; PWA empty states and chrome are translated on the client. **No server locale is needed.**
 
 ## Model proxy (keys)
 
