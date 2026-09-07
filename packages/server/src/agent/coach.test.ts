@@ -21,6 +21,24 @@ describe("coach boundary → outline", () => {
     assert.equal((next.tool?.args as { kind: string }).kind, "goal");
   });
 
+  it("untitled new topic asks what to learn before the 8-dim walk", () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic();
+    const first = planCoachTurn(store, topic.id, "学习者刚新建主题。请开始边界访谈。");
+    assert.equal(first.tool, undefined);
+    assert.equal(first.strategy, undefined);
+    assert.match(first.text, /想学哪个主题/);
+
+    const after = planCoachTurn(store, topic.id, "测量入门，初级就行");
+    assert.equal(store.requireTopic(topic.id).title, "测量入门，初级就行");
+    assert.equal(store.requireTopic(topic.id).phase, "boundary_interview");
+    assert.equal(after.tool?.name, "ask_boundary");
+    assert.equal((after.tool?.args as { kind: string }).kind, "motivation");
+    assert.notEqual(after.tool?.name, "draft_outline");
+    assert.notEqual(after.tool?.name, "finalize_boundary");
+    assert.match(after.text ?? "", /不会只凭主题名和难度出大纲/);
+  });
+
   it("walks all eight interview dimensions before finalize", () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("八维");

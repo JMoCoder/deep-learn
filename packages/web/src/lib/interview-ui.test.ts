@@ -9,8 +9,10 @@ import {
   currentUnansweredKind,
   interviewGuideCopy,
   isChatOutlineConfirm,
+  needsTopicAnchor,
   shouldBlockComposerConfirm,
   shouldShowLearnBoundaryCard,
+  topicTitleFromUtterance,
   visibleInterviewChips,
 } from "./interview-ui.ts";
 
@@ -82,6 +84,33 @@ describe("1.2 interview UI honesty + send", () => {
     assert.equal(
       shouldBlockComposerConfirm({ text: "可以", pendingCard: true, interviewing: false }),
       true,
+    );
+  });
+
+  it("asks for a topic anchor before the 8-dim walk on an untitled interview", () => {
+    assert.equal(
+      needsTopicAnchor({ phase: "boundary_interview", title: "未命名主题" }),
+      true,
+    );
+    assert.equal(
+      needsTopicAnchor({ phase: "boundary_interview", title: "未命名主题", anchored: true }),
+      false,
+    );
+    assert.equal(
+      needsTopicAnchor({ phase: "boundary_interview", title: "测量入门" }),
+      false,
+    );
+    assert.equal(needsTopicAnchor({ phase: "learning", title: "未命名主题" }), false);
+    assert.equal(topicTitleFromUtterance("我想学量子力学。"), "量子力学");
+    assert.equal(topicTitleFromUtterance("线性代数补起来"), "线性代数补起来");
+    assert.equal(
+      composerPlaceholder({
+        phase: "boundary_interview",
+        awaitingTopicAnchor: true,
+        pendingBoundary: false,
+        pendingOutline: false,
+      }),
+      "直接说想学什么，不必先填难度",
     );
   });
 

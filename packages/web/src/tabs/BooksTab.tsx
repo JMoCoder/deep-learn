@@ -1,5 +1,4 @@
-import { useState, type ReactNode } from "react";
-import { Library } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import type {
   BoundaryRecord,
   ExportFormat,
@@ -13,7 +12,26 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { countOutlineLeaves, uiNoteType } from "@/lib/session-display";
 import { phaseText, useLocale, useT } from "@/i18n";
-import { formatTime } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
+
+export const BOOKS_PANE_KEY = "quantum.booksContentPane";
+export type BooksPane = "body" | "notes";
+
+export function readBooksPane(): BooksPane {
+  try {
+    return sessionStorage.getItem(BOOKS_PANE_KEY) === "notes" ? "notes" : "body";
+  } catch {
+    return "body";
+  }
+}
+
+export function writeBooksPane(pane: BooksPane): void {
+  try {
+    sessionStorage.setItem(BOOKS_PANE_KEY, pane);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 export function BooksTab({
   topic,
@@ -43,117 +61,150 @@ export function BooksTab({
   const t = useT();
   const locale = useLocale();
   const [exportId, setExportId] = useState<string | null>(null);
+  const [pane, setPane] = useState<BooksPane>(readBooksPane);
   const goal =
     boundaries.find((b) => b.kind === "goal_outcome" || b.kind === "goal")?.answer.trim() || "";
   const leaves = countOutlineLeaves(outline);
 
+  useEffect(() => {
+    writeBooksPane(pane);
+  }, [pane]);
+
+  function selectPane(next: BooksPane) {
+    setPane(next);
+    writeBooksPane(next);
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-b border-paper-line px-3 py-3">
-        <div className="flex items-stretch gap-2">
-          <TopicHero topic={topic} goal={goal} noteCount={notes.length} leaves={leaves} />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mt-1 shrink-0"
-            data-testid="open-topic-drawer"
-            aria-label={t("books.openDrawer")}
-            onClick={() => onDrawerOpen(true)}
-          >
-            <Library className="h-5 w-5" />
-          </Button>
-        </div>
+      <header className="z-20 border-b border-paper-line px-3 py-3">
+        <TopicHero
+          topic={topic}
+          goal={goal}
+          noteCount={notes.length}
+          leaves={leaves}
+          onOpenDrawer={() => onDrawerOpen(true)}
+        />
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
-        {!topic ? (
-          <p className="mx-auto max-w-md py-10 text-center text-sm text-paper-muted">
-            {t("books.emptyBody")}
-          </p>
-        ) : (
-          <div className="mx-auto max-w-2xl space-y-8">
-            <section>
-              {section ? (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink/90">
-                  {section.bodyMd.slice(0, 800)}
-                  {section.bodyMd.length > 800 ? "…" : ""}
-                </p>
-              ) : (
-                <p className="text-sm text-paper-muted">{t("books.noProjection")}</p>
-              )}
-            </section>
-            <section>
-              <h2 className="font-serif text-base">{t("books.notes")}</h2>
-              <p className="mt-1 text-xs text-paper-muted">
-                {t("books.notesHint")}
-              </p>
-              {notes.length === 0 ? (
-                <p className="mt-3 text-sm text-paper-muted">{t("books.noNotes")}</p>
-              ) : (
-                <ul className="mt-3 space-y-3">
-                  {notes.map((n) => (
-                    <li key={n.id} className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm">
-                      <p>{n.body}</p>
-                      <p className="mt-1 text-[11px] text-paper-muted">
-                        {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} · {formatTime(n.createdAt, locale)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </div>
-        )}
-      </div>
-
-      <Drawer open={drawerOpen} side="right" title={t("books.drawerTitle")} onClose={() => onDrawerOpen(false)}>
-        <div className="space-y-3 p-3">
-          <button
-            type="button"
-            data-testid="create-topic"
-            aria-label={t("books.createTopic")}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onCreate();
-            }}
-            className="relative z-10 w-full rounded-lg border border-dashed border-cinnabar/40 bg-paper-deep px-3 py-4 text-left"
-          >
-            <div className="font-serif text-base text-cinnabar">{t("books.createTopic")}</div>
-            <p className="mt-1 text-xs text-paper-muted">{t("books.createTopicHint")}</p>
-          </button>
-          {topics.map((item) => (
-            <article key={item.id} className="rounded-lg border border-paper-line p-3">
-              <div className="font-medium">{item.title}</div>
-              <p className="mt-1 text-xs text-paper-muted">
-                {phaseText(item.phase, t)} · {formatTime(item.updatedAt, locale)}
-              </p>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    onSwitch(item.id);
-                    onDrawerOpen(false);
-                  }}
-                >
-                  {t("books.switch")}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setExportId(item.id)}>
-                  {t("books.export")}
-                </Button>
+      <div className="relative min-h-0 flex-1 overflow-hidden" data-testid="books-stage">
+        <div className="quantum-scroll h-full min-h-0 overflow-y-auto px-5 py-6">
+          {!topic ? (
+            <p className="mx-auto max-w-md py-10 text-center text-sm text-paper-muted">
+              {t("books.emptyBody")}
+            </p>
+          ) : (
+            <div className="mx-auto max-w-2xl space-y-6">
+              <div
+                role="tablist"
+                aria-label={t("books.contentTabs")}
+                className="relative z-10 flex gap-1 rounded-full border border-paper-line bg-paper-deep/70 p-1"
+              >
+                <PaneTab
+                  testId="books-tab-body"
+                  selected={pane === "body"}
+                  label={t("books.tabBody")}
+                  onSelect={() => selectPane("body")}
+                />
+                <PaneTab
+                  testId="books-tab-notes"
+                  selected={pane === "notes"}
+                  label={t("books.tabNotes")}
+                  onSelect={() => selectPane("notes")}
+                />
               </div>
-            </article>
-          ))}
+
+              {pane === "body" ? (
+                <section role="tabpanel" data-testid="books-pane-body">
+                  {section ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink/90">
+                      {section.bodyMd.slice(0, 800)}
+                      {section.bodyMd.length > 800 ? "…" : ""}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-paper-muted">{t("books.noProjection")}</p>
+                  )}
+                </section>
+              ) : (
+                <section role="tabpanel" data-testid="books-pane-notes">
+                  <p className="text-xs text-paper-muted">{t("books.notesHint")}</p>
+                  {notes.length === 0 ? (
+                    <p className="mt-3 text-sm text-paper-muted">{t("books.noNotes")}</p>
+                  ) : (
+                    <ul className="mt-3 space-y-3">
+                      {notes.map((n) => (
+                        <li
+                          key={n.id}
+                          className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm"
+                        >
+                          <p>{n.body}</p>
+                          <p className="mt-1 text-[11px] text-paper-muted">
+                            {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} ·{" "}
+                            {formatTime(n.createdAt, locale)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )}
+            </div>
+          )}
         </div>
-      </Drawer>
+
+        <Drawer
+          contained
+          open={drawerOpen}
+          side="right"
+          title={t("books.drawerTitle")}
+          onClose={() => onDrawerOpen(false)}
+        >
+          <div className="space-y-3 p-3">
+            <button
+              type="button"
+              data-testid="create-topic"
+              aria-label={t("books.createTopic")}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onCreate();
+              }}
+              className="relative z-10 w-full rounded-lg border border-dashed border-cinnabar/40 bg-paper-deep px-3 py-4 text-left"
+            >
+              <div className="font-serif text-base text-cinnabar">{t("books.createTopic")}</div>
+              <p className="mt-1 text-xs text-paper-muted">{t("books.createTopicHint")}</p>
+            </button>
+            {topics.map((item) => (
+              <article key={item.id} className="rounded-lg border border-paper-line p-3">
+                <div className="font-medium">{item.title}</div>
+                <p className="mt-1 text-xs text-paper-muted">
+                  {phaseText(item.phase, t)} · {formatTime(item.updatedAt, locale)}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      onSwitch(item.id);
+                      onDrawerOpen(false);
+                    }}
+                  >
+                    {t("books.switch")}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setExportId(item.id)}>
+                    {t("books.export")}
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </Drawer>
+      </div>
 
       <Dialog open={Boolean(exportId)} onOpenChange={(o) => !o && setExportId(null)}>
         <DialogContent title={t("books.exportTitle")}>
-          <p className="text-sm text-paper-muted">
-            {t("books.exportHint")}
-          </p>
+          <p className="text-sm text-paper-muted">{t("books.exportHint")}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {(["md", "html", "epub"] as const).map((format) => (
               <Button
@@ -174,55 +225,110 @@ export function BooksTab({
   );
 }
 
+function PaneTab({
+  selected,
+  label,
+  onSelect,
+  testId,
+}: {
+  selected: boolean;
+  label: string;
+  onSelect: () => void;
+  testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      data-testid={testId}
+      aria-selected={selected}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelect();
+      }}
+      className={cn(
+        "relative z-10 min-h-9 flex-1 rounded-full px-3 py-1.5 text-sm transition-colors",
+        selected
+          ? "bg-paper text-cinnabar shadow-sm"
+          : "text-paper-muted hover:text-paper-ink",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
 function TopicHero({
   topic,
   goal,
   noteCount,
   leaves,
+  onOpenDrawer,
 }: {
   topic: TopicSummary | null;
   goal: string;
   noteCount: number;
   leaves: { ready: number; total: number };
+  onOpenDrawer: () => void;
 }) {
   const t = useT();
   return (
-    <section className="hero-topic relative min-w-0 flex-1 overflow-hidden rounded-[1.35rem] border border-paper-line/90 px-4 py-4 pl-5">
+    <section className="hero-topic relative flex min-w-0 items-center gap-3 overflow-hidden rounded-[1.35rem] border border-paper-line/90 px-4 py-4 pl-5">
       <span aria-hidden className="hero-accent" />
-      <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">{t("books.currentTopic")}</p>
-      {topic ? (
-        <>
-          <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
-          {goal ? (
-            <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
-          ) : (
-            <p className="mt-2 text-sm text-paper-muted">{t("books.noGoal")}</p>
-          )}
-          {topic.phase === "outline_draft" ? (
-            <p className="mt-2 text-xs text-paper-muted">{t("books.outlineOnLearn")}</p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <MetaChip>
-              {t("books.sections", { ready: leaves.ready, total: leaves.total || "—" })}
-            </MetaChip>
-            <MetaChip>{t("books.notesCount", { count: noteCount })}</MetaChip>
-            <MetaChip>
-              {phaseText(topic.phase, t)}
-              {topic.exportState !== "idle" ? ` · ${t("books.exportState", { state: topic.exportState })}` : ""}
-            </MetaChip>
-          </div>
-        </>
-      ) : (
-        <>
-          <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{t("books.noCurrentTitle")}</h1>
-          <p className="mt-2 text-sm text-paper-muted">{t("books.noCurrentBody")}</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <MetaChip>{t("books.sectionsDash")}</MetaChip>
-            <MetaChip>{t("books.notesZero")}</MetaChip>
-            <MetaChip>{t("books.notStarted")}</MetaChip>
-          </div>
-        </>
-      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">
+          {t("books.currentTopic")}
+        </p>
+        {topic ? (
+          <>
+            <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
+            {goal ? (
+              <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
+            ) : (
+              <p className="mt-2 text-sm text-paper-muted">{t("books.noGoal")}</p>
+            )}
+            {topic.phase === "outline_draft" ? (
+              <p className="mt-2 text-xs text-paper-muted">{t("books.outlineOnLearn")}</p>
+            ) : null}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <MetaChip>
+                {t("books.sections", { ready: leaves.ready, total: leaves.total || "—" })}
+              </MetaChip>
+              <MetaChip>{t("books.notesCount", { count: noteCount })}</MetaChip>
+              <MetaChip>
+                {phaseText(topic.phase, t)}
+                {topic.exportState !== "idle"
+                  ? ` · ${t("books.exportState", { state: topic.exportState })}`
+                  : ""}
+              </MetaChip>
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">
+              {t("books.noCurrentTitle")}
+            </h1>
+            <p className="mt-2 text-sm text-paper-muted">{t("books.noCurrentBody")}</p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <MetaChip>{t("books.sectionsDash")}</MetaChip>
+              <MetaChip>{t("books.notesZero")}</MetaChip>
+              <MetaChip>{t("books.notStarted")}</MetaChip>
+            </div>
+          </>
+        )}
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="relative z-10 shrink-0 self-center"
+        data-testid="open-topic-drawer"
+        aria-label={t("books.openDrawer")}
+        onClick={onOpenDrawer}
+      >
+        {t("books.switch")}
+      </Button>
     </section>
   );
 }

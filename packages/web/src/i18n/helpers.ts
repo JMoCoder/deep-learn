@@ -97,9 +97,11 @@ export function composerPlaceholderText(
     pendingBoundary: boolean;
     pendingOutline: boolean;
     overBudget?: boolean;
+    awaitingTopicAnchor?: boolean;
   },
   t: TFunction,
 ): string {
+  if (input.awaitingTopicAnchor) return t("placeholder.topicAnchor");
   const askingId = input.currentKind ? kindsToDimensionIds(input.currentKind)[0] : undefined;
   if (askingId || input.phase === "boundary_interview") {
     return askingId ? t(PLACEHOLDER_KEYS[askingId]) : t("placeholder.current");

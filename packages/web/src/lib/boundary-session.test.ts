@@ -4,9 +4,11 @@ import {
   readBoundaryConfirmed,
   readBoundaryFinalized,
   readCachedTopicId,
+  readTopicAnchor,
   writeBoundaryConfirmed,
   writeBoundaryFinalized,
   writeCachedTopicId,
+  writeTopicAnchor,
 } from "./boundary-session.ts";
 
 class MemoryStore implements Storage {
@@ -48,5 +50,9 @@ describe("1.3 topic + finalize persistence", () => {
 
     writeCachedTopicId(null);
     assert.equal(readCachedTopicId(), null);
+
+    writeTopicAnchor("topic-1", "测量入门");
+    assert.equal(readTopicAnchor("topic-1"), "测量入门");
+    assert.equal(readTopicAnchor("topic-2"), null);
   });
 });

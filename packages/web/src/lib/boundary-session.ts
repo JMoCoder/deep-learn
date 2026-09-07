@@ -1,6 +1,7 @@
 const CONFIRMED_PREFIX = "quantum.boundary-card.confirmed.";
 const FINALIZED_PREFIX = "quantum.boundary-card.finalized.";
 const TOPIC_PTR = "quantum.current-topic-id";
+const ANCHOR_PREFIX = "quantum.topic-anchor.";
 
 function readSessionFlag(key: string): boolean {
   if (typeof sessionStorage === "undefined") return false;
@@ -54,6 +55,26 @@ export function writeCachedTopicId(id: string | null): void {
   try {
     if (id) localStorage.setItem(TOPIC_PTR, id);
     else localStorage.removeItem(TOPIC_PTR);
+  } catch {
+    /* private mode */
+  }
+}
+
+export function readTopicAnchor(topicId: string | null): string | null {
+  if (!topicId || typeof sessionStorage === "undefined") return null;
+  try {
+    return sessionStorage.getItem(`${ANCHOR_PREFIX}${topicId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function writeTopicAnchor(topicId: string, title: string): void {
+  if (typeof sessionStorage === "undefined") return;
+  const trimmed = title.trim();
+  if (!trimmed) return;
+  try {
+    sessionStorage.setItem(`${ANCHOR_PREFIX}${topicId}`, trimmed);
   } catch {
     /* private mode */
   }

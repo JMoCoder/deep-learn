@@ -2,8 +2,15 @@ import type { BoundarySnapshot, InterviewDimensionId, InterviewDimensionStatus }
 import {
   STUB_INTERVIEW_NOTE,
   interviewDimensionStatus,
+  isDefaultTopicTitle,
   kindsToDimensionIds,
   shouldShowBoundaryCard,
+} from "@quantum/shared";
+
+export {
+  DEFAULT_TOPIC_TITLE,
+  isDefaultTopicTitle,
+  topicTitleFromUtterance,
 } from "@quantum/shared";
 
 export const ALL_ASKED_COPY = "8 维都已问到。确认边界卡前再看一眼缺口。";
@@ -87,13 +94,29 @@ export function shouldBlockComposerConfirm(input: {
   return isChatOutlineConfirm(input.text);
 }
 
+export function needsTopicAnchor(input: {
+  phase: string;
+  title?: string | null;
+  anchored?: boolean;
+}): boolean {
+  if (input.phase !== "boundary_interview") return false;
+  if (input.anchored) return false;
+  return isDefaultTopicTitle(input.title);
+}
+
+export function looksLikeKickoffUserLine(text: string): boolean {
+  return /学习者刚新建主题|请开始边界访谈/.test(text);
+}
+
 export function composerPlaceholder(input: {
   phase: string;
   currentKind?: string | null;
   pendingBoundary: boolean;
   pendingOutline: boolean;
   overBudget?: boolean;
+  awaitingTopicAnchor?: boolean;
 }): string {
+  if (input.awaitingTopicAnchor) return "直接说想学什么，不必先填难度";
   const askingId = input.currentKind ? kindsToDimensionIds(input.currentKind)[0] : undefined;
   if (askingId || input.phase === "boundary_interview") {
     const map: Record<InterviewDimensionId, string> = {

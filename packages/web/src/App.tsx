@@ -32,15 +32,19 @@ import {
   readBoundaryConfirmed,
   readBoundaryFinalized,
   readCachedTopicId,
+  readTopicAnchor,
   writeBoundaryConfirmed,
   writeBoundaryFinalized,
   writeCachedTopicId,
+  writeTopicAnchor,
 } from "@/lib/boundary-session";
 import {
   currentUnansweredKind,
   isChatOutlineConfirm,
+  needsTopicAnchor,
   shouldBlockComposerConfirm,
   shouldShowLearnBoundaryCard,
+  topicTitleFromUtterance,
 } from "@/lib/interview-ui";
 import {
   draftToolLooksOverBudget,
@@ -88,6 +92,7 @@ export default function App() {
   const [boundaryFinalized, setBoundaryFinalized] = useState(false);
   const [topicPointerNote, setTopicPointerNote] = useState<PointerKey | null>(null);
   const [draftRejected, setDraftRejected] = useState(false);
+  const [topicAnchor, setTopicAnchor] = useState<string | null>(null);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
   const refuseTurnRef = useRef(false);
   const [streaming, setStreaming] = useState("");
@@ -210,6 +215,11 @@ export default function App() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const id = snapshot?.currentTopicId;
+    setTopicAnchor(id ? readTopicAnchor(id) : null);
+  }, [snapshot?.currentTopicId]);
 
   useEffect(() => {
     return connectEvents((event: SessionEvent) => {
@@ -363,6 +373,22 @@ export default function App() {
   async function send(text: string) {
     setError(null);
     const topicId = snapshot?.currentTopicId;
+    const awaitingAnchor = needsTopicAnchor({
+      phase: snapshot?.topic?.phase ?? "",
+      title: snapshot?.topic?.title,
+      anchored: Boolean(topicAnchor),
+    });
+    if (topicId && awaitingAnchor) {
+      const title = topicTitleFromUtterance(text);
+      if (!title) return;
+      writeTopicAnchor(topicId, title);
+      setTopicAnchor(title);
+      try {
+        await api.renameTopic(topicId, title);
+      } catch {
+        /* stub prompt still locks the title if PATCH is missing */
+      }
+    }
     const unanswered = currentUnansweredKind(boundaries);
     const interviewing =
       snapshot?.topic?.phase === "boundary_interview" || Boolean(unanswered);
@@ -429,6 +455,7 @@ export default function App() {
       setBoundaryFinalized(false);
       setTopicPointerNote(null);
       setDraftRejected(false);
+      setTopicAnchor(null);
       setBooksDrawer(false);
       setTab("learn");
       setSessionOpen(true);
@@ -469,7 +496,14 @@ export default function App() {
     return decorateAssistantMessage(m, hit);
   });
 
-  const topic = snapshot?.topic ?? null;
+  const awaitingTopicAnchor = needsTopicAnchor({
+    phase: snapshot?.topic?.phase ?? "",
+    title: snapshot?.topic?.title,
+    anchored: Boolean(topicAnchor),
+  });
+  const topic = snapshot?.topic
+    ? { ...snapshot.topic, title: topicAnchor || snapshot.topic.title }
+    : null;
   const coachMode = snapshot?.coachMode ?? "stub";
   const settings = snapshot?.settings ?? emptySettings;
   const askedKinds = boundaries.map((b) => b.kind);
@@ -487,7 +521,7 @@ export default function App() {
   });
 
   return (
-    <div className="mx-auto flex h-dvh max-w-lg flex-col bg-paper shadow-[0_0_0_1px_var(--color-paper-line)] md:max-w-3xl">
+    <div className="mx-auto flex h-dvh w-full max-w-lg flex-col bg-paper shadow-[0_0_0_1px_var(--color-paper-line)] md:max-w-3xl lg:max-w-4xl">
       {loadError ? (
         <p className="border-b border-cinnabar/30 bg-cinnabar/10 px-4 py-2 text-xs text-cinnabar">
           {loadError} · {t("app.loadErrorSuffix")}
@@ -521,6 +555,7 @@ export default function App() {
           onConfirmBoundary={confirmBoundaryCard}
           topicPointerNote={topicPointerNote ? t(topicPointerNote) : null}
           draftRejected={draftRejected}
+          awaitingTopicAnchor={awaitingTopicAnchor}
         />
       ) : null}
 

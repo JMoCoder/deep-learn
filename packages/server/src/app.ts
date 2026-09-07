@@ -92,6 +92,17 @@ export function createApp(store = new Store(), host = new AgentHost(store)) {
     return c.json(topic, 201);
   });
 
+  app.patch("/api/topics/:id", async (c) => {
+    const id = c.req.param("id");
+    store.requireTopic(id);
+    const body = (await c.req.json().catch(() => ({}))) as { title?: string };
+    const title = body.title?.trim();
+    if (!title) return c.json({ error: "title required" }, 400);
+    const topic = store.updateTopic(id, { title });
+    bus.emit({ type: "topic_updated", topicId: id });
+    return c.json(topic);
+  });
+
   app.post("/api/topics/:id/switch", (c) => {
     const id = c.req.param("id");
     store.requireTopic(id);
