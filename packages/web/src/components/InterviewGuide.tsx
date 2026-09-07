@@ -1,9 +1,8 @@
 import type { BoundarySnapshot } from "@quantum/shared";
-import { STUB_INTERVIEW_NOTE, interviewDimensionStatus } from "@quantum/shared";
-import { allInterviewChipsFilled, composerPlaceholder } from "@/lib/interview-ui";
+import { interviewGuideCopy, visibleInterviewChips } from "@/lib/interview-ui";
 import { cn } from "@/lib/utils";
 
-export { composerPlaceholder };
+export { composerPlaceholder } from "@/lib/interview-ui";
 
 export function InterviewGuide({
   snapshot,
@@ -16,8 +15,9 @@ export function InterviewGuide({
   coachMode: "stub" | "live";
   currentKind?: string | null;
 }) {
-  const dims = interviewDimensionStatus(snapshot, askedKinds, currentKind);
-  const allFilled = allInterviewChipsFilled(snapshot, askedKinds, currentKind);
+  const dims = visibleInterviewChips(snapshot, askedKinds, currentKind);
+  const banner = interviewGuideCopy(dims, coachMode);
+  const complete = dims.length === 8 && dims.every((dim) => dim.chip === "filled");
 
   return (
     <section className="rounded-xl border border-paper-line bg-paper-deep/50 px-3 py-2">
@@ -44,17 +44,13 @@ export function InterviewGuide({
           </li>
         ))}
       </ul>
-      {allFilled ? (
-        <p className="mt-2 text-[11px] text-pine">8 维都已问到。确认边界卡前再看一眼缺口。</p>
-      ) : (
-        <p className="mt-2 text-[11px] leading-relaxed text-paper-muted">
-          {dims.some((d) => d.chip === "asking")
-            ? `正在问「${dims.find((d) => d.chip === "asking")?.label}」。答完这一维再看是否齐。`
-            : coachMode === "stub"
-              ? STUB_INTERVIEW_NOTE
-              : "可合并问，不可缺维。未问到的维不会标成已齐。"}
-        </p>
-      )}
+      <p
+        data-testid="interview-guide-banner"
+        data-banner={complete ? "complete" : dims.some((d) => d.chip === "asking") ? "asking" : "pending"}
+        className={`mt-2 text-[11px] leading-relaxed ${complete ? "text-pine" : "text-paper-muted"}`}
+      >
+        {banner}
+      </p>
     </section>
   );
 }

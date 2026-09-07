@@ -2,11 +2,10 @@ import type { BoundarySnapshot } from "@quantum/shared";
 import {
   STUB_INTERVIEW_NOTE,
   canConfirmBoundaryCard,
-  interviewDimensionStatus,
   missingFinalizeFields,
 } from "@quantum/shared";
 import { Button } from "@/components/ui/button";
-import { allInterviewChipsFilled } from "@/lib/interview-ui";
+import { allInterviewChipsFilled, visibleInterviewChips } from "@/lib/interview-ui";
 import { cn } from "@/lib/utils";
 
 const REQUIRED_ROWS: Array<{
@@ -52,7 +51,7 @@ export function BoundaryCard({
 }) {
   const missing = missingFinalizeFields(snapshot);
   const canConfirm = canConfirmBoundaryCard(snapshot);
-  const dims = interviewDimensionStatus(snapshot, askedKinds, currentKind);
+  const dims = visibleInterviewChips(snapshot, askedKinds, currentKind);
   const askedCount = dims.filter((d) => d.asked || d.filled).length;
   const allAsked = allInterviewChipsFilled(snapshot, askedKinds, currentKind);
 

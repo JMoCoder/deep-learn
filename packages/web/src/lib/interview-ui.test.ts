@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { emptyBoundarySnapshot, snapshotFromAnswers } from "@quantum/shared";
 import {
+  ALL_ASKED_COPY,
   allInterviewChipsFilled,
   composerPlaceholder,
   composerShouldLock,
   currentUnansweredKind,
+  interviewGuideCopy,
   isChatOutlineConfirm,
   shouldBlockComposerConfirm,
   shouldShowLearnBoundaryCard,
+  visibleInterviewChips,
 } from "./interview-ui.ts";
 
 const EIGHT = [
@@ -24,11 +27,34 @@ const EIGHT = [
 ];
 
 describe("1.2 interview UI honesty + send", () => {
-  it("does not claim 8 维都已问到 while load is still asking", () => {
+  it("一维在问 ⇒ 不出现「8维都已问到」", () => {
     const asked = EIGHT.map((row) => row.kind);
     const withoutLoad = snapshotFromAnswers(EIGHT.filter((row) => row.kind !== "time"));
+    const dims = visibleInterviewChips(withoutLoad, asked, "time");
+    assert.equal(dims.find((d) => d.id === "load")?.chip, "asking");
+    assert.equal(dims.find((d) => d.id === "load")?.chipLabel, "在问");
+    const copy = interviewGuideCopy(dims);
+    assert.equal(copy.includes("8 维都已问到"), false);
+    assert.equal(copy.includes(ALL_ASKED_COPY), false);
+    assert.match(copy, /正在问「负荷」/);
     assert.equal(allInterviewChipsFilled(withoutLoad, asked, "time"), false);
     assert.equal(allInterviewChipsFilled(emptyBoundarySnapshot(), asked, "time"), false);
+  });
+
+  it("literal 在问 chip never yields the complete banner", () => {
+    const copy = interviewGuideCopy([
+      { chip: "filled", chipLabel: "已答", label: "动机" },
+      { chip: "asking", chipLabel: "在问", label: "负荷" },
+    ]);
+    assert.equal(copy.includes("8 维都已问到"), false);
+    assert.match(copy, /正在问「负荷」/);
+  });
+
+  it("shows 8 维都已问到 only when every chip is 已答", () => {
+    const asked = EIGHT.map((row) => row.kind);
+    const dims = visibleInterviewChips(snapshotFromAnswers(EIGHT), asked, null);
+    assert.equal(dims.every((d) => d.chip === "filled"), true);
+    assert.equal(interviewGuideCopy(dims), ALL_ASKED_COPY);
     assert.equal(allInterviewChipsFilled(snapshotFromAnswers(EIGHT), asked, null), true);
   });
 

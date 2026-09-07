@@ -1,15 +1,51 @@
-import type { BoundarySnapshot, InterviewDimensionId } from "@quantum/shared";
-import { interviewDimensionStatus, kindsToDimensionIds, shouldShowBoundaryCard } from "@quantum/shared";
+import type { BoundarySnapshot, InterviewDimensionId, InterviewDimensionStatus } from "@quantum/shared";
+import {
+  STUB_INTERVIEW_NOTE,
+  interviewDimensionStatus,
+  kindsToDimensionIds,
+  shouldShowBoundaryCard,
+} from "@quantum/shared";
 
-/** 「8 维都已问到」only when every chip is 已答. Asked-but-empty (在问) is not 齐. */
+export const ALL_ASKED_COPY = "8 维都已问到。确认边界卡前再看一眼缺口。";
+
+export function visibleInterviewChips(
+  snapshot: BoundarySnapshot,
+  askedKinds: string[],
+  currentKind?: string | null,
+): InterviewDimensionStatus[] {
+  const currentIds = currentKind ? kindsToDimensionIds(currentKind) : [];
+  return interviewDimensionStatus(snapshot, askedKinds, currentKind).map((dim) => {
+    const currentUnfilled = currentIds.includes(dim.id) && !dim.filled;
+    if (currentUnfilled || (!dim.filled && (dim.chip === "asking" || dim.asked))) {
+      return { ...dim, chip: "asking", chipLabel: "在问" };
+    }
+    if (dim.filled) return { ...dim, chip: "filled", chipLabel: "已答" };
+    return { ...dim, chip: "unasked", chipLabel: "未问" };
+  });
+}
+
+/** Banner is derived from the same chips the UI paints. Asking / 未问 always win. */
+export function interviewGuideCopy(
+  dims: Array<{ chip: string; chipLabel?: string; label: string }>,
+  coachMode: "stub" | "live" = "stub",
+): string {
+  const asking = dims.find((dim) => dim.chip === "asking" || dim.chipLabel === "在问");
+  if (asking) return `正在问「${asking.label}」。答完这一维再看是否齐。`;
+  const unfinished = dims.some((dim) => dim.chip !== "filled" && dim.chipLabel !== "已答");
+  if (unfinished || dims.length < 8) {
+    return coachMode === "stub" ? STUB_INTERVIEW_NOTE : "可合并问，不可缺维。未问到的维不会标成已齐。";
+  }
+  return ALL_ASKED_COPY;
+}
+
+/** 「8 维都已问到」only when every visible chip is 已答. */
 export function allInterviewChipsFilled(
   snapshot: BoundarySnapshot,
   askedKinds: string[],
   currentKind?: string | null,
 ): boolean {
-  return interviewDimensionStatus(snapshot, askedKinds, currentKind).every(
-    (dim) => dim.chip === "filled",
-  );
+  const dims = visibleInterviewChips(snapshot, askedKinds, currentKind);
+  return dims.length === 8 && dims.every((dim) => dim.chip === "filled");
 }
 
 export function currentUnansweredKind(
