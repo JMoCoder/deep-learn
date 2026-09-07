@@ -69,8 +69,20 @@ export const REQUIRED_TO_FINALIZE: BoundaryKind[] = [
   "constraint",
 ];
 
+/** Load dim aliases. Last in the stub walk; answering any of these must finalize, not re-ask. */
+export const LOAD_KINDS: ReadonlySet<BoundaryKind> = new Set(["time", "chunk_budget", "time_budget"]);
+
+export function isLoadKind(kind: string): boolean {
+  return LOAD_KINDS.has(kind as BoundaryKind);
+}
+
 export function nextBoundaryKind(existing: BoundaryRecord[]): BoundaryKind | null {
   const have = new Set(existing.filter((b) => b.answer.trim() || b.status === "asked").map((b) => b.kind));
+  if ([...have].some((kind) => isLoadKind(kind))) {
+    have.add("time");
+    have.add("chunk_budget");
+    have.add("time_budget");
+  }
   for (const step of BOUNDARY_SCRIPT) {
     if (!have.has(step.kind)) return step.kind;
   }

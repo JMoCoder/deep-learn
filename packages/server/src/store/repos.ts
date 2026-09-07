@@ -208,11 +208,54 @@ export class Store {
   }
 
   recordBoundaryAnswer(topicId: string, kind: BoundaryKind, answer: string): void {
+    const trimmed = answer.trim();
+    if (!trimmed) return;
     const existing = this.listBoundaries(topicId).find((b) => b.kind === kind);
-    if (!existing) return;
+    const ts = this.now();
+    if (existing) {
+      this.db
+        .prepare("UPDATE boundaries SET answer = ?, status = 'answered' WHERE id = ?")
+        .run(trimmed, existing.id);
+      this.touchTopic(topicId);
+      return;
+    }
+    const rowId = id("bnd");
+    const sort = this.listBoundaries(topicId).length;
     this.db
-      .prepare("UPDATE boundaries SET answer = ?, status = 'answered' WHERE id = ?")
-      .run(answer.trim(), existing.id);
+      .prepare(
+        "INSERT INTO boundaries (id, topic_id, kind, question, answer, status, sort_order, created_at) VALUES (?, ?, ?, ?, ?, 'answered', ?, ?)",
+      )
+      .run(rowId, topicId, kind, "", trimmed, sort, ts);
+    this.touchTopic(topicId);
+  }
+
+  /** Write answers without changing phase. Used when finalize_boundary is rejected. */
+  upsertBoundaryAnswers(
+    topicId: string,
+    answers: Array<{ kind: BoundaryKind; question: string; answer: string }>,
+  ): BoundaryRecord[] {
+    for (const item of answers) {
+      const trimmed = item.answer.trim();
+      const existing = this.listBoundaries(topicId).find((b) => b.kind === item.kind);
+      if (existing) {
+        const question = item.question.trim() || existing.question;
+        const answer = trimmed || existing.answer;
+        const status = answer ? "answered" : existing.status;
+        this.db
+          .prepare("UPDATE boundaries SET question = ?, answer = ?, status = ? WHERE id = ?")
+          .run(question, answer, status, existing.id);
+      } else if (trimmed) {
+        const rowId = id("bnd");
+        const sort = this.listBoundaries(topicId).length;
+        this.db
+          .prepare(
+            "INSERT INTO boundaries (id, topic_id, kind, question, answer, status, sort_order, created_at) VALUES (?, ?, ?, ?, ?, 'answered', ?, ?)",
+          )
+          .run(rowId, topicId, item.kind, item.question, trimmed, sort, this.now());
+      }
+    }
+    this.touchTopic(topicId);
+    return this.listBoundaries(topicId);
   }
 
   finalizeBoundaries(

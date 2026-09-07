@@ -1,9 +1,11 @@
 import type { BoundaryKind, TutorStrategy } from "@quantum/shared";
 import {
   BOUNDARY_SCRIPT,
+  isLoadKind,
   nextBoundaryKind,
   questionFor,
 } from "../learning/boundary-interview.js";
+import { evaluateFinalize } from "../learning/boundary-snapshot.js";
 import { outlineFromBoundaries } from "../learning/outline-from-boundaries.js";
 import { scaffoldSectionBody } from "../learning/section-scaffold.js";
 import { learningRefuseReply, topicHitsScopeOut } from "../learning/scope-out.js";
@@ -55,7 +57,19 @@ function planAfterTool(store: Store, topicId: string, toolName: string, last: st
     const asked = [...store.listBoundaries(topicId)].reverse().find((b) => b.status === "asked");
     return { text: asked?.question ?? "请直接回答这一问。" };
   }
-  if (toolName === "finalize_boundary" || (topic.phase === "outline_draft" && store.getOutline(topicId).length === 0)) {
+  if (toolName === "finalize_boundary") {
+    if (topic.phase !== "outline_draft") {
+      const check = evaluateFinalize(store.listBoundaries(topicId));
+      const gaps = [...check.missing, ...check.unasked];
+      return {
+        text: gaps.length
+          ? `还不能定稿，缺少：${gaps.join("、")}。末维已记下，补缺口后再锁定。`
+          : "边界还没锁定。末维已记下，缺的维补一句即可。",
+      };
+    }
+    return planOutline(store, topicId, last);
+  }
+  if (topic.phase === "outline_draft" && store.getOutline(topicId).length === 0 && toolName !== "draft_outline") {
     return planOutline(store, topicId, last);
   }
   if (toolName === "draft_outline") {
@@ -87,7 +101,10 @@ function planInterview(store: Store, topicId: string, last: string): CoachPlan {
   }
 
   if (askedUnanswered && last && !looksLikeKickoff(last)) {
-    const next = nextKindAfter(askedUnanswered.kind);
+    // Persist before finalize so a rejected gate does not leave 负荷 stuck on「在问」.
+    store.recordBoundaryAnswer(topicId, askedUnanswered.kind, last);
+    const recorded = store.listBoundaries(topicId);
+    const next = nextKindAfter(askedUnanswered.kind) ?? nextBoundaryKind(recorded);
     if (next) {
       return {
         text: "记下这一答，继续下一问。",
@@ -101,32 +118,40 @@ function planInterview(store: Store, topicId: string, last: string): CoachPlan {
         },
       };
     }
-    const answers = existing.map((b) => ({
-      kind: b.kind,
-      question: b.question,
-      answer: b.kind === askedUnanswered.kind ? last : b.answer,
-    }));
-    if (!answers.some((a) => a.kind === askedUnanswered.kind)) {
-      answers.push({
-        kind: askedUnanswered.kind,
-        question: askedUnanswered.question,
-        answer: last,
-      });
-    }
-    return {
-      text: "八维已经问过。我先锁定边界，你再确认边界卡。",
-      tool: { name: "finalize_boundary", args: { answers } },
-    };
+    return finalizeInterviewPlan(recorded);
   }
 
-  const next = nextBoundaryKind(existing) ?? BOUNDARY_SCRIPT[0]!.kind;
-  const q = questionFor(next);
+  const next = nextBoundaryKind(existing);
+  if (!next && existing.length > 0) {
+    return finalizeInterviewPlan(existing);
+  }
+
+  const kind = next ?? BOUNDARY_SCRIPT[0]!.kind;
+  const q = questionFor(kind);
   return {
     text:
       existing.length === 0
         ? "先把学习边界问清楚，再写大纲。一次一问。"
         : "下一问：",
-    tool: { name: "ask_boundary", args: { kind: next, question: q } },
+    tool: { name: "ask_boundary", args: { kind, question: q } },
+  };
+}
+
+function finalizeInterviewPlan(
+  rows: Array<{ kind: string; question: string; answer: string }>,
+): CoachPlan {
+  return {
+    text: "八维已经问过。我先锁定边界，你再确认边界卡。",
+    tool: {
+      name: "finalize_boundary",
+      args: {
+        answers: rows.map((b) => ({
+          kind: b.kind,
+          question: b.question,
+          answer: b.answer,
+        })),
+      },
+    },
   };
 }
 
@@ -249,7 +274,9 @@ function planLearning(store: Store, topicId: string, last: string): CoachPlan {
 }
 
 function nextKindAfter(kind: BoundaryKind): BoundaryKind | null {
+  if (isLoadKind(kind)) return null;
   const idx = BOUNDARY_SCRIPT.findIndex((s) => s.kind === kind);
+  if (idx < 0) return null;
   return BOUNDARY_SCRIPT[idx + 1]?.kind ?? null;
 }
 

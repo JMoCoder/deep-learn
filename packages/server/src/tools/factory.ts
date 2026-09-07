@@ -100,7 +100,9 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         answers: Array<{ kind: Parameters<typeof questionFor>[0]; question: string; answer: string }>;
       };
       const merged = mergeAnswersIntoRecords(runtime.store.listBoundaries(topic.id), args.answers);
-      const check = evaluateFinalize(merged);
+      // Persist the last dim (load / time) even when the gate rejects, so the chip leaves「在问」.
+      runtime.store.upsertBoundaryAnswers(topic.id, merged);
+      const check = evaluateFinalize(runtime.store.listBoundaries(topic.id));
       if (!check.ok) {
         const gaps = [...check.missing, ...check.unasked];
         return textResult(`还不能定稿，缺少：${gaps.join(", ")}`, {
