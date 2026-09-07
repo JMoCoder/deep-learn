@@ -7,13 +7,14 @@ export type TurnCitation = {
 
 type TurnMeta = {
   strategy?: TutorStrategy;
+  userText?: string;
   citations: TurnCitation[];
 };
 
 const turns = new Map<string, TurnMeta>();
 
-export function beginTurn(topicId: string, strategy?: TutorStrategy): void {
-  turns.set(topicId, { strategy, citations: [] });
+export function beginTurn(topicId: string, strategy?: TutorStrategy, userText?: string): void {
+  turns.set(topicId, { strategy, userText, citations: [] });
 }
 
 export function setTurnStrategy(topicId: string, strategy: TutorStrategy): void {

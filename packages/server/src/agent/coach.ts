@@ -39,6 +39,17 @@ export function planCoachTurn(store: Store, topicId: string, input: CoachTurnInp
   const topic = store.requireTopic(topicId);
   const last = turn.lastUserText.trim();
 
+  if (topic.phase === "learning" && last && topicHitsScopeOut(store, topicId, last)) {
+    const outline = flattenOutline(store.getOutline(topicId));
+    const currentId = store.getCurrentSectionId() ?? outline[0]?.id;
+    const currentNode = outline.find((n) => n.id === currentId) ?? outline[0];
+    const section = currentId ? store.getSectionByOutline(currentId) : null;
+    return {
+      text: learningRefuseReply(store, topicId, section?.title ?? currentNode?.title),
+      strategy: "REFUSE_OFFSCOPE",
+    };
+  }
+
   if (turn.lastRole === "toolResult") {
     return planAfterTool(store, topicId, turn.lastToolName ?? "", last);
   }
@@ -282,6 +293,12 @@ function planLearning(store: Store, topicId: string, last: string): CoachPlan {
   }
 
   if (last && !looksLikeKickoff(last) && !/(可以|锁定|定稿|开始学)/.test(last) && section) {
+    if (topicHitsScopeOut(store, topicId, last)) {
+      return {
+        text: learningRefuseReply(store, topicId, section.title),
+        strategy: "REFUSE_OFFSCOPE",
+      };
+    }
     return {
       text: "记下这一下，并继续围着当前节。",
       tool: {
