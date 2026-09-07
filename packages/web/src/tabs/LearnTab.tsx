@@ -26,6 +26,7 @@ import {
 } from "@/lib/prereq-display";
 import { evaluateOutlineLeafBudget } from "@/lib/outline-budget";
 import type { LiveSessionRow } from "@/lib/session-display";
+import { useT } from "@/i18n";
 
 export function LearnTab({
   topic,
@@ -80,9 +81,10 @@ export function LearnTab({
   topicPointerNote?: string | null;
   draftRejected?: boolean;
 }) {
+  const t = useT();
   const center = topic
-    ? `${topic.title}·${section?.title ?? "章节"}`
-    : "主题·章节";
+    ? `${topic.title}·${section?.title ?? t("learn.sectionFallback")}`
+    : t("learn.centerFallback");
   const phase: TopicPhase | "" = topic?.phase ?? "";
   const edges = mergePrereqEdges(prereqEdges, outline);
   const titles = outlineTitleMap(outline);
@@ -103,7 +105,7 @@ export function LearnTab({
         <Button
           variant="ghost"
           size="icon"
-          aria-label="打开大纲"
+          aria-label={t("learn.openOutline")}
           onClick={() => onOutlineOpen(true)}
         >
           <List className="h-5 w-5" />
@@ -112,7 +114,7 @@ export function LearnTab({
         <Button
           variant="ghost"
           size="icon"
-          aria-label="打开会话"
+          aria-label={t("learn.openSession")}
           onClick={() => onSessionOpen(true)}
         >
           <Sparkles className="h-5 w-5" />
@@ -127,8 +129,8 @@ export function LearnTab({
         ) : null}
         {!topic ? (
           <Empty
-            title="还没有当前主题"
-            body="打开底栏「书籍」，从右侧抽屉点「新建主题」。会话只在顶栏右侧，正文里没有入口。"
+            title={t("learn.emptyTopicTitle")}
+            body={t("learn.emptyTopicBody")}
           />
         ) : pendingBoundary ? (
           <BoundaryCard
@@ -150,14 +152,14 @@ export function LearnTab({
           />
         ) : !section ? (
           <Empty
-            title="正文尚未投影"
-            body="大纲确定后，助手会把章节写到这里。若还在访谈，点顶栏右侧继续会话。"
+            title={t("learn.emptySectionTitle")}
+            body={t("learn.emptySectionBody")}
           />
         ) : (
           <article className="prose-quantum mx-auto max-w-2xl">
             {currentPrereqs.length ? (
               <div className="mb-4 rounded-lg border border-paper-line bg-paper-deep/40 px-3 py-2 not-prose">
-                <p className="text-[11px] font-semibold tracking-wide text-pine">先修</p>
+                <p className="text-[11px] font-semibold tracking-wide text-pine">{t("learn.prereq")}</p>
                 <PrereqEdgeList edges={currentPrereqs} compact />
               </div>
             ) : null}
@@ -180,7 +182,7 @@ export function LearnTab({
       <Drawer
         open={outlineOpen}
         side="left"
-        title="大纲"
+        title={t("learn.drawerOutline")}
         onClose={() => onOutlineOpen(false)}
       >
         <OutlineTree
@@ -197,7 +199,7 @@ export function LearnTab({
       <Drawer
         open={sessionOpen}
         side="right"
-        title="学习会话"
+        title={t("learn.drawerSession")}
         onClose={() => onSessionOpen(false)}
       >
         <SessionPane

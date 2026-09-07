@@ -1,10 +1,10 @@
 import type { FormEvent } from "react";
 import type { BoundarySnapshot, SessionMessage, TopicPhase } from "@quantum/shared";
-import { isRefuseOffscopeSignal, refuseRedirectCopy } from "@quantum/shared";
+import { isRefuseOffscopeSignal } from "@quantum/shared";
 import { AcceptHint } from "@/components/AcceptHint";
 import { InterviewGuide } from "@/components/InterviewGuide";
-import { composerPlaceholder, composerShouldLock } from "@/lib/interview-ui";
-import { outlineSessionHint } from "@/lib/outline-budget";
+import { composerShouldLock } from "@/lib/interview-ui";
+import { composerPlaceholderText, localizedRefuseCopy, useLocale, useT } from "@/i18n";
 import { CiteRow, NoteSystemRow, RefuseRedirectRow, StrategyChip, ToolSystemRow } from "@/components/SessionRows";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +61,8 @@ export function SessionPane({
   canOpenCite?: (sectionId: string) => boolean;
   sectionTitles?: Map<string, string>;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const lockComposer = composerShouldLock({ busy, phase, currentKind });
 
   function submit(e: FormEvent<HTMLFormElement>) {
@@ -84,9 +86,7 @@ export function SessionPane({
     <div className="flex h-full min-h-0 flex-col">
       <div className="space-y-2 border-b border-paper-line px-4 py-2">
         <p className="text-xs text-paper-muted">
-          {coachMode === "stub"
-            ? "本地引导模式：未配置模型代理。工具循环可用，正文是脚手架。"
-            : "已连接模型代理。密钥不会出现在对话或工具参数里。"}
+          {coachMode === "stub" ? t("session.stub") : t("session.live")}
         </p>
         <StrategyChip strategy={strategy} lit={hasTrace && strategy !== "HOLD"} />
         <AcceptHint
@@ -105,21 +105,21 @@ export function SessionPane({
           />
         ) : null}
         {pendingBoundary ? (
-          <p className="text-xs text-cinnabar">先确认学习页上的边界卡，再进大纲确认。</p>
+          <p className="text-xs text-cinnabar">{t("session.confirmBoundaryFirst")}</p>
         ) : null}
-        {pendingOutline && outlineSessionHint(Boolean(overBudget)) ? (
-          <p className="text-xs text-cinnabar">{outlineSessionHint(true)}</p>
+        {pendingOutline && overBudget ? (
+          <p className="text-xs text-cinnabar">{t("session.overBudgetHint")}</p>
         ) : null}
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {messages.length === 0 && !streaming && extras.length === 0 ? (
           <p className="text-sm text-paper-muted">
-            从书籍页新建主题后，向导会从这里开始访谈。策略、引用和工具会出现在系统行，不会当成你的笔记。
+            {t("session.empty")}
           </p>
         ) : null}
         {messages.map((m) => {
           if (messageIsRefuse(m)) {
-            const copy = refuseRedirectCopy({
+            const copy = localizedRefuseCopy(locale, {
               scopeIn,
               scopeOut,
               text: m.role === "assistant" ? m.text : undefined,
@@ -152,8 +152,8 @@ export function SessionPane({
           return (
             <article key={m.id} className="space-y-2 text-sm">
               <div className="mb-0.5 text-[11px] uppercase tracking-wide text-paper-muted">
-                {m.role === "user" ? "你" : "向导"}
-                {m.strategy ? ` · ${m.strategy}` : ""} · {formatTime(m.createdAt)}
+                {m.role === "user" ? t("session.you") : t("session.guide")}
+                {m.strategy ? ` · ${m.strategy}` : ""} · {formatTime(m.createdAt, locale)}
               </div>
               {m.role === "assistant" && m.strategy ? (
                 <StrategyChip strategy={m.strategy} lit />
@@ -177,7 +177,7 @@ export function SessionPane({
         ))}
         {streaming ? (
           <article className="text-sm">
-            <div className="mb-0.5 text-[11px] text-paper-muted">向导</div>
+            <div className="mb-0.5 text-[11px] text-paper-muted">{t("session.guide")}</div>
             <p className="whitespace-pre-wrap leading-relaxed">{streaming}</p>
           </article>
         ) : null}
@@ -187,18 +187,21 @@ export function SessionPane({
         <Textarea
           name="text"
           rows={3}
-          placeholder={composerPlaceholder({
-            phase,
-            currentKind,
-            pendingBoundary,
-            pendingOutline,
-            overBudget,
-          })}
+          placeholder={composerPlaceholderText(
+            {
+              phase,
+              currentKind,
+              pendingBoundary,
+              pendingOutline,
+              overBudget,
+            },
+            t,
+          )}
           disabled={lockComposer}
         />
         <div className="mt-2 flex justify-end">
           <Button type="submit" disabled={lockComposer} size="sm">
-            {lockComposer ? "在想…" : "发送"}
+            {lockComposer ? t("session.thinking") : t("session.send")}
           </Button>
         </div>
       </form>
@@ -228,11 +231,12 @@ function ToolBundle({
   citeProps: CiteProps;
   sectionTitles?: Map<string, string>;
 }) {
+  const locale = useLocale();
   if (
     isRefuseOffscopeSignal({ strategy, text: summary, toolName }) ||
     looksLikeRefuseCopy(summary)
   ) {
-    const copy = refuseRedirectCopy({ text: summary });
+    const copy = localizedRefuseCopy(locale, { text: summary });
     return <RefuseRedirectRow refuse={copy.refuse} redirect={copy.redirect} />;
   }
   const fromWire = visibleCitations(
@@ -268,12 +272,13 @@ function LiveBundle({
   citeProps: CiteProps;
   sectionTitles?: Map<string, string>;
 }) {
+  const locale = useLocale();
   if (
     row.kind === "refuse" ||
     isRefuseOffscopeSignal({ strategy: row.strategy, text: row.summary }) ||
     looksLikeRefuseCopy(row.summary)
   ) {
-    const copy = refuseRedirectCopy({ scopeIn, scopeOut, text: row.summary });
+    const copy = localizedRefuseCopy(locale, { scopeIn, scopeOut, text: row.summary });
     return <RefuseRedirectRow refuse={copy.refuse} redirect={copy.redirect} />;
   }
   if (row.kind === "cite") {

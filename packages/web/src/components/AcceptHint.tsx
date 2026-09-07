@@ -1,4 +1,5 @@
 import type { TopicPhase } from "@quantum/shared";
+import { useT, type TFunction } from "@/i18n";
 
 export function AcceptHint({
   phase,
@@ -13,53 +14,48 @@ export function AcceptHint({
   hasTopic: boolean;
   overBudget?: boolean;
 }) {
-  const step = hintFor({ phase, pendingBoundary, pendingOutline, hasTopic, overBudget });
+  const t = useT();
+  const step = hintFor(
+    { phase, pendingBoundary, pendingOutline, hasTopic, overBudget },
+    t,
+  );
   return (
     <aside
       data-testid="accept-hint"
       className="rounded-lg border border-dashed border-paper-line bg-paper-deep/40 px-3 py-2 text-[11px] leading-relaxed text-paper-muted"
     >
-      <p className="font-semibold tracking-wide text-paper-ink/70">银时手点 · {step.label}</p>
+      <p className="font-semibold tracking-wide text-paper-ink/70">
+        {t("hint.kicker")} · {step.label}
+      </p>
       <p className="mt-1">{step.body}</p>
     </aside>
   );
 }
 
-function hintFor(input: {
-  phase: TopicPhase | "";
-  pendingBoundary: boolean;
-  pendingOutline: boolean;
-  hasTopic: boolean;
-  overBudget?: boolean;
-}): { label: string; body: string } {
+function hintFor(
+  input: {
+    phase: TopicPhase | "";
+    pendingBoundary: boolean;
+    pendingOutline: boolean;
+    hasTopic: boolean;
+    overBudget?: boolean;
+  },
+  t: TFunction,
+): { label: string; body: string } {
   if (!input.hasTopic) {
-    return {
-      label: "① 新建",
-      body: "书籍 → 右侧抽屉 → 新建主题。不要走表单页。",
-    };
+    return { label: t("hint.new.label"), body: t("hint.new.body") };
   }
   if (input.phase === "boundary_interview" || input.pendingBoundary) {
-    return {
-      label: "① 边界",
-      body: "答齐 8 维后等边界卡；点「确认边界，看大纲」。未确认时不要回「可以」。",
-    };
+    return { label: t("hint.boundary.label"), body: t("hint.boundary.body") };
   }
   if (input.pendingOutline) {
     return {
-      label: "② 大纲",
-      body: input.overBudget
-        ? "超负荷预算，请重拟。会话里说「减叶」或「重拟」，不要回「可以」。"
-        : "核对每叶 objective、先修「A → B」、篇幅，再确认进入学习。",
+      label: t("hint.outline.label"),
+      body: input.overBudget ? t("hint.outline.overBudget") : t("hint.outline.body"),
     };
   }
   if (input.phase === "learning") {
-    return {
-      label: "③–⑤ + 抽测",
-      body: "右栏追问应见策略行（SCAFFOLD/ADVANCE/GROUND）与 CiteRow；说「下一节」推进；踩排除词（如弦论）应 REFUSE_OFFSCOPE 且不记笔记。书籍导出 html。",
-    };
+    return { label: t("hint.learn.label"), body: t("hint.learn.body") };
   }
-  return {
-    label: "引导",
-    body: "从书籍右侧新建主题开始五步联调。",
-  };
+  return { label: t("hint.guide.label"), body: t("hint.guide.body") };
 }

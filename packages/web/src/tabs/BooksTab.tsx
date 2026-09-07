@@ -12,7 +12,8 @@ import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { countOutlineLeaves, uiNoteType } from "@/lib/session-display";
-import { formatTime, phaseLabel } from "@/lib/utils";
+import { phaseText, useLocale, useT } from "@/i18n";
+import { formatTime } from "@/lib/utils";
 
 export function BooksTab({
   topic,
@@ -39,6 +40,8 @@ export function BooksTab({
   onSwitch: (id: string) => void;
   onExport: (id: string, format: ExportFormat) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [exportId, setExportId] = useState<string | null>(null);
   const goal =
     boundaries.find((b) => b.kind === "goal_outcome" || b.kind === "goal")?.answer.trim() || "";
@@ -53,7 +56,8 @@ export function BooksTab({
             variant="ghost"
             size="icon"
             className="mt-1 shrink-0"
-            aria-label="打开主题抽屉"
+            data-testid="open-topic-drawer"
+            aria-label={t("books.openDrawer")}
             onClick={() => onDrawerOpen(true)}
           >
             <Library className="h-5 w-5" />
@@ -64,7 +68,7 @@ export function BooksTab({
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
         {!topic ? (
           <p className="mx-auto max-w-md py-10 text-center text-sm text-paper-muted">
-            主题抽屉从右侧打开。笔记只由助手 append_note 写入。
+            {t("books.emptyBody")}
           </p>
         ) : (
           <div className="mx-auto max-w-2xl space-y-8">
@@ -75,23 +79,23 @@ export function BooksTab({
                   {section.bodyMd.length > 800 ? "…" : ""}
                 </p>
               ) : (
-                <p className="text-sm text-paper-muted">这一主题还没有投影正文。</p>
+                <p className="text-sm text-paper-muted">{t("books.noProjection")}</p>
               )}
             </section>
             <section>
-              <h2 className="font-serif text-base">笔记</h2>
+              <h2 className="font-serif text-base">{t("books.notes")}</h2>
               <p className="mt-1 text-xs text-paper-muted">
-                只由助手通过 append_note 写入。这里没有「记一笔」。
+                {t("books.notesHint")}
               </p>
               {notes.length === 0 ? (
-                <p className="mt-3 text-sm text-paper-muted">还没有笔记。</p>
+                <p className="mt-3 text-sm text-paper-muted">{t("books.noNotes")}</p>
               ) : (
                 <ul className="mt-3 space-y-3">
                   {notes.map((n) => (
                     <li key={n.id} className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm">
                       <p>{n.body}</p>
                       <p className="mt-1 text-[11px] text-paper-muted">
-                        {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} · {formatTime(n.createdAt)}
+                        {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} · {formatTime(n.createdAt, locale)}
                       </p>
                     </li>
                   ))}
@@ -102,12 +106,12 @@ export function BooksTab({
         )}
       </div>
 
-      <Drawer open={drawerOpen} side="right" title="主题" onClose={() => onDrawerOpen(false)}>
+      <Drawer open={drawerOpen} side="right" title={t("books.drawerTitle")} onClose={() => onDrawerOpen(false)}>
         <div className="space-y-3 p-3">
           <button
             type="button"
             data-testid="create-topic"
-            aria-label="新建主题"
+            aria-label={t("books.createTopic")}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.preventDefault();
@@ -116,14 +120,14 @@ export function BooksTab({
             }}
             className="relative z-10 w-full rounded-lg border border-dashed border-cinnabar/40 bg-paper-deep px-3 py-4 text-left"
           >
-            <div className="font-serif text-base text-cinnabar">新建主题</div>
-            <p className="mt-1 text-xs text-paper-muted">设为当前主题，并从边界访谈开始。</p>
+            <div className="font-serif text-base text-cinnabar">{t("books.createTopic")}</div>
+            <p className="mt-1 text-xs text-paper-muted">{t("books.createTopicHint")}</p>
           </button>
           {topics.map((item) => (
             <article key={item.id} className="rounded-lg border border-paper-line p-3">
               <div className="font-medium">{item.title}</div>
               <p className="mt-1 text-xs text-paper-muted">
-                {phaseLabel(item.phase)} · {formatTime(item.updatedAt)}
+                {phaseText(item.phase, t)} · {formatTime(item.updatedAt, locale)}
               </p>
               <div className="mt-3 flex gap-2">
                 <Button
@@ -134,10 +138,10 @@ export function BooksTab({
                     onDrawerOpen(false);
                   }}
                 >
-                  切换
+                  {t("books.switch")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setExportId(item.id)}>
-                  导出
+                  {t("books.export")}
                 </Button>
               </div>
             </article>
@@ -146,9 +150,9 @@ export function BooksTab({
       </Drawer>
 
       <Dialog open={Boolean(exportId)} onOpenChange={(o) => !o && setExportId(null)}>
-        <DialogContent title="导出主题">
+        <DialogContent title={t("books.exportTitle")}>
           <p className="text-sm text-paper-muted">
-            由工具 export_topic 生成，格式 md / html / epub。完成后可从会话或下载链接取回。
+            {t("books.exportHint")}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {(["md", "html", "epub"] as const).map((format) => (
@@ -181,40 +185,41 @@ function TopicHero({
   noteCount: number;
   leaves: { ready: number; total: number };
 }) {
+  const t = useT();
   return (
     <section className="hero-topic relative min-w-0 flex-1 overflow-hidden rounded-[1.35rem] border border-paper-line/90 px-4 py-4 pl-5">
       <span aria-hidden className="hero-accent" />
-      <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">当前主题</p>
+      <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">{t("books.currentTopic")}</p>
       {topic ? (
         <>
           <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
           {goal ? (
             <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
           ) : (
-            <p className="mt-2 text-sm text-paper-muted">边界未齐时，先打开学习页右上角会话。</p>
+            <p className="mt-2 text-sm text-paper-muted">{t("books.noGoal")}</p>
           )}
           {topic.phase === "outline_draft" ? (
-            <p className="mt-2 text-xs text-paper-muted">完整边界卡在学习页确认，不靠这一行进大纲。</p>
+            <p className="mt-2 text-xs text-paper-muted">{t("books.outlineOnLearn")}</p>
           ) : null}
           <div className="mt-3 flex flex-wrap gap-1.5">
             <MetaChip>
-              章节 {leaves.ready}/{leaves.total || "—"}
+              {t("books.sections", { ready: leaves.ready, total: leaves.total || "—" })}
             </MetaChip>
-            <MetaChip>笔记 {noteCount}</MetaChip>
+            <MetaChip>{t("books.notesCount", { count: noteCount })}</MetaChip>
             <MetaChip>
-              {phaseLabel(topic.phase)}
-              {topic.exportState !== "idle" ? ` · 导出 ${topic.exportState}` : ""}
+              {phaseText(topic.phase, t)}
+              {topic.exportState !== "idle" ? ` · ${t("books.exportState", { state: topic.exportState })}` : ""}
             </MetaChip>
           </div>
         </>
       ) : (
         <>
-          <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">还没有当前主题</h1>
-          <p className="mt-2 text-sm text-paper-muted">点右侧打开主题抽屉，先「新建主题」。</p>
+          <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{t("books.noCurrentTitle")}</h1>
+          <p className="mt-2 text-sm text-paper-muted">{t("books.noCurrentBody")}</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            <MetaChip>章节 —</MetaChip>
-            <MetaChip>笔记 0</MetaChip>
-            <MetaChip>未开始</MetaChip>
+            <MetaChip>{t("books.sectionsDash")}</MetaChip>
+            <MetaChip>{t("books.notesZero")}</MetaChip>
+            <MetaChip>{t("books.notStarted")}</MetaChip>
           </div>
         </>
       )}

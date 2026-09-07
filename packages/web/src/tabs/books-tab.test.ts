@@ -44,7 +44,7 @@ describe("1.1 books drawer 新建主题", () => {
 
     const button = document.querySelector<HTMLButtonElement>('[data-testid="create-topic"]');
     assert.ok(button, "create-topic button must be in the drawer");
-    assert.equal(button.textContent?.includes("新建主题"), true);
+    assert.match(button.textContent ?? "", /新建主题|New topic/);
 
     await act(async () => {
       button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
@@ -62,7 +62,7 @@ describe("1.1 books drawer 新建主题", () => {
       (open) => events.push(open ? "open" : "close"),
     );
 
-    const overlay = document.querySelector<HTMLElement>('[aria-label="关闭抽屉"]');
+    const overlay = document.querySelector<HTMLElement>('[data-testid="drawer-dismiss"]');
     assert.ok(overlay);
     await act(async () => {
       overlay.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));

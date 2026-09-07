@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-export function formatTime(ts: number): string {
-  return new Date(ts).toLocaleString("zh-CN", {
+export function formatTime(ts: number, locale: "zh" | "en" = "zh"): string {
+  return new Date(ts).toLocaleString(locale === "en" ? "en-US" : "zh-CN", {
     month: "numeric",
     day: "numeric",
     hour: "2-digit",

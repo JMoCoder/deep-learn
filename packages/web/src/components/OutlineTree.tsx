@@ -1,6 +1,7 @@
 import type { OutlineNode, PrereqEdge } from "@quantum/shared";
 import { PrereqEdgeList } from "@/components/PrereqEdgeList";
 import { mergePrereqEdges, outlineTitleMap, resolveDependsOnTitles } from "@/lib/prereq-display";
+import { useLocale, useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 export function OutlineTree({
@@ -14,8 +15,9 @@ export function OutlineTree({
   edges?: PrereqEdge[];
   onSelect: (id: string) => void;
 }) {
+  const t = useT();
   if (nodes.length === 0) {
-    return <p className="px-4 py-6 text-sm text-paper-muted">还没有大纲。右侧会话会先问边界再起草。</p>;
+    return <p className="px-4 py-6 text-sm text-paper-muted">{t("outlineTree.empty")}</p>;
   }
   const resolved = mergePrereqEdges(edges, nodes);
   const titles = outlineTitleMap(nodes);
@@ -23,7 +25,7 @@ export function OutlineTree({
     <div>
       {resolved.length > 0 ? (
         <div className="border-b border-paper-line px-3 py-2">
-          <p className="text-[11px] font-semibold tracking-wide text-pine">先修边</p>
+          <p className="text-[11px] font-semibold tracking-wide text-pine">{t("outlineTree.prereqEdges")}</p>
           <div className="mt-1">
             <PrereqEdgeList edges={resolved} compact />
           </div>
@@ -55,7 +57,10 @@ function OutlineItem({
   titles: Map<string, string>;
   onSelect: (id: string) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const prereqTitles = resolveDependsOnTitles(node.dependsOn, titles);
+  const listSep = locale === "en" ? ", " : "、";
   return (
     <li>
       <button
@@ -71,7 +76,9 @@ function OutlineItem({
           <span className="block text-xs text-paper-muted">{node.objective || node.intent}</span>
         ) : null}
         {prereqTitles.length ? (
-          <span className="mt-0.5 block text-[11px] text-pine">先修 ← {prereqTitles.join("、")}</span>
+          <span className="mt-0.5 block text-[11px] text-pine">
+            {t("outlineTree.prereq", { titles: prereqTitles.join(listSep) })}
+          </span>
         ) : null}
       </button>
       {node.children.length > 0 ? (

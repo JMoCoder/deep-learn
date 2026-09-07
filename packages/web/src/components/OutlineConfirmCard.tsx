@@ -1,8 +1,9 @@
 import type { OutlineNode, PrereqEdge } from "@quantum/shared";
 import { PrereqEdgeList } from "@/components/PrereqEdgeList";
 import { Button } from "@/components/ui/button";
-import { OVER_BUDGET_COPY, evaluateOutlineLeafBudget } from "@/lib/outline-budget";
+import { evaluateOutlineLeafBudget } from "@/lib/outline-budget";
 import { mergePrereqEdges, outlineTitleMap, resolveDependsOnTitles } from "@/lib/prereq-display";
+import { useT } from "@/i18n";
 
 export function OutlineConfirmCard({
   nodes,
@@ -19,6 +20,8 @@ export function OutlineConfirmCard({
   onConfirm: () => void;
   onRevise: () => void;
 }) {
+  const t = useT();
+  const overBudgetCopy = t("outline.overBudget");
   const leaves = flattenLeaves(nodes);
   const titles = outlineTitleMap(nodes);
   const resolved = mergePrereqEdges(edges, nodes);
@@ -34,19 +37,19 @@ export function OutlineConfirmCard({
     <section className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-paper-line bg-white/70">
       <header className="border-b border-paper-line px-5 py-4">
         <p className="text-[11px] font-semibold tracking-[0.16em] text-cinnabar">OUTLINE</p>
-        <h2 className="mt-1 font-serif text-xl">确认大纲</h2>
+        <h2 className="mt-1 font-serif text-xl">{t("outline.title")}</h2>
         <p className="mt-2 text-sm text-paper-muted">
-          看每叶的 objective、先修与篇幅。确认后进入学习投影，不再另开计划页。
+          {t("outline.lead")}
         </p>
         {budget.overBudget ? (
           <p data-testid="outline-over-budget" className="mt-2 text-sm text-cinnabar">
-            {OVER_BUDGET_COPY}
+            {overBudgetCopy}
           </p>
         ) : null}
       </header>
       {resolved.length > 0 ? (
         <div className="border-b border-paper-line px-5 py-3">
-          <p className="text-[11px] font-semibold tracking-wide text-pine">先修序</p>
+          <p className="text-[11px] font-semibold tracking-wide text-pine">{t("outline.prereqOrder")}</p>
           <div className="mt-1.5">
             <PrereqEdgeList edges={resolved} />
           </div>
@@ -54,9 +57,7 @@ export function OutlineConfirmCard({
       ) : null}
       {leaves.length === 0 ? (
         <p className="px-5 py-6 text-sm text-paper-muted">
-          {budget.overBudget
-            ? OVER_BUDGET_COPY
-            : "大纲还在起草。稍等，或在右侧会话说「减叶」或「重拟」。"}
+          {budget.overBudget ? overBudgetCopy : t("outline.empty")}
         </p>
       ) : (
         <ol className="space-y-2 px-5 py-4">
@@ -68,11 +69,16 @@ export function OutlineConfirmCard({
                   {i + 1}. {leaf.title}
                 </p>
                 <p className="mt-1 text-sm text-paper-ink/85">
-                  {leaf.objective || leaf.intent || "（无 objective）"}
+                  {leaf.objective || leaf.intent || t("outline.noObjective")}
                 </p>
                 <p className="mt-1 text-[11px] text-paper-muted">
-                  先修 {prereqTitles.length ? prereqTitles.join(" → ") : "无"} · 篇幅{" "}
-                  {leaf.targetChars > 0 ? `${leaf.targetChars} 字` : "未声明"}
+                  {t("outline.prereqLine", {
+                    titles: prereqTitles.length ? prereqTitles.join(" → ") : t("outline.prereqNone"),
+                    length:
+                      leaf.targetChars > 0
+                        ? t("outline.lengthChars", { chars: leaf.targetChars })
+                        : t("outline.lengthUnset"),
+                  })}
                 </p>
               </li>
             );
@@ -81,14 +87,14 @@ export function OutlineConfirmCard({
       )}
       <footer className="flex flex-wrap items-center gap-2 border-t border-paper-line px-5 py-3">
         <Button type="button" disabled={!budget.canConfirm} onClick={onConfirm}>
-          确认大纲，开始学习
+          {t("outline.confirm")}
         </Button>
         <Button type="button" variant="outline" onClick={onRevise}>
-          要改结构
+          {t("outline.revise")}
         </Button>
         {!budget.canConfirm ? (
           <p className="w-full text-[11px] text-cinnabar">
-            {budget.overBudget ? OVER_BUDGET_COPY : "大纲还没落盘，先重拟。"}
+            {budget.overBudget ? overBudgetCopy : t("outline.notReady")}
           </p>
         ) : null}
       </footer>

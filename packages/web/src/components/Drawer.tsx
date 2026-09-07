@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
+import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 const PANEL = "min(22rem,92vw)";
@@ -17,6 +18,7 @@ export function Drawer({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const t = useT();
   const node = (
     <div
       className={cn("fixed inset-0 z-50", !open && "pointer-events-none")}
@@ -26,7 +28,8 @@ export function Drawer({
       <div
         role="button"
         tabIndex={open ? 0 : -1}
-        aria-label="关闭抽屉"
+        data-testid="drawer-dismiss"
+        aria-label={t("drawer.closeAria")}
         className={cn(
           "absolute inset-y-0 bg-black/25 transition-opacity",
           open ? "opacity-100" : "opacity-0",
@@ -54,7 +57,7 @@ export function Drawer({
         <header className="flex items-center justify-between border-b border-paper-line px-4 py-3">
           <h2 className="font-serif text-base">{title}</h2>
           <button type="button" className="text-sm text-paper-muted" onClick={onClose}>
-            关闭
+            {t("drawer.close")}
           </button>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>

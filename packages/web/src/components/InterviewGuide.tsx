@@ -1,5 +1,6 @@
 import type { BoundarySnapshot } from "@quantum/shared";
-import { interviewGuideCopy, visibleInterviewChips } from "@/lib/interview-ui";
+import { visibleInterviewChips } from "@/lib/interview-ui";
+import { chipLabel, dimLabel, useT, type TFunction } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 export { composerPlaceholder } from "@/lib/interview-ui";
@@ -15,13 +16,14 @@ export function InterviewGuide({
   coachMode: "stub" | "live";
   currentKind?: string | null;
 }) {
+  const t = useT();
   const dims = visibleInterviewChips(snapshot, askedKinds, currentKind);
-  const banner = interviewGuideCopy(dims, coachMode);
+  const banner = guideBanner(dims, coachMode, t);
   const complete = dims.length === 8 && dims.every((dim) => dim.chip === "filled");
 
   return (
     <section className="rounded-xl border border-paper-line bg-paper-deep/50 px-3 py-2">
-      <p className="text-[11px] font-semibold tracking-wide text-paper-muted">引导维</p>
+      <p className="text-[11px] font-semibold tracking-wide text-paper-muted">{t("interview.dims")}</p>
       <ul className="mt-2 flex flex-wrap gap-1.5">
         {dims.map((dim) => (
           <li
@@ -40,7 +42,7 @@ export function InterviewGuide({
             )}
             title={dim.hint}
           >
-            {dim.label} · {dim.chipLabel}
+            {dimLabel(dim.id, t)} · {chipLabel(dim.chip, t)}
           </li>
         ))}
       </ul>
@@ -53,4 +55,18 @@ export function InterviewGuide({
       </p>
     </section>
   );
+}
+
+function guideBanner(
+  dims: Array<{ id: string; chip: string }>,
+  coachMode: "stub" | "live",
+  t: TFunction,
+): string {
+  const asking = dims.find((dim) => dim.chip === "asking");
+  if (asking) return t("interview.asking", { label: dimLabel(asking.id, t) });
+  const unfinished = dims.some((dim) => dim.chip !== "filled");
+  if (unfinished || dims.length < 8) {
+    return coachMode === "stub" ? t("interview.stub") : t("interview.incomplete");
+  }
+  return t("interview.complete");
 }

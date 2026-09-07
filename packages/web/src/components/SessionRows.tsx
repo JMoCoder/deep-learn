@@ -1,6 +1,7 @@
 import type { TutorStrategy } from "@quantum/shared";
 import type { Citation, LiveSessionRow } from "@/lib/session-display";
-import { strategyChipView, toolLabel } from "@/lib/session-display";
+import { strategyChipView } from "@/lib/session-display";
+import { strategyText, toolText, useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 export function StrategyChip({
@@ -12,6 +13,7 @@ export function StrategyChip({
   lit: boolean;
   text?: string;
 }) {
+  const t = useT();
   const view = strategyChipView(strategy, { text });
   return (
     <div
@@ -25,9 +27,9 @@ export function StrategyChip({
           : "border-paper-line bg-paper-deep/80 text-paper-muted",
       )}
     >
-      <span className="font-semibold">策略</span>
+      <span className="font-semibold">{t("chip.strategy")}</span>
       <span>{view.code}</span>
-      <span>· {view.label}</span>
+      <span>· {strategyText(view.strategy, t)}</span>
     </div>
   );
 }
@@ -43,11 +45,13 @@ export function CiteRow({
   onOpenSection?: (sectionId: string) => void;
   canOpenSection?: (sectionId: string) => boolean;
 }) {
+  const t = useT();
   if (citations.length === 0) return null;
   return (
     <article className="rounded-lg border border-pine/20 bg-pine/5 px-3 py-2 text-sm" data-testid="cite-row">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-pine">
-        引用{source ? ` · ${toolLabel(source)}` : ""}
+        {t("cite")}
+        {source ? ` · ${toolText(source, t)}` : ""}
       </div>
       <ul className="mt-1.5 space-y-1">
         {citations.map((c, i) => {
@@ -94,18 +98,19 @@ export function ToolSystemRow({
   summary: string;
   status: LiveSessionRow["status"];
 }) {
+  const t = useT();
+  const statusLabel =
+    status === "running" ? t("status.running") : status === "error" ? t("status.error") : t("status.done");
   return (
     <article className="rounded-lg border border-dashed border-paper-line bg-paper-deep/60 px-3 py-2 text-sm">
       <div className="flex items-center justify-between gap-2 text-[11px] tracking-wide text-paper-muted">
-        <span>系统 · 工具 · {toolLabel(toolName)}</span>
-        <span>
-          {status === "running" ? "进行中" : status === "error" ? "失败" : "完成"}
-        </span>
+        <span>{t("system.tool", { tool: toolText(toolName, t) })}</span>
+        <span>{statusLabel}</span>
       </div>
       {summary ? (
         <p className="mt-1 whitespace-pre-wrap leading-relaxed text-paper-ink/85">{summary}</p>
       ) : status === "running" ? (
-        <p className="mt-1 text-paper-muted">正在调用…</p>
+        <p className="mt-1 text-paper-muted">{t("tool.calling")}</p>
       ) : null}
     </article>
   );
@@ -118,24 +123,26 @@ export function RefuseRedirectRow({
   refuse: string;
   redirect: string;
 }) {
+  const t = useT();
   return (
     <article className="rounded-lg border border-cinnabar/35 bg-cinnabar/8 px-3 py-2 text-sm">
-      <div className="text-[11px] font-semibold tracking-wide text-cinnabar">拒 + 回流 · REFUSE_OFFSCOPE</div>
+      <div className="text-[11px] font-semibold tracking-wide text-cinnabar">{t("refuse.kicker")}</div>
       <p className="mt-1 whitespace-pre-wrap leading-relaxed">{refuse}</p>
       <p className="mt-2 text-sm leading-relaxed text-pine">{redirect}</p>
-      <p className="mt-2 text-[11px] text-paper-muted">踩界内容不会记成笔记，也不会挂引用或工具行。</p>
+      <p className="mt-2 text-[11px] text-paper-muted">{t("refuse.noNote")}</p>
     </article>
   );
 }
 
 export function NoteSystemRow({ summary }: { summary: string }) {
+  const t = useT();
   return (
     <article className="rounded-lg border border-cinnabar/20 bg-cinnabar/5 px-3 py-2 text-sm">
       <div className="text-[11px] font-semibold tracking-wide text-cinnabar">
-        系统 · append_note
+        {t("note.system")}
       </div>
       <p className="mt-1 whitespace-pre-wrap leading-relaxed">
-        {summary || "已写入一条学习笔记。不会出现在用户气泡里。"}
+        {summary || t("note.fallback")}
       </p>
     </article>
   );

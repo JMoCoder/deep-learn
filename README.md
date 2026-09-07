@@ -1,86 +1,137 @@
 # Quantum
 
-Agent-driven lifelong-learning PWA. Architecture is **session + tools + persistence**, not CRUD pages.
+Local-only agent that walks a topic from interview → boundary card → outline → grounded notes.
 
-Runtime: `@mariozechner/pi-agent-core` + `@mariozechner/pi-ai` (not DeepSeek Harness).
+Architecture is **session + tools + persistence**, not CRUD pages. Runtime: `@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`.
 
-Chinese UI. One `current_topic_id` at a time. Notes exist only via tool `append_note` (`reason_code` 1–4 → 思考/疑问/拓展).
+Two cores:
 
-## v1 acceptance (Docker only)
+1. **Agent runtime** — Pi coding-agent SDK on the server (`packages/server`). Tools, sessions, SQLite.
+2. **PWA** — Vite + React (`packages/web`). Talk, chips, boundary card, outline confirm, notes.
 
-Requires a working Docker Engine + Compose plugin. This is the only supported way to start the preview.
+Shared TypeScript contracts live in `packages/shared`.
+
+No cloud, no account, no telemetry. Data stays in the Docker volume `quantum-data`.
+
+Chinese translation: [README.zh-CN.md](./README.zh-CN.md).
+
+## Acceptance URL
+
+Docker Compose is the only supported preview path. After `docker compose up --build`, open:
+
+**http://127.0.0.1:43127**
+
+| Surface | URL |
+| --- | --- |
+| PWA | `http://127.0.0.1:43127` |
+| API / health | `http://127.0.0.1:43128/api/health` |
+
+Do not treat `pnpm --filter @quantum/web dev` as acceptance.
+
+SQLite and exports live in `quantum-data` (`QUANTUM_DATA_DIR=/data` in the server container). Stop with `Ctrl+C` or `docker compose down`. The volume survives `down`; wipe it with `docker compose down -v`.
+
+## Install
+
+Needs Docker Engine and the Compose plugin.
 
 ```bash
+git clone <this-repo>
+cd deep-learn
 docker compose up --build
 ```
 
-- PWA: http://127.0.0.1:43127
-- API (health): http://127.0.0.1:43128/api/health
+First boot pulls the runtime image and creates `quantum-data`. Ready when `:43127` serves the PWA and `/api/health` on `:43128` returns `{"ok":true,"name":"quantum",...}`.
 
-SQLite and exports live in the named volume `quantum-data` (`QUANTUM_DATA_DIR=/data` in the server container). Stop with `Ctrl+C` or `docker compose down`. The volume survives `down`; wipe it with `docker compose down -v`.
+Compose services: `server` (Hono on `:43128`, also publishes PWA `:43127` → `:80`) and `web` (nginx + built PWA). `web` uses `network_mode: service:server` so `/api` and SSE proxy to `127.0.0.1:43128` on the PWA origin.
 
-Optional model proxy: set `QUANTUM_MODEL_*` in a compose `environment:` block, or use **我的 → 模型代理** after start. **Do not commit keys.** Without a key, the local coach still runs the real tool loop.
+### Local development (optional)
 
-### Verify two cores (brief)
+```bash
+corepack enable
+pnpm install
+pnpm --filter @quantum/shared build
+pnpm --filter @quantum/server build
+pnpm --filter @quantum/server start
+# other terminal
+pnpm --filter @quantum/web dev
+```
 
-1. Open the PWA → **书籍** → 右侧抽屉 → **新建主题**. Stub walks 8 维（动机 → 终点 → 成功证据 → 先验 → 先修 → scope_in → 排除 → 深度 → 负荷）.
-2. After `boundary_finalized`，学习页确认独立边界卡，再确认大纲，进入 `learning`。
-3. 右栏追问：应有 `message.strategy` + `citations[]`；笔记只来自 `append_note`（书籍页只读，无「记一笔」）。
-4. 书籍导出 `md | html | epub` 之一；应收到 `export_ready`。
-5. 学习相位踩 `scope_out`（如排除「弦论」时说「顺便把弦论也讲一遍」）→ `REFUSE_OFFSCOPE`，不写笔记。
+Web unit tests (no model, no Docker):
 
-`curl -sS http://127.0.0.1:43128/api/health` should return `{"ok":true,"name":"quantum",...}`.
+```bash
+pnpm --filter @quantum/web test
+pnpm --filter @quantum/web build
+```
 
-Compose services: `server` (Hono on `:43128`, also publishes PWA `:43127` → `:80`) and `web` (nginx + built PWA). `web` uses `network_mode: service:server` so `/api` and SSE proxy to `127.0.0.1:43128` on the PWA origin. Tailscale is out of scope.
-
-## Packages
+## Architecture
 
 ```
 packages/shared   tool names, events, DTOs
 packages/server   Pi agent, tools, SQLite, SSE, export
-packages/web      PWA (学习 / 书籍 / 我的)
-docs/             IA v1.3.2, backend v0.5, core1/core2 research, acceptance
+packages/web      PWA (Learn / Books / Me)
+docs/             IA, backend baseline, core1/core2, acceptance
 ```
+
+```
+browser  :43127  →  nginx / vite (PWA)
+                →  /api proxy  →  hono :43128
+                                     ├─ GET  /api/health
+                                     ├─ GET|POST /api/topics
+                                     ├─ GET|POST /api/session …
+                                     ├─ tools: append_note, cite, …
+                                     └─ better-sqlite3 → /data/quantum.db
+```
+
+### Learn
+
+Interview chips → **boundary card** (user confirms) → **outline confirm** (leaf count must fit the load budget) → talk + GROUND notes. A `scope_out` hit is **REFUSE**: no note card and no CiteRow on that turn.
+
+Header: topic · section. Left drawer = outline. Right drawer = session. No composer in the article body.
+
+### Books
+
+Current-topic hero (no page title). Topic drawer from the right. First card = **New topic** (`POST /api/topics` — the dimmer does not steal the click). History = switch + export (`md | html | epub` via `export_topic`). Notes are read-only; there is no “jot a note” control.
+
+### Settings (Me)
+
+Model proxy and a placeholder heatmap. **Interface language** (`中文` / `English`) switches PWA chrome only.
+
+- First visit: follow the browser language (`en*` → English, `zh*` → Chinese). Anything else falls back to zh-CN.
+- After you pick a language, it is stored in `localStorage` (`quantum.locale`).
+
+The agent does **not** have a separate language switch. Replies follow the language of the user's message. The UI toggle does not inject a forced locale into model prompts.
 
 ## Model proxy (keys)
 
-Open **我的 → 模型代理**, or pass through compose:
+Open **Me → Model proxy**, or pass through Compose:
 
 - `QUANTUM_MODEL_PROVIDER`
 - `QUANTUM_MODEL_ID`
 - `QUANTUM_MODEL_BASE_URL` (OpenAI-compatible proxy)
 - `QUANTUM_MODEL_API_KEY`
 
-Keys stay in SQLite (`/data/quantum.db` in the volume). They are never written to chat, SSE, logs, or tool arguments.
+Keys stay in SQLite (`/data/quantum.db`). They are never written to chat, SSE, logs, or tool arguments. Without a key, the local stub coach still runs the real tool loop.
 
-## IA
+## Product rules
 
-Bottom tabs: **学习 / 书籍 / 我的**.
+- Local-only. The runtime never phones home.
+- `scope_in` / `scope_out` stay as the user wrote them.
+- Notes belong to the current topic. Refuse beats GROUND when the turn is out of scope.
 
-- 学习: content projection. Top bar `主题·章节`. Left = outline. Right = session. No composer in the body.
-- 书籍: **current-topic hero only** (no page title「书籍」). Topic drawer from the RIGHT. First card = 新建主题. History = 切换 + 导出 (`md | html | epub` via `export_topic`).
-- 我的: settings + heatmap placeholder.
+## Verify two cores (brief)
 
-See `docs/IA-agent-v1.md` (v1.3.2), `docs/backend-baseline.md` (v0.5), `docs/cores.md` → core1 / core2 / acceptance.
-Static IA click-through: `packages/web/public/prototype.html`.
+1. PWA → **Books** → right drawer → **New topic**. Stub walks eight dimensions (motivation → outcome → success evidence → prior → prereqs → scope_in → exclude → depth → load).
+2. After `boundary_finalized`, confirm the independent boundary card on Learn, then the outline, then enter `learning`.
+3. Follow-ups in the session should show `message.strategy` + `citations[]`. Notes come only from `append_note`.
+4. Export `md | html | epub` from Books; expect `export_ready`.
+5. In learning, hit `scope_out` (for example exclude “string theory”, then ask to cover it) → `REFUSE_OFFSCOPE`, no note.
 
-## Tests (optional · repo / CI)
+Hand-click path: `docs/hand-click-five-steps.md`. IA: `docs/IA-agent-v1.md`. Cores: `docs/cores.md`.
 
-Not the v1 acceptance path. Do not require `pnpm install` on the preview machine. Inside a checkout or CI job:
+## License
 
-```bash
-pnpm test
-pnpm --filter @quantum/web build
-```
+[MIT](./LICENSE) — Copyright (c) 2026 Jiamo.
 
-银时五步 +「下一节」ADVANCE + scope_out 手点：`docs/hand-click-five-steps.md`。学习页「银时手点」条随相位提示。
+## Changelog
 
-### Retest 1.2 / 1.3 / 2.7 (UI)
-
-Stub walks the 8 interview dims. The UI must not claim unasked dims are complete.
-
-1. **1.2 提问维**：书籍 → 右侧抽屉 → 新建主题 → 打开学习页会话。会话顶 8 个引导维芯片。stub 题序：动机 → 终点 → 成功证据 → 先验 → 先修 → scope_in → 排除 → 深度 → 负荷。每问一维，对应芯片从「未问」变为「在问」，答完变「已答」。走完后 8 维都能到「已问 / 已答」；没问到的维保持未问。边界卡上已问到的缺维会随作答消失。
-2. **1.3 边界卡**：走完访谈后等 `boundary_finalized`。学习页正文出现**独立边界卡**（不是书籍英雄卡 goal 行）。必填五行：`goal_outcome` / `prior_level` / `scope_out` / `depth` / `chunk_budget`；有值才展示动机、成功证据、先修、scope_in，缺则标缺口。未点「确认边界，看大纲」时回复「可以」会被拦住，不进大纲确认。确认后才出现大纲卡（objective / 先修 / 篇幅）。
-3. **2.7 拒回流**：学习相位说一句踩 `scope_out` 的话（如排除「弦论」时说「顺便把弦论也讲一遍」）。应收到短拒 + 拉回当前节，`message.strategy=REFUSE_OFFSCOPE`，书籍笔记不增加。问当前节卡点则仍可 `append_note`。密钥只在「我的 → 模型代理」。客户端仍只订 7 个域名 SSE。
-
-约定：不新增 `topic_updated` 等订阅。拒答信号走现有 `message.strategy`，不另开 domain event。
+See [CHANGELOG.md](./CHANGELOG.md).

@@ -3,6 +3,7 @@ import type { HeatmapDay, PublicSettings } from "@quantum/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale, useSetLocale, useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 export function MeTab({
@@ -20,6 +21,9 @@ export function MeTab({
     clearApiKey?: boolean;
   }) => Promise<void>;
 }) {
+  const t = useT();
+  const locale = useLocale();
+  const setLocale = useSetLocale();
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,9 +41,9 @@ export function MeTab({
         apiKey: apiKey || undefined,
         clearApiKey: clear,
       });
-      setSaved("已保存。密钥只留在服务器，不会写进日志或工具参数。");
+      setSaved(t("me.saved"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败");
+      setError(err instanceof Error ? err.message : t("me.saveFailed"));
     }
   }
 
@@ -47,39 +51,62 @@ export function MeTab({
     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
       <div className="mx-auto max-w-lg space-y-10">
         <section>
-          <h1 className="font-serif text-2xl">我的</h1>
-          <p className="mt-2 text-sm text-paper-muted">模型代理与占位热力图。密钥不要贴到会话里。</p>
+          <h1 className="font-serif text-2xl">{t("me.title")}</h1>
+          <p className="mt-2 text-sm text-paper-muted">{t("me.lead")}</p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="font-serif text-lg">{t("me.language")}</h2>
+          <p className="text-sm text-paper-muted">{t("me.languageHint")}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              data-testid="locale-zh"
+              variant={locale === "zh" ? "default" : "outline"}
+              onClick={() => setLocale("zh")}
+            >
+              {t("me.languageZh")}
+            </Button>
+            <Button
+              type="button"
+              data-testid="locale-en"
+              variant={locale === "en" ? "default" : "outline"}
+              onClick={() => setLocale("en")}
+            >
+              {t("me.languageEn")}
+            </Button>
+          </div>
         </section>
 
         <form onSubmit={submit} className="space-y-3">
-          <h2 className="font-serif text-lg">模型代理</h2>
-          <Field label="Provider" name="provider" defaultValue={settings.provider} />
-          <Field label="Model ID" name="modelId" defaultValue={settings.modelId} />
+          <h2 className="font-serif text-lg">{t("me.model")}</h2>
+          <Field label={t("me.provider")} name="provider" defaultValue={settings.provider} />
+          <Field label={t("me.modelId")} name="modelId" defaultValue={settings.modelId} />
           <Field
-            label="Base URL（可选，OpenAI 兼容代理）"
+            label={t("me.baseUrl")}
             name="baseUrl"
             defaultValue={settings.baseUrl}
-            placeholder="https://…"
+            placeholder={t("me.baseUrlPlaceholder")}
           />
           <div className="space-y-1">
             <Label htmlFor="apiKey">
-              API Key {settings.hasApiKey ? "（已配置，留空则保持）" : "（未配置，走本地引导）"}
+              {settings.hasApiKey ? t("me.apiKeyConfigured") : t("me.apiKeyMissing")}
             </Label>
             <Input id="apiKey" name="apiKey" type="password" autoComplete="off" />
           </div>
           <label className="flex items-center gap-2 text-sm text-paper-muted">
             <input type="checkbox" name="clearApiKey" />
-            清除已存密钥
+            {t("me.clearKey")}
           </label>
           {saved ? <p className="text-sm text-pine">{saved}</p> : null}
           {error ? <p className="text-sm text-cinnabar">{error}</p> : null}
-          <Button type="submit">保存</Button>
+          <Button type="submit">{t("me.save")}</Button>
         </form>
 
         <section>
-          <h2 className="font-serif text-lg">学习热力图</h2>
+          <h2 className="font-serif text-lg">{t("me.heatmap")}</h2>
           <p className="mt-1 text-xs text-paper-muted">
-            占位。格子按学习活动粗记，不是间隔复习科学。详见 docs/cores.md。
+            {t("me.heatmapHint")}
           </p>
           <div className="mt-3 grid gap-1" style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}>
             {heatmap.map((d) => (

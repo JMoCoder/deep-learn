@@ -96,13 +96,13 @@ describe("1.1 create topic posts /api/topics", () => {
       await new Promise((r) => setTimeout(r, 20));
     });
 
-    const books = [...document.querySelectorAll("button")].find((b) => b.textContent === "书籍");
-    assert.ok(books, "bottom nav 书籍");
+    const books = document.querySelector<HTMLButtonElement>('[data-testid="tab-books"]');
+    assert.ok(books, "bottom nav Books");
     await act(async () => {
       books.click();
     });
 
-    const openDrawer = document.querySelector<HTMLButtonElement>('[aria-label="打开主题抽屉"]');
+    const openDrawer = document.querySelector<HTMLButtonElement>('[data-testid="open-topic-drawer"]');
     assert.ok(openDrawer);
     await act(async () => {
       openDrawer.click();
@@ -119,7 +119,7 @@ describe("1.1 create topic posts /api/topics", () => {
       posts.includes("POST /api/topics"),
       `expected POST /api/topics, got ${JSON.stringify(posts)}`,
     );
-    assert.match(document.body.textContent ?? "", /未命名主题|边界|访谈|学习会话/);
+    assert.match(document.body.textContent ?? "", /未命名主题|边界|访谈|学习会话|Learning session|Boundary/);
     root.unmount();
   });
 });

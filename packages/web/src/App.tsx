@@ -19,10 +19,10 @@ import type {
 import {
   emptyBoundarySnapshot,
   isRefuseOffscopeSignal,
-  refuseRedirectCopy,
   shouldShowOutlineConfirm,
   snapshotFromAnswers,
 } from "@quantum/shared";
+import { localizedRefuseCopy, useLocale, useT } from "@/i18n";
 import { BookOpen, GraduationCap, User } from "lucide-react";
 import { BooksTab } from "@/tabs/BooksTab";
 import { LearnTab } from "@/tabs/LearnTab";
@@ -66,7 +66,16 @@ const emptySettings: PublicSettings = {
   hasApiKey: false,
 };
 
+type PointerKey =
+  | "app.pointer.noCurrentId"
+  | "app.pointer.switchFailed"
+  | "app.pointer.cacheMismatch"
+  | "app.pointer.topicDetail"
+  | "app.pointer.projection";
+
 export default function App() {
+  const t = useT();
+  const locale = useLocale();
   const [tab, setTab] = useState<Tab>("learn");
   const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
   const [topics, setTopics] = useState<TopicSummary[]>([]);
@@ -77,7 +86,7 @@ export default function App() {
   const [boundarySnapshot, setBoundarySnapshot] = useState<BoundarySnapshot>(emptyBoundarySnapshot());
   const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
   const [boundaryFinalized, setBoundaryFinalized] = useState(false);
-  const [topicPointerNote, setTopicPointerNote] = useState<string | null>(null);
+  const [topicPointerNote, setTopicPointerNote] = useState<PointerKey | null>(null);
   const [draftRejected, setDraftRejected] = useState(false);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
   const refuseTurnRef = useRef(false);
@@ -107,7 +116,7 @@ export default function App() {
 
       let topicId = state.currentTopicId;
       let topic = state.topic;
-      let pointerNote: string | null = null;
+      let pointerNote: PointerKey | null = null;
 
       if (!topicId) {
         const cached = readCachedTopicId();
@@ -118,17 +127,15 @@ export default function App() {
             topicId = state.currentTopicId ?? cached;
             topic = state.topic ?? listed.find((item) => item.id === cached) ?? null;
             if (!state.currentTopicId) {
-              pointerNote =
-                "接口 /api/state 未带回 currentTopicId。学习页已用本地记录打开主题。指针若持久化丢失，交后端 app_state。";
+              pointerNote = "app.pointer.noCurrentId";
             }
           } catch {
             topicId = cached;
             topic = listed.find((item) => item.id === cached) ?? null;
-            pointerNote =
-              "接口未带回当前主题，切换指针也失败。学习页按本地记录显示。current_topic_id 交后端。";
+            pointerNote = "app.pointer.switchFailed";
           }
         } else if (cached && listed.length > 0) {
-          pointerNote = "本地主题记录对不上已有主题。current_topic_id 丢在后端，交全藏查 app_state。";
+          pointerNote = "app.pointer.cacheMismatch";
         }
       }
 
@@ -138,16 +145,13 @@ export default function App() {
         try {
           detail = await api.topic(topicId);
         } catch (err) {
-          setLoadError(err instanceof Error ? err.message : "主题详情拉取失败");
+          setLoadError(err instanceof Error ? err.message : t("app.error.topicDetail"));
           setSnapshot({
             ...state,
             currentTopicId: topicId,
             topic: topic ?? listed.find((item) => item.id === topicId) ?? null,
           });
-          setTopicPointerNote(
-            pointerNote ??
-              "主题详情拉取失败。若刷新后回到「还没有当前主题」，先看这条；指针本身以 /api/state.currentTopicId 为准。",
-          );
+          setTopicPointerNote(pointerNote ?? "app.pointer.topicDetail");
           return;
         }
         const resolved = topic ?? detail.topic;
@@ -165,7 +169,7 @@ export default function App() {
         } catch {
           setPrereqEdges(mergePrereqEdges(undefined, detail.outline));
           if (!pointerNote) {
-            pointerNote = "当前投影 /api/topics/current/projection 拉取失败，先修边改用大纲 depends_on。";
+            pointerNote = "app.pointer.projection";
           }
         }
         setNotes(detail.notes);
@@ -199,9 +203,9 @@ export default function App() {
       }
       setLoadError(null);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "无法连接服务器");
+      setLoadError(err instanceof Error ? err.message : t("app.error.connect"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void refresh();
@@ -241,7 +245,7 @@ export default function App() {
             isRefuseOffscopeSignal({ strategy, text: event.text }) || looksLikeRefuseCopy(event.text);
           if (refuse) {
             refuseTurnRef.current = true;
-            const copy = refuseRedirectCopy({
+            const copy = localizedRefuseCopy(locale, {
               text: event.text,
             });
             setOverlays((prev) => {
@@ -290,7 +294,7 @@ export default function App() {
               next.push({
                 id: "tutor-cites",
                 kind: "cite",
-                title: "引用",
+                title: t("live.cite"),
                 summary: labeled.map((c) => c.title).join(" · "),
                 status: "done",
                 strategy,
@@ -354,7 +358,7 @@ export default function App() {
           break;
       }
     });
-  }, [refresh]);
+  }, [refresh, locale, t]);
 
   async function send(text: string) {
     setError(null);
@@ -372,7 +376,7 @@ export default function App() {
       topicId &&
       shouldBlockComposerConfirm({ text, pendingCard, interviewing })
     ) {
-      setError("先确认学习页上的边界卡，再进大纲确认。");
+      setError(t("app.error.confirmBoundaryFirst"));
       setTab("learn");
       setSessionOpen(false);
       return;
@@ -392,14 +396,14 @@ export default function App() {
         isConfirm: isChatOutlineConfirm(text),
       })
     ) {
-      setError("超负荷预算，请重拟。在会话里说「减叶」或「重拟」，不要回「可以」。");
+      setError(t("app.error.overBudget"));
       setTab("learn");
       return;
     }
     try {
       await api.prompt(text);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "发送失败");
+      setError(err instanceof Error ? err.message : t("app.error.send"));
     }
   }
 
@@ -430,7 +434,7 @@ export default function App() {
       setSessionOpen(true);
       await refresh();
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "新建主题失败");
+      setLoadError(err instanceof Error ? err.message : t("app.error.createTopic"));
       setTab("books");
       setBooksDrawer(true);
     } finally {
@@ -486,7 +490,7 @@ export default function App() {
     <div className="mx-auto flex h-dvh max-w-lg flex-col bg-paper shadow-[0_0_0_1px_var(--color-paper-line)] md:max-w-3xl">
       {loadError ? (
         <p className="border-b border-cinnabar/30 bg-cinnabar/10 px-4 py-2 text-xs text-cinnabar">
-          {loadError} · 确认 `pnpm dev` 已同时拉起 web 与 server
+          {loadError} · {t("app.loadErrorSuffix")}
         </p>
       ) : null}
 
@@ -515,7 +519,7 @@ export default function App() {
           pendingBoundary={pendingBoundary}
           pendingOutline={pendingOutline}
           onConfirmBoundary={confirmBoundaryCard}
-          topicPointerNote={topicPointerNote}
+          topicPointerNote={topicPointerNote ? t(topicPointerNote) : null}
           draftRejected={draftRejected}
         />
       ) : null}
@@ -548,9 +552,9 @@ export default function App() {
       ) : null}
 
       <nav className="grid grid-cols-3 border-t border-paper-line bg-paper pb-[env(safe-area-inset-bottom)]">
-        <TabButton active={tab === "learn"} label="学习" icon={<GraduationCap className="h-5 w-5" />} onClick={() => setTab("learn")} />
-        <TabButton active={tab === "books"} label="书籍" icon={<BookOpen className="h-5 w-5" />} onClick={() => setTab("books")} />
-        <TabButton active={tab === "me"} label="我的" icon={<User className="h-5 w-5" />} onClick={() => setTab("me")} />
+        <TabButton testId="tab-learn" active={tab === "learn"} label={t("tab.learn")} icon={<GraduationCap className="h-5 w-5" />} onClick={() => setTab("learn")} />
+        <TabButton testId="tab-books" active={tab === "books"} label={t("tab.books")} icon={<BookOpen className="h-5 w-5" />} onClick={() => setTab("books")} />
+        <TabButton testId="tab-me" active={tab === "me"} label={t("tab.me")} icon={<User className="h-5 w-5" />} onClick={() => setTab("me")} />
       </nav>
     </div>
   );
@@ -561,15 +565,18 @@ function TabButton({
   label,
   icon,
   onClick,
+  testId,
 }: {
   active: boolean;
   label: string;
   icon: ReactNode;
   onClick: () => void;
+  testId?: string;
 }) {
   return (
     <button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       className={cn(
         "flex flex-col items-center gap-0.5 py-2 text-xs",

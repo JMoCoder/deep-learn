@@ -1,4 +1,5 @@
 import type { PrereqEdge } from "@quantum/shared";
+import { useT } from "@/i18n";
 
 export function PrereqEdgeList({
   edges,
@@ -7,9 +8,10 @@ export function PrereqEdgeList({
   edges: PrereqEdge[];
   compact?: boolean;
 }) {
+  const t = useT();
   if (edges.length === 0) {
     return compact ? null : (
-      <p className="text-[11px] text-paper-muted">还没有先修边。确认大纲后应能看到「A → B」。</p>
+      <p className="text-[11px] text-paper-muted">{t("prereq.empty")}</p>
     );
   }
   return (
