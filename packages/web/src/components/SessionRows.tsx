@@ -1,19 +1,23 @@
 import type { TutorStrategy } from "@quantum/shared";
 import type { Citation, LiveSessionRow } from "@/lib/session-display";
-import { strategyLabel, toolLabel } from "@/lib/session-display";
+import { strategyChipView, toolLabel } from "@/lib/session-display";
 import { cn } from "@/lib/utils";
 
 export function StrategyChip({
   strategy,
   lit,
+  text,
 }: {
   strategy: TutorStrategy;
   lit: boolean;
+  text?: string;
 }) {
+  const view = strategyChipView(strategy, { text });
   return (
     <div
       data-testid="strategy-chip"
-      data-strategy={strategy}
+      data-strategy={view.strategy}
+      data-strategy-code={view.code}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] tracking-wide",
         lit
@@ -22,8 +26,8 @@ export function StrategyChip({
       )}
     >
       <span className="font-semibold">策略</span>
-      <span>{strategy}</span>
-      <span>· {strategyLabel(strategy)}</span>
+      <span>{view.code}</span>
+      <span>· {view.label}</span>
     </div>
   );
 }

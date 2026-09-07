@@ -49,7 +49,12 @@ import {
 } from "@/lib/outline-budget";
 import { mergePrereqEdges, outlineTitleMap } from "@/lib/prereq-display";
 import type { LiveSessionRow } from "@/lib/session-display";
-import { citationsFromWire, uiNoteType } from "@/lib/session-display";
+import {
+  citationsFromWire,
+  decorateAssistantMessage,
+  looksLikeRefuseCopy,
+  uiNoteType,
+} from "@/lib/session-display";
 import { cn } from "@/lib/utils";
 
 type Tab = "learn" | "books" | "me";
@@ -232,14 +237,22 @@ export default function App() {
           if (event.role !== "assistant") break;
           const cites = event.citations ?? [];
           const strategy = event.strategy;
-          const refuse = isRefuseOffscopeSignal({ strategy, text: event.text });
+          const refuse =
+            isRefuseOffscopeSignal({ strategy, text: event.text }) || looksLikeRefuseCopy(event.text);
           if (refuse) {
             refuseTurnRef.current = true;
             const copy = refuseRedirectCopy({
               text: event.text,
             });
+            setOverlays((prev) => {
+              const next = prev.filter((o) => o.text !== event.text);
+              next.push({ text: event.text, strategy: "REFUSE_OFFSCOPE", citations: [] });
+              return next.slice(-40);
+            });
             setLiveRows((rows) => [
-              ...rows.filter((r) => r.kind !== "cite" && r.kind !== "note" && r.id !== "tutor-refuse"),
+              ...rows.filter(
+                (r) => r.kind !== "cite" && r.kind !== "note" && r.id !== "tutor-refuse" && r.id !== "tutor-meta",
+              ),
               {
                 id: "tutor-refuse",
                 kind: "refuse",
@@ -449,12 +462,7 @@ export default function App() {
   const displayMessages = messages.map((m) => {
     if (m.role !== "assistant") return m;
     const hit = overlays.find((o) => o.text === m.text);
-    if (!hit) return m;
-    return {
-      ...m,
-      strategy: m.strategy ?? hit.strategy,
-      citations: m.citations?.length ? m.citations : hit.citations,
-    };
+    return decorateAssistantMessage(m, hit);
   });
 
   const topic = snapshot?.topic ?? null;

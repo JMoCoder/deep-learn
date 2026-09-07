@@ -12,6 +12,7 @@ import {
   citationLabel,
   citationsFromTool,
   lastStrategy,
+  looksLikeRefuseCopy,
   messageIsRefuse,
   visibleCitations,
   visibleLiveRows,
@@ -227,7 +228,10 @@ function ToolBundle({
   citeProps: CiteProps;
   sectionTitles?: Map<string, string>;
 }) {
-  if (isRefuseOffscopeSignal({ strategy, text: summary, toolName })) {
+  if (
+    isRefuseOffscopeSignal({ strategy, text: summary, toolName }) ||
+    looksLikeRefuseCopy(summary)
+  ) {
     const copy = refuseRedirectCopy({ text: summary });
     return <RefuseRedirectRow refuse={copy.refuse} redirect={copy.redirect} />;
   }
@@ -264,7 +268,11 @@ function LiveBundle({
   citeProps: CiteProps;
   sectionTitles?: Map<string, string>;
 }) {
-  if (row.kind === "refuse" || isRefuseOffscopeSignal({ strategy: row.strategy, text: row.summary })) {
+  if (
+    row.kind === "refuse" ||
+    isRefuseOffscopeSignal({ strategy: row.strategy, text: row.summary }) ||
+    looksLikeRefuseCopy(row.summary)
+  ) {
     const copy = refuseRedirectCopy({ scopeIn, scopeOut, text: row.summary });
     return <RefuseRedirectRow refuse={copy.refuse} redirect={copy.redirect} />;
   }

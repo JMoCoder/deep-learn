@@ -53,7 +53,7 @@ const STRATEGY_LABEL: Record<TutorStrategy, string> = {
   HOLD: "等待",
   ADVANCE: "推进",
   NOTEWORTHY: "值得记下",
-  REFUSE_OFFSCOPE: "拒+回流",
+  REFUSE_OFFSCOPE: "拒",
 };
 
 export function toolLabel(name?: string): string {
@@ -133,18 +133,72 @@ export function visibleCitations(cites: Citation[] | undefined | null): Citation
   });
 }
 
+export function looksLikeRefuseCopy(text?: string | null): boolean {
+  const t = text ?? "";
+  if (/\bREFUSE_OFFSCOPE\b/.test(t)) return true;
+  return /排除区|踩界|超出当前学习边界|这次不展开/.test(t);
+}
+
+export function strategyChipView(
+  strategy: TutorStrategy,
+  extras?: { text?: string | null; toolName?: string | null },
+): { strategy: TutorStrategy; code: string; label: string } {
+  if (
+    strategy === "REFUSE_OFFSCOPE" ||
+    isRefuseOffscopeSignal({
+      strategy,
+      text: extras?.text,
+      toolName: extras?.toolName,
+    }) ||
+    looksLikeRefuseCopy(extras?.text)
+  ) {
+    return { strategy: "REFUSE_OFFSCOPE", code: "REFUSE", label: "拒" };
+  }
+  return { strategy, code: strategy, label: strategyLabel(strategy) };
+}
+
+function rowLooksRefuse(row: LiveSessionRow): boolean {
+  if (row.kind === "refuse") return true;
+  if (
+    isRefuseOffscopeSignal({
+      strategy: row.strategy,
+      text: row.summary,
+      toolName: row.toolName,
+    })
+  ) {
+    return true;
+  }
+  return looksLikeRefuseCopy(row.summary);
+}
+
+function latestTurnMessages(messages: SessionMessage[]): SessionMessage[] {
+  let lastUser = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "user") {
+      lastUser = i;
+      break;
+    }
+  }
+  return lastUser >= 0 ? messages.slice(lastUser) : messages;
+}
+
+/** REFUSE on this turn beats tool-inferred GROUND (get_section / list_outline). */
 export function lastStrategy(
   messages: SessionMessage[],
   liveRows: LiveSessionRow[],
 ): TutorStrategy {
+  if (liveRows.some(rowLooksRefuse) || latestTurnMessages(messages).some(messageIsRefuse)) {
+    return "REFUSE_OFFSCOPE";
+  }
   for (let i = liveRows.length - 1; i >= 0; i -= 1) {
     const row = liveRows[i];
     if (row?.strategy) return row.strategy;
     const next = strategyFromTool(row?.toolName);
     if (next) return next;
   }
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const m = messages[i];
+  const tail = latestTurnMessages(messages);
+  for (let i = tail.length - 1; i >= 0; i -= 1) {
+    const m = tail[i];
     if (m?.strategy) return m.strategy;
     if (m?.role === "tool") {
       const next = strategyFromTool(m.toolName);
@@ -205,7 +259,10 @@ export function visibleLiveRows(
       .filter((m) => m.role === "tool")
       .map((m) => `${m.toolName ?? ""}:${m.text.slice(0, 80)}`),
   );
+  const refused =
+    liveRows.some(rowLooksRefuse) || latestTurnMessages(messages).some(messageIsRefuse);
   return liveRows.filter((row) => {
+    if (refused && (row.kind === "cite" || row.kind === "note")) return false;
     if (row.kind === "refuse") return true;
     if (row.status === "running") return true;
     if (row.kind === "tool") {
@@ -220,10 +277,32 @@ export function visibleLiveRows(
   });
 }
 
-export function messageIsRefuse(message: Pick<SessionMessage, "strategy" | "text" | "toolName">): boolean {
-  return isRefuseOffscopeSignal({
-    strategy: message.strategy,
-    text: message.text,
-    toolName: message.toolName,
-  });
+export function messageIsRefuse(
+  message: Pick<SessionMessage, "strategy" | "text" | "toolName"> & { role?: SessionMessage["role"] },
+): boolean {
+  if (message.role === "user") return false;
+  if (
+    isRefuseOffscopeSignal({
+      strategy: message.strategy,
+      text: message.text,
+      toolName: message.toolName,
+    })
+  ) {
+    return true;
+  }
+  if (message.toolName === "append_note") return false;
+  return looksLikeRefuseCopy(message.text);
+}
+
+export function decorateAssistantMessage(
+  message: SessionMessage,
+  overlay?: { strategy?: TutorStrategy; citations?: SessionMessage["citations"] },
+): SessionMessage {
+  const strategy = message.strategy ?? overlay?.strategy;
+  const citations = message.citations?.length ? message.citations : overlay?.citations;
+  const merged: SessionMessage = { ...message, strategy, citations };
+  if (messageIsRefuse(merged) || messageIsRefuse(message)) {
+    return { ...merged, strategy: "REFUSE_OFFSCOPE", citations: [] };
+  }
+  return merged;
 }
