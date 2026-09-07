@@ -14,7 +14,15 @@ import { collectPrereqEdges, ensureDraftPrereqEdges } from "../learning/prereq-e
 import { evaluateAppendNote } from "../learning/note-policy.js";
 import { flattenOutline } from "../store/repos.js";
 import { addTurnCitation, peekTurnMeta } from "../agent/turn-meta.js";
+import { topicHitsScopeOut } from "../learning/scope-out.js";
 import type { SessionRuntime } from "../agent/types.js";
+
+function refuseTurnLocked(runtime: SessionRuntime): boolean {
+  const topic = runtime.requireTopic();
+  const meta = peekTurnMeta(topic.id);
+  if (meta.strategy === "REFUSE_OFFSCOPE") return true;
+  return Boolean(meta.userText && topicHitsScopeOut(runtime.store, topic.id, meta.userText));
+}
 
 const Kind = Type.Union([
   Type.Literal("goal"),
@@ -244,7 +252,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     execute: async (_id, params) => {
       const topic = runtime.requireTopic();
       if (topic.phase !== "learning") throw new Error("先 finalize_outline 再写正文");
-      if (peekTurnMeta(topic.id).strategy === "REFUSE_OFFSCOPE") {
+      if (refuseTurnLocked(runtime)) {
         return textResult("REFUSE_OFFSCOPE：踩了排除区，不生成无关节。", {
           ok: false,
           strategy: "REFUSE_OFFSCOPE",
@@ -338,7 +346,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         section_id?: string;
         reason_code?: unknown;
       };
-      if (peekTurnMeta(topic.id).strategy === "REFUSE_OFFSCOPE") {
+      if (refuseTurnLocked(runtime)) {
         return textResult("REFUSE_OFFSCOPE：踩界内容不记笔记。", {
           ok: false,
           strategy: "REFUSE_OFFSCOPE",

@@ -59,7 +59,7 @@ export class AgentHost {
     const packed = build_tutor_context(this.store, topicId);
     const refuse =
       topic.phase === "learning" && topicHitsScopeOut(this.store, topicId, text);
-    beginTurn(topicId, refuse ? "REFUSE_OFFSCOPE" : packed?.L0.strategyHint);
+    beginTurn(topicId, refuse ? "REFUSE_OFFSCOPE" : packed?.L0.strategyHint, text);
     if (refuse) setTurnStrategy(topicId, "REFUSE_OFFSCOPE");
     bus.emit({ type: "session_start", topicId });
     try {
@@ -165,7 +165,14 @@ export class AgentHost {
           if (text) {
             const packed = build_tutor_context(this.store, topicId);
             const metaNow = peekTurnMeta(topicId);
-            if (!metaNow.strategy && packed?.L0.strategyHint) {
+            const topicNow = this.store.getTopic(topicId);
+            const userHit =
+              topicNow?.phase === "learning" &&
+              Boolean(metaNow.userText) &&
+              topicHitsScopeOut(this.store, topicId, metaNow.userText ?? "");
+            if (userHit) {
+              setTurnStrategy(topicId, "REFUSE_OFFSCOPE");
+            } else if (!metaNow.strategy && packed?.L0.strategyHint) {
               setTurnStrategy(topicId, packed.L0.strategyHint);
             }
             const meta = peekTurnMeta(topicId);
