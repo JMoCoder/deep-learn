@@ -17,11 +17,12 @@ import { addTurnCitation, peekTurnMeta } from "../agent/turn-meta.js";
 import { topicHitsScopeOut } from "../learning/scope-out.js";
 import type { SessionRuntime } from "../agent/types.js";
 
-function refuseTurnLocked(runtime: SessionRuntime): boolean {
+function refuseTurnLocked(runtime: SessionRuntime, extraText?: string): boolean {
   const topic = runtime.requireTopic();
   const meta = peekTurnMeta(topic.id);
   if (meta.strategy === "REFUSE_OFFSCOPE") return true;
-  return Boolean(meta.userText && topicHitsScopeOut(runtime.store, topic.id, meta.userText));
+  const texts = [meta.userText, extraText].filter((t): t is string => Boolean(t?.trim()));
+  return texts.some((text) => topicHitsScopeOut(runtime.store, topic.id, text));
 }
 
 const Kind = Type.Union([
@@ -252,13 +253,13 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     execute: async (_id, params) => {
       const topic = runtime.requireTopic();
       if (topic.phase !== "learning") throw new Error("先 finalize_outline 再写正文");
-      if (refuseTurnLocked(runtime)) {
+      const args = params as { outline_node_id: string; title: string; body_md: string };
+      if (refuseTurnLocked(runtime, `${args.title} ${args.body_md}`)) {
         return textResult("REFUSE_OFFSCOPE：踩了排除区，不生成无关节。", {
           ok: false,
           strategy: "REFUSE_OFFSCOPE",
         });
       }
-      const args = params as { outline_node_id: string; title: string; body_md: string };
       const node = flattenOutline(runtime.store.getOutline(topic.id)).find(
         (n) => n.id === args.outline_node_id,
       );
@@ -346,7 +347,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
         section_id?: string;
         reason_code?: unknown;
       };
-      if (refuseTurnLocked(runtime)) {
+      if (refuseTurnLocked(runtime, args.body)) {
         return textResult("REFUSE_OFFSCOPE：踩界内容不记笔记。", {
           ok: false,
           strategy: "REFUSE_OFFSCOPE",

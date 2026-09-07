@@ -7,9 +7,9 @@ import { beginTurn, endTurn } from "../agent/turn-meta.js";
 import { openMemoryDb } from "../store/db.js";
 import { Store } from "../store/repos.js";
 import { createQuantumTools } from "../tools/factory.js";
-import { hitsScopeOut } from "./scope-out.js";
+import { hitsScopeOut, scopeOutNeedles, topicHitsScopeOut } from "./scope-out.js";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
-import type { SessionEvent } from "@quantum/shared";
+import { snapshotFromAnswers, type SessionEvent } from "@quantum/shared";
 
 function seedLearning(store: Store, scopeOut = "弦论") {
   const topic = store.createTopic("测量入门");
@@ -70,6 +70,11 @@ describe("2.7 scope_out refuse", () => {
     assert.equal(hitsScopeOut("顺便把弦论也讲一遍", "排除弦论"), true);
     assert.equal(hitsScopeOut("顺便把弦论也讲一遍", "弦论。"), true);
     assert.equal(hitsScopeOut("顺便把弦论也讲一遍", "不碰弦论"), true);
+    assert.equal(hitsScopeOut("顺便把弦论也讲一遍", "坚决不碰弦论"), true);
+    assert.equal(hitsScopeOut("顺便把弦论也讲一遍", "排除：弦论"), true);
+    assert.equal(hitsScopeOut("顺便把弦论也讲一遍", "坚决不碰什么？弦论"), true);
+    assert.ok(scopeOutNeedles("坚决不碰弦论").includes("弦论"));
+    assert.ok(scopeOutNeedles("排除：弦论").includes("弦论"));
     assert.equal(hitsScopeOut("想听广义相对论和弦论", "弦论和硬件"), true);
     assert.equal(hitsScopeOut("卡在投影公设", "弦论"), false);
     assert.equal(hitsScopeOut("顺便把弦论也讲一遍", "没有"), false);
@@ -88,6 +93,64 @@ describe("2.7 scope_out refuse", () => {
     const inScope = planCoachTurn(store, topic.id, "这里看不懂投影公设");
     assert.equal(inScope.strategy, undefined);
     assert.equal(inScope.tool?.name, "append_note");
+  });
+
+  it("persists constraint「坚决不碰弦论」as that raw scope_out and refuses 顺便讲一遍", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("测量入门");
+    store.finalizeBoundaries(topic.id, [
+      { kind: "motivation", question: "m", answer: "因为工作要用" },
+      { kind: "goal", question: "g", answer: "我能独立画一遍测量" },
+      { kind: "success_evidence", question: "e", answer: "能讲 10 分钟" },
+      { kind: "prior", question: "p", answer: "只会定义" },
+      { kind: "prior_gaps", question: "g2", answer: "会：态矢量；不会：投影公设" },
+      { kind: "scope_in", question: "i", answer: "测量公设" },
+      { kind: "constraint", question: "s", answer: "坚决不碰弦论" },
+      { kind: "depth", question: "d", answer: "能讲清" },
+      { kind: "time", question: "t", answer: "每次 20 分钟" },
+    ]);
+    const constraint = store.listBoundaries(topic.id).find((b) => b.kind === "constraint");
+    assert.equal(constraint?.answer, "坚决不碰弦论");
+    const packed = snapshotFromAnswers(store.listBoundaries(topic.id));
+    assert.equal(packed.scope_out, "坚决不碰弦论");
+    assert.ok(scopeOutNeedles(packed.scope_out).includes("弦论"));
+    assert.equal(topicHitsScopeOut(store, topic.id, "顺便把弦论也讲一遍"), true);
+
+    store.replaceOutline(
+      topic.id,
+      "独立画一遍测量",
+      [{ title: "定向：地图", intent: "地图", objective: "能指出接入点" }],
+      "finalized",
+    );
+    store.finalizeOutline(topic.id);
+    const node = store.getOutline(topic.id)[0]!;
+    store.upsertSection(topic.id, node.id, node.title, "第一节正文。");
+    store.setCurrentSection(node.id);
+
+    const refuse = planCoachTurn(store, topic.id, "顺便把弦论也讲一遍");
+    assert.equal(refuse.strategy, "REFUSE_OFFSCOPE");
+    assert.equal(refuse.tool, undefined);
+
+    const { host } = createApp(store);
+    const events: SessionEvent[] = [];
+    const unsub = bus.subscribe((event) => events.push(event));
+    try {
+      await host.prompt(topic.id, "顺便把弦论也讲一遍");
+    } finally {
+      unsub();
+    }
+    assert.equal(store.listNotes(topic.id).length, 0);
+    const message = events.find(
+      (e): e is Extract<SessionEvent, { type: "message" }> =>
+        e.type === "message" && e.role === "assistant",
+    );
+    assert.ok(message);
+    assert.equal(message.strategy, "REFUSE_OFFSCOPE");
+    assert.notEqual(message.strategy, "GROUND");
+    assert.equal(
+      events.some((e) => e.type === "note_appended"),
+      false,
+    );
   });
 
   it("hits constraint-walk 排除弦论 even when the user wraps it in 顺便讲一遍", () => {
@@ -125,6 +188,12 @@ describe("2.7 scope_out refuse", () => {
     assert.equal(ok.details.ok, true);
     assert.equal(store.listNotes(topic.id).length, 1);
     assert.equal(store.listNotes(topic.id)[0]?.body, "卡在投影公设");
+
+    endTurn(topic.id);
+    const bodyBlocked = await exec(append, { body: "顺便把弦论也讲一遍", reason_code: 3 });
+    assert.equal(bodyBlocked.details.ok, false);
+    assert.equal(bodyBlocked.details.strategy, "REFUSE_OFFSCOPE");
+    assert.equal(store.listNotes(topic.id).length, 1);
 
     beginTurn(topic.id, "GROUND", "顺便把弦论也讲一遍");
     const stillBlocked = await exec(append, { body: "记下弦论要点", reason_code: 3 });
