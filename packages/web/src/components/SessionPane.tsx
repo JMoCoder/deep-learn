@@ -3,7 +3,7 @@ import type { BoundarySnapshot, SessionMessage, TopicPhase } from "@quantum/shar
 import { isRefuseOffscopeSignal } from "@quantum/shared";
 import { AcceptHint } from "@/components/AcceptHint";
 import { InterviewGuide } from "@/components/InterviewGuide";
-import { composerShouldLock } from "@/lib/interview-ui";
+import { composerShouldLock, looksLikeKickoffUserLine } from "@/lib/interview-ui";
 import { composerPlaceholderText, localizedRefuseCopy, useLocale, useT } from "@/i18n";
 import { CiteRow, NoteSystemRow, RefuseRedirectRow, ToolSystemRow } from "@/components/SessionRows";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export function SessionPane({
   onCiteSection,
   canOpenCite,
   sectionTitles,
+  awaitingTopicAnchor,
 }: {
   messages: SessionMessage[];
   liveRows: LiveSessionRow[];
@@ -59,23 +60,29 @@ export function SessionPane({
   onCiteSection?: (sectionId: string) => void;
   canOpenCite?: (sectionId: string) => boolean;
   sectionTitles?: Map<string, string>;
+  awaitingTopicAnchor?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
-  const lockComposer = composerShouldLock({ busy, phase, currentKind });
+  const lockComposer = awaitingTopicAnchor
+    ? false
+    : composerShouldLock({ busy, phase, currentKind });
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
-    const data = new FormData(form);
-    const text = String(data.get("text") ?? "").trim();
+    const field = form.elements.namedItem("text");
+    const text = (field && "value" in field ? String(field.value) : "").trim();
     if (!text || lockComposer) return;
-    form.reset();
+    if (field && "value" in field) field.value = "";
     onSend(text);
   }
 
-  const extras = visibleLiveRows(messages, liveRows);
-  const showGuide = phase === "boundary_interview" || pendingBoundary;
+  const extras = awaitingTopicAnchor ? [] : visibleLiveRows(messages, liveRows);
+  const showGuide = !awaitingTopicAnchor && (phase === "boundary_interview" || pendingBoundary);
+  const visibleMessages = awaitingTopicAnchor
+    ? []
+    : messages.filter((m) => !(m.role === "user" && looksLikeKickoffUserLine(m.text)));
   const citeProps = { onOpenSection: onCiteSection, canOpenSection: canOpenCite };
 
   return (
@@ -90,6 +97,7 @@ export function SessionPane({
           pendingOutline={pendingOutline}
           hasTopic={Boolean(phase)}
           overBudget={overBudget}
+          awaitingTopicAnchor={awaitingTopicAnchor}
         />
         {showGuide ? (
           <InterviewGuide
@@ -107,12 +115,17 @@ export function SessionPane({
         ) : null}
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-        {messages.length === 0 && !streaming && extras.length === 0 ? (
+        {awaitingTopicAnchor ? (
+          <p className="text-sm leading-relaxed text-paper-ink/90" data-testid="topic-anchor-prompt">
+            {t("session.topicAnchor")}
+          </p>
+        ) : null}
+        {!awaitingTopicAnchor && visibleMessages.length === 0 && !streaming && extras.length === 0 ? (
           <p className="text-sm text-paper-muted">
             {t("session.empty")}
           </p>
         ) : null}
-        {messages.map((m) => {
+        {visibleMessages.map((m) => {
           if (messageIsRefuse(m)) {
             const copy = localizedRefuseCopy(locale, {
               scopeIn,
@@ -186,6 +199,7 @@ export function SessionPane({
               pendingBoundary,
               pendingOutline,
               overBudget,
+              awaitingTopicAnchor,
             },
             t,
           )}

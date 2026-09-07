@@ -128,6 +128,9 @@ export const zh = {
   "session.confirmBoundaryFirst": "先确认学习页上的边界卡，再进大纲确认。",
   "session.empty":
     "从书籍页新建主题后，向导会从这里开始访谈。引用和工具会出现在系统行，不会当成你的笔记。",
+  "session.topicAnchor":
+    "想学哪个主题？一句话说清就行，比如「测量入门」或「我想把线性代数补起来」。说完再问动机和终点，不会只凭主题名和难度出大纲。",
+  "session.topicLocked": "好，就学「{title}」。下面从动机开始把边界问清楚。",
   "session.you": "你",
   "session.guide": "向导",
   "session.send": "发送",
@@ -168,6 +171,7 @@ export const zh = {
   "dim.depth": "深度",
   "dim.load": "负荷",
 
+  "placeholder.topicAnchor": "直接说想学什么，不必先填难度",
   "placeholder.motivation": "回答动机：为什么现在要学",
   "placeholder.goal_outcome": "回答终点表现：学完能做成哪一件事",
   "placeholder.success_evidence": "回答成功证据：怎样算学会",
@@ -186,6 +190,8 @@ export const zh = {
   "hint.kicker": "银时手点",
   "hint.new.label": "① 新建",
   "hint.new.body": "书籍 → 右侧抽屉 → 新建主题。不要走表单页。",
+  "hint.topic.label": "① 主题",
+  "hint.topic.body": "先说想学什么。这是主题锚点，一句开放问，不是问卷。答完再进动机·终点等 8 维。",
   "hint.boundary.label": "① 边界",
   "hint.boundary.body": "答齐 8 维后等边界卡；点「确认边界，看大纲」。未确认时不要回「可以」。",
   "hint.outline.label": "② 大纲",
@@ -388,6 +394,9 @@ export const en: Record<MessageKey, string> = {
   "session.confirmBoundaryFirst": "Confirm the boundary card on Learn before outline confirm.",
   "session.empty":
     "After you create a topic in Books, the guide interviews you here. Cites and tools are system rows — not your notes.",
+  "session.topicAnchor":
+    "What do you want to learn? One sentence is enough — “intro to measurement” or “I want to patch linear algebra.” After that we ask motivation and outcome; a title plus difficulty will not draft an outline.",
+  "session.topicLocked": "Locked to “{title}”. Next we clear the boundary, starting with motivation.",
   "session.you": "You",
   "session.guide": "Guide",
   "session.send": "Send",
@@ -429,6 +438,7 @@ export const en: Record<MessageKey, string> = {
   "dim.depth": "Depth",
   "dim.load": "Load",
 
+  "placeholder.topicAnchor": "Say what you want to learn — no difficulty field",
   "placeholder.motivation": "Answer motivation: why learn this now",
   "placeholder.goal_outcome": "Answer the outcome: one thing you can do when done",
   "placeholder.success_evidence": "Answer success evidence: how you know you learned it",
@@ -448,6 +458,9 @@ export const en: Record<MessageKey, string> = {
   "hint.kicker": "Hand-click path",
   "hint.new.label": "① New",
   "hint.new.body": "Books → right drawer → New topic. No form page.",
+  "hint.topic.label": "① Topic",
+  "hint.topic.body":
+    "Say what you want to learn first. One open question, not a form. Then the eight dimensions (motivation, outcome, …).",
   "hint.boundary.label": "① Boundary",
   "hint.boundary.body":
     "After 8 dimensions, wait for the card; tap “Confirm boundary, see outline”. Do not reply “ok” before that.",

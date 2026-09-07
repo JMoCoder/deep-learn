@@ -7,16 +7,18 @@ export function AcceptHint({
   pendingOutline,
   hasTopic,
   overBudget,
+  awaitingTopicAnchor,
 }: {
   phase: TopicPhase | "";
   pendingBoundary: boolean;
   pendingOutline: boolean;
   hasTopic: boolean;
   overBudget?: boolean;
+  awaitingTopicAnchor?: boolean;
 }) {
   const t = useT();
   const step = hintFor(
-    { phase, pendingBoundary, pendingOutline, hasTopic, overBudget },
+    { phase, pendingBoundary, pendingOutline, hasTopic, overBudget, awaitingTopicAnchor },
     t,
   );
   return (
@@ -39,11 +41,15 @@ function hintFor(
     pendingOutline: boolean;
     hasTopic: boolean;
     overBudget?: boolean;
+    awaitingTopicAnchor?: boolean;
   },
   t: TFunction,
 ): { label: string; body: string } {
   if (!input.hasTopic) {
     return { label: t("hint.new.label"), body: t("hint.new.body") };
+  }
+  if (input.awaitingTopicAnchor) {
+    return { label: t("hint.topic.label"), body: t("hint.topic.body") };
   }
   if (input.phase === "boundary_interview" || input.pendingBoundary) {
     return { label: t("hint.boundary.label"), body: t("hint.boundary.body") };

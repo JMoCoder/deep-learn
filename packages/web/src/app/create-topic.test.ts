@@ -34,6 +34,8 @@ function json(data: unknown, status = 200): Response {
 describe("1.1 create topic posts /api/topics", () => {
   afterEach(() => {
     document.body.replaceChildren();
+    created.title = "未命名主题";
+    sessionStorage.removeItem("quantum.topic-anchor.top_new");
   });
 
   it("书籍抽屉「新建主题」issues POST /api/topics", async () => {
@@ -46,11 +48,13 @@ describe("1.1 create topic posts /api/topics", () => {
     };
     const topics: typeof created[] = [];
     const posts: string[] = [];
+    const patches: string[] = [];
 
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
       if (method === "POST") posts.push(`${method} ${url}`);
+      if (method === "PATCH") patches.push(`${method} ${url}`);
       if (url === "/api/state") return json(current);
       if (url === "/api/topics" && method === "GET") return json(topics);
       if (url === "/api/topics" && method === "POST") {
@@ -61,6 +65,14 @@ describe("1.1 create topic posts /api/topics", () => {
           topic: created,
         };
         return json(created, 201);
+      }
+      if (url === `/api/topics/${created.id}` && method === "PATCH") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { title?: string };
+        created.title = body.title?.trim() || created.title;
+        current = { ...current, topic: created };
+        const idx = topics.findIndex((item) => item.id === created.id);
+        if (idx >= 0) topics[idx] = created;
+        return json(created);
       }
       if (url === `/api/topics/${created.id}`) {
         return json({
@@ -121,6 +133,26 @@ describe("1.1 create topic posts /api/topics", () => {
       `expected POST /api/topics, got ${JSON.stringify(posts)}`,
     );
     assert.match(document.body.textContent ?? "", /未命名主题|边界|访谈|学习会话|Learning session|Boundary/);
+    assert.ok(document.querySelector('[data-testid="topic-anchor-prompt"]'));
+    assert.match(document.body.textContent ?? "", /想学哪个主题|What do you want to learn/);
+    assert.equal(document.querySelector("[data-dim]"), null);
+
+    const box = document.querySelector<HTMLTextAreaElement>("textarea[name='text']");
+    assert.ok(box, "session composer");
+    box.value = "我想学测量入门";
+    const form = box.closest("form");
+    assert.ok(form);
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    assert.ok(
+      patches.includes(`PATCH /api/topics/${created.id}`),
+      `expected PATCH title, got ${JSON.stringify(patches)}`,
+    );
+    assert.equal(posts.includes("POST /api/session/prompt"), false);
+    assert.match(document.body.textContent ?? "", /测量入门/);
     root.unmount();
   });
 });

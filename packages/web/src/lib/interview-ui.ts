@@ -87,13 +87,43 @@ export function shouldBlockComposerConfirm(input: {
   return isChatOutlineConfirm(input.text);
 }
 
+export const DEFAULT_TOPIC_TITLE = "未命名主题";
+
+export function isDefaultTopicTitle(title?: string | null): boolean {
+  const trimmed = title?.trim() ?? "";
+  return !trimmed || trimmed === DEFAULT_TOPIC_TITLE;
+}
+
+export function needsTopicAnchor(input: {
+  phase: string;
+  title?: string | null;
+  anchored?: boolean;
+}): boolean {
+  if (input.phase !== "boundary_interview") return false;
+  if (input.anchored) return false;
+  return isDefaultTopicTitle(input.title);
+}
+
+/** One open utterance → topic title. Not a form; do not treat as difficulty/outline. */
+export function topicTitleFromUtterance(text: string): string {
+  const trimmed = text.trim().replace(/[。.!！]+$/u, "").trim();
+  const stripped = trimmed.replace(/^(我想要学|我想学|想学的是|想学|学一下|学的是|学)\s*/u, "").trim();
+  return (stripped || trimmed).slice(0, 40);
+}
+
+export function looksLikeKickoffUserLine(text: string): boolean {
+  return /学习者刚新建主题|请开始边界访谈/.test(text);
+}
+
 export function composerPlaceholder(input: {
   phase: string;
   currentKind?: string | null;
   pendingBoundary: boolean;
   pendingOutline: boolean;
   overBudget?: boolean;
+  awaitingTopicAnchor?: boolean;
 }): string {
+  if (input.awaitingTopicAnchor) return "直接说想学什么，不必先填难度";
   const askingId = input.currentKind ? kindsToDimensionIds(input.currentKind)[0] : undefined;
   if (askingId || input.phase === "boundary_interview") {
     const map: Record<InterviewDimensionId, string> = {

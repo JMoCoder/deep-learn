@@ -32,6 +32,11 @@ export const api = {
   topic: (id: string) => req<TopicDetail>(`/api/topics/${id}`),
   createTopic: (title?: string) =>
     req<TopicSummary>("/api/topics", { method: "POST", body: JSON.stringify({ title }) }),
+  renameTopic: (id: string, title: string) =>
+    req<TopicSummary>(`/api/topics/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
   switchTopic: (id: string) => req(`/api/topics/${id}/switch`, { method: "POST" }),
   selectSection: (topicId: string, sectionId: string) =>
     req(`/api/topics/${topicId}/select-section`, {

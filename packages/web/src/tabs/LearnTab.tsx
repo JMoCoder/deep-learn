@@ -54,6 +54,7 @@ export function LearnTab({
   onConfirmBoundary,
   topicPointerNote,
   draftRejected,
+  awaitingTopicAnchor,
 }: {
   topic: TopicSummary | null;
   section: SectionRecord | null;
@@ -80,6 +81,7 @@ export function LearnTab({
   onConfirmBoundary: () => void;
   topicPointerNote?: string | null;
   draftRejected?: boolean;
+  awaitingTopicAnchor?: boolean;
 }) {
   const t = useT();
   const center = topic
@@ -175,6 +177,7 @@ export function LearnTab({
               pendingOutline={pendingOutline}
               hasTopic
               overBudget={outlineBudget.overBudget}
+              awaitingTopicAnchor={awaitingTopicAnchor}
             />
           </div>
         ) : null}
@@ -225,6 +228,7 @@ export function LearnTab({
           sectionTitles={titles}
           onCiteSection={onSelectSection}
           canOpenCite={(id) => sectionHasProjectedBody(id, section, outline)}
+          awaitingTopicAnchor={awaitingTopicAnchor}
         />
       </Drawer>
       </div>
