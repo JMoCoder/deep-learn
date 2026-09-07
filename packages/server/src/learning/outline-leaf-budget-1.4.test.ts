@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
+import type { BoundaryKind } from "@quantum/shared";
 import { planCoachTurn } from "../agent/coach.js";
 import { createQuantumTools } from "../tools/factory.js";
 import { openMemoryDb } from "../store/db.js";
@@ -26,7 +27,7 @@ async function exec(tool: AgentTool, args: Record<string, unknown>) {
   return tool.execute("call", args as never);
 }
 
-const WALK_20 = [
+const WALK_20: Array<{ kind: BoundaryKind; question: string; answer: string }> = [
   { kind: "motivation", question: "m", answer: "因为工作要用" },
   { kind: "goal", question: "g", answer: "我能独立画一遍" },
   { kind: "success_evidence", question: "e", answer: "能讲 10 分钟" },
@@ -78,7 +79,16 @@ const FAT_SEVEN = {
 
 describe("1.4 / 五步2 outline leaf budget", () => {
   it("keeps the frozen cap: 20 分钟 → 6, and scaffold drafts within it", () => {
-    const minutes = inferWeeklyMinutes([{ kind: "time", question: "t", answer: "每次 20 分钟" } as never]);
+    const minutes = inferWeeklyMinutes(
+      WALK_20.map((row, i) => ({
+        ...row,
+        id: `b${i}`,
+        topicId: "t",
+        status: "answered" as const,
+        sortOrder: i,
+        createdAt: 0,
+      })),
+    );
     const cap = leafBudget(minutes);
     assert.equal(minutes, 20);
     assert.equal(cap, 6);
