@@ -2,7 +2,8 @@ import type { FormEvent } from "react";
 import type { BoundarySnapshot, SessionMessage, TopicPhase } from "@quantum/shared";
 import { isRefuseOffscopeSignal, refuseRedirectCopy } from "@quantum/shared";
 import { AcceptHint } from "@/components/AcceptHint";
-import { InterviewGuide, composerPlaceholder } from "@/components/InterviewGuide";
+import { InterviewGuide } from "@/components/InterviewGuide";
+import { composerPlaceholder, composerShouldLock } from "@/lib/interview-ui";
 import { CiteRow, NoteSystemRow, RefuseRedirectRow, StrategyChip, ToolSystemRow } from "@/components/SessionRows";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,12 +57,14 @@ export function SessionPane({
   canOpenCite?: (sectionId: string) => boolean;
   sectionTitles?: Map<string, string>;
 }) {
+  const lockComposer = composerShouldLock({ busy, phase, currentKind });
+
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const data = new FormData(form);
     const text = String(data.get("text") ?? "").trim();
-    if (!text || busy) return;
+    if (!text || lockComposer) return;
     form.reset();
     onSend(text);
   }
@@ -182,11 +185,11 @@ export function SessionPane({
             pendingBoundary,
             pendingOutline,
           })}
-          disabled={busy}
+          disabled={lockComposer}
         />
         <div className="mt-2 flex justify-end">
-          <Button type="submit" disabled={busy} size="sm">
-            {busy ? "在想…" : "发送"}
+          <Button type="submit" disabled={lockComposer} size="sm">
+            {lockComposer ? "在想…" : "发送"}
           </Button>
         </div>
       </form>

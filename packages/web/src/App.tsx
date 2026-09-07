@@ -19,9 +19,7 @@ import type {
 import {
   emptyBoundarySnapshot,
   isRefuseOffscopeSignal,
-  looksLikeOutlineConfirm,
   refuseRedirectCopy,
-  shouldShowBoundaryCard,
   shouldShowOutlineConfirm,
   snapshotFromAnswers,
 } from "@quantum/shared";
@@ -30,7 +28,19 @@ import { BooksTab } from "@/tabs/BooksTab";
 import { LearnTab } from "@/tabs/LearnTab";
 import { MeTab } from "@/tabs/MeTab";
 import { api, connectEvents } from "@/lib/api";
-import { readBoundaryConfirmed, writeBoundaryConfirmed } from "@/lib/boundary-session";
+import {
+  readBoundaryConfirmed,
+  readBoundaryFinalized,
+  readCachedTopicId,
+  writeBoundaryConfirmed,
+  writeBoundaryFinalized,
+  writeCachedTopicId,
+} from "@/lib/boundary-session";
+import {
+  currentUnansweredKind,
+  shouldBlockComposerConfirm,
+  shouldShowLearnBoundaryCard,
+} from "@/lib/interview-ui";
 import { mergePrereqEdges, outlineTitleMap } from "@/lib/prereq-display";
 import type { LiveSessionRow } from "@/lib/session-display";
 import { citationsFromWire, uiNoteType } from "@/lib/session-display";
@@ -55,6 +65,8 @@ export default function App() {
   const [boundaries, setBoundaries] = useState<BoundaryRecord[]>([]);
   const [boundarySnapshot, setBoundarySnapshot] = useState<BoundarySnapshot>(emptyBoundarySnapshot());
   const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
+  const [boundaryFinalized, setBoundaryFinalized] = useState(false);
+  const [topicPointerNote, setTopicPointerNote] = useState<string | null>(null);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
   const refuseTurnRef = useRef(false);
   const [streaming, setStreaming] = useState("");
@@ -74,13 +86,63 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const state = await api.state();
-      setSnapshot(state);
-      setTopics(await api.topics());
+      let state = await api.state();
+      const listed = await api.topics();
+      setTopics(listed);
       setHeatmap(await api.heatmap());
       setMessages(await api.messages());
-      if (state.currentTopicId) {
-        const detail = await api.topic(state.currentTopicId);
+
+      let topicId = state.currentTopicId;
+      let topic = state.topic;
+      let pointerNote: string | null = null;
+
+      if (!topicId) {
+        const cached = readCachedTopicId();
+        if (cached && listed.some((item) => item.id === cached)) {
+          try {
+            await api.switchTopic(cached);
+            state = await api.state();
+            topicId = state.currentTopicId ?? cached;
+            topic = state.topic ?? listed.find((item) => item.id === cached) ?? null;
+            if (!state.currentTopicId) {
+              pointerNote =
+                "接口 /api/state 未带回 currentTopicId。学习页已用本地记录打开主题。指针若持久化丢失，交后端 app_state。";
+            }
+          } catch {
+            topicId = cached;
+            topic = listed.find((item) => item.id === cached) ?? null;
+            pointerNote =
+              "接口未带回当前主题，切换指针也失败。学习页按本地记录显示。current_topic_id 交后端。";
+          }
+        } else if (cached && listed.length > 0) {
+          pointerNote = "本地主题记录对不上已有主题。current_topic_id 丢在后端，交全藏查 app_state。";
+        }
+      }
+
+      if (topicId) {
+        writeCachedTopicId(topicId);
+        let detail;
+        try {
+          detail = await api.topic(topicId);
+        } catch (err) {
+          setLoadError(err instanceof Error ? err.message : "主题详情拉取失败");
+          setSnapshot({
+            ...state,
+            currentTopicId: topicId,
+            topic: topic ?? listed.find((item) => item.id === topicId) ?? null,
+          });
+          setTopicPointerNote(
+            pointerNote ??
+              "主题详情拉取失败。若刷新后回到「还没有当前主题」，先看这条；指针本身以 /api/state.currentTopicId 为准。",
+          );
+          return;
+        }
+        const resolved = topic ?? detail.topic;
+        setSnapshot({
+          ...state,
+          currentTopicId: topicId,
+          topic: resolved,
+        });
         setOutline(detail.outline);
         outlineRef.current = detail.outline;
         setSection(detail.currentSection);
@@ -89,14 +151,25 @@ export default function App() {
           setPrereqEdges(mergePrereqEdges(proj.prereq_edges, detail.outline));
         } catch {
           setPrereqEdges(mergePrereqEdges(undefined, detail.outline));
+          if (!pointerNote) {
+            pointerNote = "当前投影 /api/topics/current/projection 拉取失败，先修边改用大纲 depends_on。";
+          }
         }
         setNotes(detail.notes);
         setBoundaries(detail.boundaries);
         const packed = detail.boundary_snapshot ?? snapshotFromAnswers(detail.boundaries);
         setBoundarySnapshot(packed);
-        const pastGate = state.topic?.phase === "learning";
-        setBoundaryConfirmed(pastGate || readBoundaryConfirmed(state.currentTopicId));
+        const phase = resolved?.phase ?? "";
+        const pastGate = phase === "learning";
+        setBoundaryConfirmed(pastGate || readBoundaryConfirmed(topicId));
+        setBoundaryFinalized(
+          phase === "outline_draft" || phase === "learning" || readBoundaryFinalized(topicId),
+        );
+        setTopicPointerNote(pointerNote);
       } else {
+        const cached = readCachedTopicId();
+        if (cached && !listed.some((item) => item.id === cached)) writeCachedTopicId(null);
+        setSnapshot(state);
         setOutline([]);
         outlineRef.current = [];
         setPrereqEdges([]);
@@ -105,6 +178,8 @@ export default function App() {
         setBoundaries([]);
         setBoundarySnapshot(emptyBoundarySnapshot());
         setBoundaryConfirmed(false);
+        setBoundaryFinalized(false);
+        setTopicPointerNote(pointerNote);
       }
       setLoadError(null);
     } catch (err) {
@@ -227,10 +302,14 @@ export default function App() {
         }
         case "boundary_finalized": {
           if (event.boundary_snapshot) setBoundarySnapshot(event.boundary_snapshot);
+          writeCachedTopicId(event.topic_id);
+          writeBoundaryFinalized(event.topic_id, true);
           writeBoundaryConfirmed(event.topic_id, false);
+          setBoundaryFinalized(true);
           setBoundaryConfirmed(false);
           setTab("learn");
-          setSessionOpen(true);
+          setSessionOpen(false);
+          setOutlineOpen(false);
           void refresh();
           break;
         }
@@ -249,14 +328,22 @@ export default function App() {
   async function send(text: string) {
     setError(null);
     const topicId = snapshot?.currentTopicId;
-    const pendingCard = shouldShowBoundaryCard({
+    const unanswered = currentUnansweredKind(boundaries);
+    const interviewing =
+      snapshot?.topic?.phase === "boundary_interview" || Boolean(unanswered);
+    const pendingCard = shouldShowLearnBoundaryCard({
       phase: snapshot?.topic?.phase ?? "",
       snapshot: boundarySnapshot,
       confirmed: boundaryConfirmed,
+      finalized: boundaryFinalized,
     });
-    if (topicId && pendingCard && looksLikeOutlineConfirm(text)) {
+    if (
+      topicId &&
+      shouldBlockComposerConfirm({ text, pendingCard, interviewing })
+    ) {
       setError("先确认学习页上的边界卡，再进大纲确认。");
       setTab("learn");
+      setSessionOpen(false);
       return;
     }
     try {
@@ -277,8 +364,12 @@ export default function App() {
   async function createTopic() {
     setLiveRows([]);
     const created = await api.createTopic();
+    writeCachedTopicId(created.id);
     writeBoundaryConfirmed(created.id, false);
+    writeBoundaryFinalized(created.id, false);
     setBoundaryConfirmed(false);
+    setBoundaryFinalized(false);
+    setTopicPointerNote(null);
     setTab("learn");
     setSessionOpen(true);
     await refresh();
@@ -286,6 +377,7 @@ export default function App() {
 
   async function switchTopic(id: string) {
     setLiveRows([]);
+    writeCachedTopicId(id);
     await api.switchTopic(id);
     setTab("learn");
     await refresh();
@@ -319,14 +411,12 @@ export default function App() {
   const coachMode = snapshot?.coachMode ?? "stub";
   const settings = snapshot?.settings ?? emptySettings;
   const askedKinds = boundaries.map((b) => b.kind);
-  const currentKind =
-    [...boundaries].reverse().find((b) => b.status === "asked" && !b.answer.trim())?.kind ??
-    [...boundaries].reverse().find((b) => b.status === "asked")?.kind ??
-    null;
-  const pendingBoundary = shouldShowBoundaryCard({
+  const currentKind = currentUnansweredKind(boundaries);
+  const pendingBoundary = shouldShowLearnBoundaryCard({
     phase: topic?.phase ?? "",
     snapshot: boundarySnapshot,
     confirmed: boundaryConfirmed,
+    finalized: boundaryFinalized,
   });
   const pendingOutline = shouldShowOutlineConfirm({
     phase: topic?.phase ?? "",
@@ -367,6 +457,7 @@ export default function App() {
           pendingBoundary={pendingBoundary}
           pendingOutline={pendingOutline}
           onConfirmBoundary={confirmBoundaryCard}
+          topicPointerNote={topicPointerNote}
         />
       ) : null}
 

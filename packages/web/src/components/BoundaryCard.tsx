@@ -1,12 +1,12 @@
 import type { BoundarySnapshot } from "@quantum/shared";
 import {
   STUB_INTERVIEW_NOTE,
-  allInterviewDimensionsAsked,
   canConfirmBoundaryCard,
   interviewDimensionStatus,
   missingFinalizeFields,
 } from "@quantum/shared";
 import { Button } from "@/components/ui/button";
+import { allInterviewChipsFilled } from "@/lib/interview-ui";
 import { cn } from "@/lib/utils";
 
 const REQUIRED_ROWS: Array<{
@@ -38,21 +38,23 @@ const OPTIONAL_ROWS: Array<{
 export function BoundaryCard({
   snapshot,
   askedKinds,
+  currentKind,
   coachMode,
   onConfirm,
   onNeedMore,
 }: {
   snapshot: BoundarySnapshot;
   askedKinds: string[];
+  currentKind?: string | null;
   coachMode: "stub" | "live";
   onConfirm: () => void;
   onNeedMore: () => void;
 }) {
   const missing = missingFinalizeFields(snapshot);
   const canConfirm = canConfirmBoundaryCard(snapshot);
-  const dims = interviewDimensionStatus(snapshot, askedKinds);
+  const dims = interviewDimensionStatus(snapshot, askedKinds, currentKind);
   const askedCount = dims.filter((d) => d.asked || d.filled).length;
-  const allAsked = allInterviewDimensionsAsked(askedKinds);
+  const allAsked = allInterviewChipsFilled(snapshot, askedKinds, currentKind);
 
   return (
     <section className="boundary-card mx-auto max-w-2xl overflow-hidden rounded-2xl border border-paper-line bg-white/70">

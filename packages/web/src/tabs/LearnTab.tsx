@@ -50,6 +50,7 @@ export function LearnTab({
   pendingBoundary,
   pendingOutline,
   onConfirmBoundary,
+  topicPointerNote,
 }: {
   topic: TopicSummary | null;
   section: SectionRecord | null;
@@ -74,6 +75,7 @@ export function LearnTab({
   pendingBoundary: boolean;
   pendingOutline: boolean;
   onConfirmBoundary: () => void;
+  topicPointerNote?: string | null;
 }) {
   const center = topic
     ? `${topic.title}·${section?.title ?? "章节"}`
@@ -109,6 +111,11 @@ export function LearnTab({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+        {topicPointerNote ? (
+          <p className="mx-auto mb-4 max-w-2xl rounded-lg border border-cinnabar/25 bg-cinnabar/8 px-3 py-2 text-xs leading-relaxed text-cinnabar">
+            {topicPointerNote}
+          </p>
+        ) : null}
         {!topic ? (
           <Empty
             title="还没有当前主题"
@@ -118,6 +125,7 @@ export function LearnTab({
           <BoundaryCard
             snapshot={snapshot}
             askedKinds={askedKinds}
+            currentKind={currentKind}
             coachMode={coachMode}
             onConfirm={onConfirmBoundary}
             onNeedMore={() => onSessionOpen(true)}
