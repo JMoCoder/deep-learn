@@ -101,7 +101,7 @@ export function LearnTab({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center border-b border-paper-line px-2 py-2">
+      <header className="z-20 grid grid-cols-[2.5rem_1fr_2.5rem] items-center border-b border-paper-line px-2 py-2">
         <Button
           variant="ghost"
           size="icon"
@@ -121,7 +121,8 @@ export function LearnTab({
         </Button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+      <div className="relative min-h-0 flex-1 overflow-hidden" data-testid="learn-stage">
+        <div className="quantum-scroll h-full min-h-0 overflow-y-auto px-5 py-6">
         {topicPointerNote ? (
           <p className="mx-auto mb-4 max-w-2xl rounded-lg border border-cinnabar/25 bg-cinnabar/8 px-3 py-2 text-xs leading-relaxed text-cinnabar">
             {topicPointerNote}
@@ -177,9 +178,10 @@ export function LearnTab({
             />
           </div>
         ) : null}
-      </div>
+        </div>
 
       <Drawer
+        contained
         open={outlineOpen}
         side="left"
         title={t("learn.drawerOutline")}
@@ -197,6 +199,7 @@ export function LearnTab({
       </Drawer>
 
       <Drawer
+        contained
         open={sessionOpen}
         side="right"
         title={t("learn.drawerSession")}
@@ -224,6 +227,7 @@ export function LearnTab({
           canOpenCite={(id) => sectionHasProjectedBody(id, section, outline)}
         />
       </Drawer>
+      </div>
     </div>
   );
 }

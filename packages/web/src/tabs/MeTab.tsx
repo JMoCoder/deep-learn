@@ -48,7 +48,7 @@ export function MeTab({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+    <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto px-5 py-6">
       <div className="mx-auto max-w-lg space-y-10">
         <section>
           <h1 className="font-serif text-2xl">{t("me.title")}</h1>

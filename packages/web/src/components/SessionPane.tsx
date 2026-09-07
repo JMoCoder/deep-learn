@@ -5,13 +5,12 @@ import { AcceptHint } from "@/components/AcceptHint";
 import { InterviewGuide } from "@/components/InterviewGuide";
 import { composerShouldLock } from "@/lib/interview-ui";
 import { composerPlaceholderText, localizedRefuseCopy, useLocale, useT } from "@/i18n";
-import { CiteRow, NoteSystemRow, RefuseRedirectRow, StrategyChip, ToolSystemRow } from "@/components/SessionRows";
+import { CiteRow, NoteSystemRow, RefuseRedirectRow, ToolSystemRow } from "@/components/SessionRows";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   citationLabel,
   citationsFromTool,
-  lastStrategy,
   looksLikeRefuseCopy,
   messageIsRefuse,
   visibleCitations,
@@ -75,10 +74,7 @@ export function SessionPane({
     onSend(text);
   }
 
-  const strategy = lastStrategy(messages, liveRows);
   const extras = visibleLiveRows(messages, liveRows);
-  const hasTrace =
-    messages.some((m) => m.role === "tool" || Boolean(m.strategy)) || extras.length > 0;
   const showGuide = phase === "boundary_interview" || pendingBoundary;
   const citeProps = { onOpenSection: onCiteSection, canOpenSection: canOpenCite };
 
@@ -88,7 +84,6 @@ export function SessionPane({
         <p className="text-xs text-paper-muted">
           {coachMode === "stub" ? t("session.stub") : t("session.live")}
         </p>
-        <StrategyChip strategy={strategy} lit={hasTrace && strategy !== "HOLD"} />
         <AcceptHint
           phase={phase}
           pendingBoundary={pendingBoundary}
@@ -152,12 +147,9 @@ export function SessionPane({
           return (
             <article key={m.id} className="space-y-2 text-sm">
               <div className="mb-0.5 text-[11px] uppercase tracking-wide text-paper-muted">
-                {m.role === "user" ? t("session.you") : t("session.guide")}
-                {m.strategy ? ` · ${m.strategy}` : ""} · {formatTime(m.createdAt, locale)}
+                {m.role === "user" ? t("session.you") : t("session.guide")} ·{" "}
+                {formatTime(m.createdAt, locale)}
               </div>
-              {m.role === "assistant" && m.strategy ? (
-                <StrategyChip strategy={m.strategy} lit />
-              ) : null}
               <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
               {m.role === "assistant" ? (
                 <CiteRow citations={cites} {...citeProps} />
@@ -249,7 +241,6 @@ function ToolBundle({
   const citeRows = fromWire.length ? fromWire : citationsFromTool(toolName ?? "", summary);
   return (
     <div className="space-y-2">
-      {strategy ? <StrategyChip strategy={strategy} lit /> : null}
       {summary || status === "running" ? (
         <ToolSystemRow toolName={toolName} summary={summary} status={status} />
       ) : null}
@@ -294,7 +285,7 @@ function LiveBundle({
     return <NoteSystemRow summary={row.summary} />;
   }
   if (!row.summary && row.strategy && row.status === "done") {
-    return <StrategyChip strategy={row.strategy} lit />;
+    return null;
   }
   return (
     <ToolBundle

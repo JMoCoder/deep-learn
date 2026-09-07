@@ -3,25 +3,29 @@ import type { ReactNode } from "react";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 
-const PANEL = "min(22rem,92vw)";
-
 export function Drawer({
   open,
   side,
   title,
   onClose,
   children,
+  contained = false,
 }: {
   open: boolean;
   side: "left" | "right";
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Sit in the page stage so the panel edge meets the title divider. */
+  contained?: boolean;
 }) {
   const t = useT();
   const node = (
     <div
-      className={cn("fixed inset-0 z-50", !open && "pointer-events-none")}
+      className={cn(
+        contained ? "absolute inset-0 z-40" : "fixed inset-0 z-50",
+        !open && "pointer-events-none",
+      )}
       aria-hidden={!open}
     >
       {/* Dim only the page, never the panel — a full-screen overlay steals the 新建主题 hit. */}
@@ -35,7 +39,7 @@ export function Drawer({
           open ? "opacity-100" : "opacity-0",
           side === "right" ? "left-0" : "right-0",
         )}
-        style={side === "right" ? { right: PANEL } : { left: PANEL }}
+        style={side === "right" ? { right: "var(--sidebar-width)" } : { left: "var(--sidebar-width)" }}
         onClick={onClose}
       />
       <aside
@@ -43,7 +47,7 @@ export function Drawer({
         aria-label={title}
         aria-hidden={!open}
         className={cn(
-          "absolute inset-y-0 z-10 flex w-[min(22rem,92vw)] flex-col border-paper-line bg-paper shadow-2xl transition-transform duration-200",
+          "absolute inset-y-0 z-10 flex w-[var(--sidebar-width)] flex-col border-paper-line bg-paper shadow-2xl transition-transform duration-200",
           side === "left" ? "left-0 border-r" : "right-0 border-l",
           open
             ? "translate-x-0"
@@ -60,11 +64,11 @@ export function Drawer({
             {t("drawer.close")}
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto">{children}</div>
       </aside>
     </div>
   );
 
-  if (typeof document === "undefined") return node;
+  if (contained || typeof document === "undefined") return node;
   return createPortal(node, document.body);
 }
