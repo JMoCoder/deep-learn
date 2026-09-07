@@ -96,6 +96,7 @@ describe("1.1 create topic posts /api/topics", () => {
       }
       if (url === "/api/heatmap") return json([]);
       if (url === "/api/session/messages") return json([]);
+      if (url === "/api/session/prompt" && method === "POST") return json({ ok: true });
       return json({ error: url }, 404);
     }) as typeof fetch;
 
@@ -151,7 +152,10 @@ describe("1.1 create topic posts /api/topics", () => {
       patches.includes(`PATCH /api/topics/${created.id}`),
       `expected PATCH title, got ${JSON.stringify(patches)}`,
     );
-    assert.equal(posts.includes("POST /api/session/prompt"), false);
+    assert.ok(
+      posts.includes("POST /api/session/prompt"),
+      `expected first reply to reach the stub, got ${JSON.stringify(posts)}`,
+    );
     assert.match(document.body.textContent ?? "", /测量入门/);
     root.unmount();
   });

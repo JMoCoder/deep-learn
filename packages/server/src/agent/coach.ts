@@ -1,5 +1,10 @@
 import type { BoundaryKind, TutorStrategy } from "@quantum/shared";
 import {
+  TOPIC_ANCHOR_QUESTION,
+  isDefaultTopicTitle,
+  topicTitleFromUtterance,
+} from "@quantum/shared";
+import {
   BOUNDARY_SCRIPT,
   isLoadKind,
   nextBoundaryKind,
@@ -121,6 +126,9 @@ function planAfterTool(store: Store, topicId: string, toolName: string, last: st
 }
 
 function planInterview(store: Store, topicId: string, last: string): CoachPlan {
+  const topicAsk = planTopicAnchor(store, topicId, last);
+  if (topicAsk) return topicAsk;
+
   const existing = store.listBoundaries(topicId);
   const askedUnanswered = [...existing].reverse().find((b) => b.status === "asked" && !b.answer.trim());
 
@@ -162,6 +170,26 @@ function planInterview(store: Store, topicId: string, last: string): CoachPlan {
         ? "先把学习边界问清楚，再写大纲。一次一问。"
         : "下一问：",
     tool: { name: "ask_boundary", args: { kind, question: q } },
+  };
+}
+
+/** Untitled new topics lock a title first. Never skip from name+difficulty to an outline. */
+function planTopicAnchor(store: Store, topicId: string, last: string): CoachPlan | null {
+  const topic = store.requireTopic(topicId);
+  if (!isDefaultTopicTitle(topic.title)) return null;
+  if (store.listBoundaries(topicId).length > 0) return null;
+  if (!last || looksLikeKickoff(last)) {
+    return { text: TOPIC_ANCHOR_QUESTION };
+  }
+  const title = topicTitleFromUtterance(last);
+  if (title) store.updateTopic(topicId, { title });
+  const locked = store.requireTopic(topicId).title;
+  return {
+    text: `好，就学「${locked}」。先把学习边界问清楚，再写大纲。一次一问。不会只凭主题名和难度出大纲。`,
+    tool: {
+      name: "ask_boundary",
+      args: { kind: "motivation", question: questionFor("motivation") },
+    },
   };
 }
 

@@ -386,10 +386,8 @@ export default function App() {
       try {
         await api.renameTopic(topicId, title);
       } catch {
-        /* local lock still advances the UI */
+        /* stub prompt still locks the title if PATCH is missing */
       }
-      await refresh();
-      return;
     }
     const unanswered = currentUnansweredKind(boundaries);
     const interviewing =
