@@ -38,9 +38,15 @@ import {
 } from "@/lib/boundary-session";
 import {
   currentUnansweredKind,
+  isChatOutlineConfirm,
   shouldBlockComposerConfirm,
   shouldShowLearnBoundaryCard,
 } from "@/lib/interview-ui";
+import {
+  draftToolLooksOverBudget,
+  evaluateOutlineLeafBudget,
+  shouldBlockOverBudgetConfirm,
+} from "@/lib/outline-budget";
 import { mergePrereqEdges, outlineTitleMap } from "@/lib/prereq-display";
 import type { LiveSessionRow } from "@/lib/session-display";
 import { citationsFromWire, uiNoteType } from "@/lib/session-display";
@@ -67,6 +73,7 @@ export default function App() {
   const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
   const [boundaryFinalized, setBoundaryFinalized] = useState(false);
   const [topicPointerNote, setTopicPointerNote] = useState<string | null>(null);
+  const [draftRejected, setDraftRejected] = useState(false);
   const [messages, setMessages] = useState<SessionMessage[]>([]);
   const refuseTurnRef = useRef(false);
   const [streaming, setStreaming] = useState("");
@@ -159,6 +166,9 @@ export default function App() {
         setBoundaries(detail.boundaries);
         const packed = detail.boundary_snapshot ?? snapshotFromAnswers(detail.boundaries);
         setBoundarySnapshot(packed);
+        if (evaluateOutlineLeafBudget(detail.outline, packed.chunk_budget).canConfirm) {
+          setDraftRejected(false);
+        }
         const phase = resolved?.phase ?? "";
         const pastGate = phase === "learning";
         setBoundaryConfirmed(pastGate || readBoundaryConfirmed(topicId));
@@ -313,6 +323,13 @@ export default function App() {
           void refresh();
           break;
         }
+        case "tool_end": {
+          if (event.toolName === "draft_outline") {
+            setDraftRejected(draftToolLooksOverBudget(event));
+            void refresh();
+          }
+          break;
+        }
         case "phase_changed":
         case "outline_finalized":
         case "section_status":
@@ -346,6 +363,25 @@ export default function App() {
       setSessionOpen(false);
       return;
     }
+    const outlineBudget = evaluateOutlineLeafBudget(outline, boundarySnapshot.chunk_budget);
+    const overBudget = outlineBudget.overBudget || (outlineBudget.leafCount === 0 && draftRejected);
+    if (
+      topicId &&
+      shouldBlockOverBudgetConfirm({
+        text,
+        overBudget,
+        pendingOutline: shouldShowOutlineConfirm({
+          phase: snapshot?.topic?.phase ?? "",
+          boundaryConfirmed,
+          hasOutline: outline.length > 0,
+        }),
+        isConfirm: isChatOutlineConfirm(text),
+      })
+    ) {
+      setError("超负荷预算，请重拟。在会话里说「减叶」或「重拟」，不要回「可以」。");
+      setTab("learn");
+      return;
+    }
     try {
       await api.prompt(text);
     } catch (err) {
@@ -370,6 +406,7 @@ export default function App() {
     setBoundaryConfirmed(false);
     setBoundaryFinalized(false);
     setTopicPointerNote(null);
+    setDraftRejected(false);
     setTab("learn");
     setSessionOpen(true);
     await refresh();
@@ -458,6 +495,7 @@ export default function App() {
           pendingOutline={pendingOutline}
           onConfirmBoundary={confirmBoundaryCard}
           topicPointerNote={topicPointerNote}
+          draftRejected={draftRejected}
         />
       ) : null}
 

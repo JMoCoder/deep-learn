@@ -1,22 +1,34 @@
 import type { OutlineNode, PrereqEdge } from "@quantum/shared";
 import { PrereqEdgeList } from "@/components/PrereqEdgeList";
 import { Button } from "@/components/ui/button";
+import { OVER_BUDGET_COPY, evaluateOutlineLeafBudget } from "@/lib/outline-budget";
 import { mergePrereqEdges, outlineTitleMap, resolveDependsOnTitles } from "@/lib/prereq-display";
 
 export function OutlineConfirmCard({
   nodes,
   edges,
+  chunkBudget,
+  draftRejected,
   onConfirm,
   onRevise,
 }: {
   nodes: OutlineNode[];
   edges?: PrereqEdge[];
+  chunkBudget: string;
+  draftRejected?: boolean;
   onConfirm: () => void;
   onRevise: () => void;
 }) {
   const leaves = flattenLeaves(nodes);
   const titles = outlineTitleMap(nodes);
   const resolved = mergePrereqEdges(edges, nodes);
+  const live = evaluateOutlineLeafBudget(nodes, chunkBudget);
+  const overBudget = live.overBudget || (live.leafCount === 0 && Boolean(draftRejected));
+  const budget = {
+    ...live,
+    overBudget,
+    canConfirm: live.canConfirm && !overBudget,
+  };
 
   return (
     <section className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-paper-line bg-white/70">
@@ -26,6 +38,11 @@ export function OutlineConfirmCard({
         <p className="mt-2 text-sm text-paper-muted">
           看每叶的 objective、先修与篇幅。确认后进入学习投影，不再另开计划页。
         </p>
+        {budget.overBudget ? (
+          <p data-testid="outline-over-budget" className="mt-2 text-sm text-cinnabar">
+            {OVER_BUDGET_COPY}
+          </p>
+        ) : null}
       </header>
       {resolved.length > 0 ? (
         <div className="border-b border-paper-line px-5 py-3">
@@ -36,7 +53,11 @@ export function OutlineConfirmCard({
         </div>
       ) : null}
       {leaves.length === 0 ? (
-        <p className="px-5 py-6 text-sm text-paper-muted">大纲还在起草。稍等，或在右侧会话催一句。</p>
+        <p className="px-5 py-6 text-sm text-paper-muted">
+          {budget.overBudget
+            ? OVER_BUDGET_COPY
+            : "大纲还在起草。稍等，或在右侧会话说「减叶」或「重拟」。"}
+        </p>
       ) : (
         <ol className="space-y-2 px-5 py-4">
           {leaves.map((leaf, i) => {
@@ -58,13 +79,18 @@ export function OutlineConfirmCard({
           })}
         </ol>
       )}
-      <footer className="flex flex-wrap gap-2 border-t border-paper-line px-5 py-3">
-        <Button type="button" disabled={leaves.length === 0} onClick={onConfirm}>
+      <footer className="flex flex-wrap items-center gap-2 border-t border-paper-line px-5 py-3">
+        <Button type="button" disabled={!budget.canConfirm} onClick={onConfirm}>
           确认大纲，开始学习
         </Button>
         <Button type="button" variant="outline" onClick={onRevise}>
           要改结构
         </Button>
+        {!budget.canConfirm ? (
+          <p className="w-full text-[11px] text-cinnabar">
+            {budget.overBudget ? OVER_BUDGET_COPY : "大纲还没落盘，先重拟。"}
+          </p>
+        ) : null}
       </footer>
     </section>
   );

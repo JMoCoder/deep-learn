@@ -5,13 +5,15 @@ export function AcceptHint({
   pendingBoundary,
   pendingOutline,
   hasTopic,
+  overBudget,
 }: {
   phase: TopicPhase | "";
   pendingBoundary: boolean;
   pendingOutline: boolean;
   hasTopic: boolean;
+  overBudget?: boolean;
 }) {
-  const step = hintFor({ phase, pendingBoundary, pendingOutline, hasTopic });
+  const step = hintFor({ phase, pendingBoundary, pendingOutline, hasTopic, overBudget });
   return (
     <aside
       data-testid="accept-hint"
@@ -28,6 +30,7 @@ function hintFor(input: {
   pendingBoundary: boolean;
   pendingOutline: boolean;
   hasTopic: boolean;
+  overBudget?: boolean;
 }): { label: string; body: string } {
   if (!input.hasTopic) {
     return {
@@ -44,7 +47,9 @@ function hintFor(input: {
   if (input.pendingOutline) {
     return {
       label: "② 大纲",
-      body: "核对每叶 objective、先修「A → B」、篇幅，再确认进入学习。",
+      body: input.overBudget
+        ? "超负荷预算，请重拟。会话里说「减叶」或「重拟」，不要回「可以」。"
+        : "核对每叶 objective、先修「A → B」、篇幅，再确认进入学习。",
     };
   }
   if (input.phase === "learning") {

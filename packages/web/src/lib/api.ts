@@ -62,7 +62,14 @@ export const api = {
 export const WEB_SSE_EVENTS = CLIENT_SSE_EVENTS;
 
 /** Stream transport for composer + tutor metadata (`strategy`, `citations[]`). Not domain aliases. */
-const STREAM_SSE_EVENTS = ["session_start", "session_end", "text_delta", "message", "error"] as const;
+const STREAM_SSE_EVENTS = [
+  "session_start",
+  "session_end",
+  "text_delta",
+  "message",
+  "error",
+  "tool_end",
+] as const;
 
 export function connectEvents(onEvent: (event: SessionEvent) => void): () => void {
   const es = new EventSource("/api/session/events");

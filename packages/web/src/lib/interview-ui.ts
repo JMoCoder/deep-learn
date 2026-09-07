@@ -92,6 +92,7 @@ export function composerPlaceholder(input: {
   currentKind?: string | null;
   pendingBoundary: boolean;
   pendingOutline: boolean;
+  overBudget?: boolean;
 }): string {
   const askingId = input.currentKind ? kindsToDimensionIds(input.currentKind)[0] : undefined;
   if (askingId || input.phase === "boundary_interview") {
@@ -108,7 +109,11 @@ export function composerPlaceholder(input: {
     return askingId ? map[askingId] : "直接回答当前这一问";
   }
   if (input.pendingBoundary) return "先确认学习页边界卡；缺维在这里补一句，不要直接说「可以」";
-  if (input.pendingOutline) return "大纲可以的话回复「可以」；要改结构直接说";
+  if (input.pendingOutline) {
+    return input.overBudget
+      ? "超负荷预算，请说「减叶」或「重拟」，不要回「可以」"
+      : "大纲可以的话回复「可以」；要改结构直接说";
+  }
   if (input.phase === "learning") {
     return "问这一节，或说「下一节」推进；踩排除区会被拒回流";
   }

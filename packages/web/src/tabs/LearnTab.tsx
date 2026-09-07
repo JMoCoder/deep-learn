@@ -24,6 +24,7 @@ import {
   prereqsPointingAt,
   sectionHasProjectedBody,
 } from "@/lib/prereq-display";
+import { evaluateOutlineLeafBudget } from "@/lib/outline-budget";
 import type { LiveSessionRow } from "@/lib/session-display";
 
 export function LearnTab({
@@ -51,6 +52,7 @@ export function LearnTab({
   pendingOutline,
   onConfirmBoundary,
   topicPointerNote,
+  draftRejected,
 }: {
   topic: TopicSummary | null;
   section: SectionRecord | null;
@@ -76,6 +78,7 @@ export function LearnTab({
   pendingOutline: boolean;
   onConfirmBoundary: () => void;
   topicPointerNote?: string | null;
+  draftRejected?: boolean;
 }) {
   const center = topic
     ? `${topic.title}·${section?.title ?? "章节"}`
@@ -87,6 +90,12 @@ export function LearnTab({
     findOutlineNode(outline, section?.outlineNodeId ?? null) ??
     findOutlineNode(outline, currentSectionId);
   const currentPrereqs = currentNode ? prereqsPointingAt(currentNode.id, edges) : [];
+  const liveBudget = evaluateOutlineLeafBudget(outline, snapshot.chunk_budget);
+  const outlineBudget = {
+    ...liveBudget,
+    overBudget: liveBudget.overBudget || (liveBudget.leafCount === 0 && Boolean(draftRejected)),
+    canConfirm: liveBudget.canConfirm && !(liveBudget.leafCount === 0 && draftRejected),
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -134,6 +143,8 @@ export function LearnTab({
           <OutlineConfirmCard
             nodes={outline}
             edges={edges}
+            chunkBudget={snapshot.chunk_budget}
+            draftRejected={draftRejected}
             onConfirm={() => onSend("可以")}
             onRevise={() => onSessionOpen(true)}
           />
@@ -160,6 +171,7 @@ export function LearnTab({
               pendingBoundary={pendingBoundary}
               pendingOutline={pendingOutline}
               hasTopic
+              overBudget={outlineBudget.overBudget}
             />
           </div>
         ) : null}
@@ -202,6 +214,7 @@ export function LearnTab({
           currentKind={currentKind}
           pendingBoundary={pendingBoundary}
           pendingOutline={pendingOutline}
+          overBudget={outlineBudget.overBudget}
           scopeIn={snapshot.scope_in}
           scopeOut={snapshot.scope_out}
           sectionTitles={titles}

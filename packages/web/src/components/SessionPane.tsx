@@ -4,6 +4,7 @@ import { isRefuseOffscopeSignal, refuseRedirectCopy } from "@quantum/shared";
 import { AcceptHint } from "@/components/AcceptHint";
 import { InterviewGuide } from "@/components/InterviewGuide";
 import { composerPlaceholder, composerShouldLock } from "@/lib/interview-ui";
+import { outlineSessionHint } from "@/lib/outline-budget";
 import { CiteRow, NoteSystemRow, RefuseRedirectRow, StrategyChip, ToolSystemRow } from "@/components/SessionRows";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +33,7 @@ export function SessionPane({
   currentKind,
   pendingBoundary,
   pendingOutline,
+  overBudget,
   scopeIn,
   scopeOut,
   onCiteSection,
@@ -51,6 +53,7 @@ export function SessionPane({
   currentKind?: string | null;
   pendingBoundary: boolean;
   pendingOutline: boolean;
+  overBudget?: boolean;
   scopeIn?: string;
   scopeOut?: string;
   onCiteSection?: (sectionId: string) => void;
@@ -90,6 +93,7 @@ export function SessionPane({
           pendingBoundary={pendingBoundary}
           pendingOutline={pendingOutline}
           hasTopic={Boolean(phase)}
+          overBudget={overBudget}
         />
         {showGuide ? (
           <InterviewGuide
@@ -101,6 +105,9 @@ export function SessionPane({
         ) : null}
         {pendingBoundary ? (
           <p className="text-xs text-cinnabar">先确认学习页上的边界卡，再进大纲确认。</p>
+        ) : null}
+        {pendingOutline && outlineSessionHint(Boolean(overBudget)) ? (
+          <p className="text-xs text-cinnabar">{outlineSessionHint(true)}</p>
         ) : null}
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
@@ -184,6 +191,7 @@ export function SessionPane({
             currentKind,
             pendingBoundary,
             pendingOutline,
+            overBudget,
           })}
           disabled={lockComposer}
         />
