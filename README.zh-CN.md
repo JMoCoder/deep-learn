@@ -1,4 +1,4 @@
-# Quantum
+# Deep Learn
 
 本地终身学习 Agent：从访谈 → 边界卡 → 大纲 → 落地笔记。
 
