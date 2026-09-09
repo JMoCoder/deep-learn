@@ -48,10 +48,10 @@ describe("Me page width + heatmap top region", () => {
     assert.equal(top.contains(heat), true);
     assert.equal(body.contains(heat), false);
 
-    const text = document.body.textContent ?? "";
-    const heatAt = text.indexOf("学习热力图");
-    const langAt = text.indexOf("界面语言");
-    const modelAt = text.indexOf("模型代理");
+    const headings = [...document.querySelectorAll("h1, h2")].map((el) => el.textContent ?? "");
+    const heatAt = headings.findIndex((h) => /学习热力图|Learning heatmap/.test(h));
+    const langAt = headings.findIndex((h) => /界面语言|Interface language/.test(h));
+    const modelAt = headings.findIndex((h) => /模型代理|Model proxy/.test(h));
     assert.ok(heatAt >= 0 && langAt >= 0 && modelAt >= 0);
     assert.ok(heatAt < langAt);
     assert.ok(langAt < modelAt);
