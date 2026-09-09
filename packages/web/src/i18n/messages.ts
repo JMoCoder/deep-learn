@@ -250,7 +250,7 @@ export const zh = {
   "refuse.redirectScope": "回到范围内：{scope}。直接问当前节目标即可。",
   "refuse.redirectDefault": "回到当前节的范围内继续。不要把踩界内容记成笔记。",
 
-  "meta.description": "Quantum — 由智能体驱动的终身学习",
+  "meta.description": "Deep Learn — 由智能体驱动的终身学习",
 } as const;
 
 export type MessageKey = keyof typeof zh;
@@ -521,7 +521,7 @@ export const en: Record<MessageKey, string> = {
   "refuse.redirectScope": "Back in scope: {scope}. Ask about the current section goal.",
   "refuse.redirectDefault": "Stay inside the current section. Off-scope content is not saved as a note.",
 
-  "meta.description": "Quantum — agent-driven lifelong learning",
+  "meta.description": "Deep Learn — agent-driven lifelong learning",
 };
 
 export const messages = { zh, en } as const;

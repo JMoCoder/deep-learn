@@ -1,4 +1,4 @@
-# Quantum
+# Deep Learn
 
 Local-only agent that walks a topic from interview → boundary card → outline → grounded notes.
 
