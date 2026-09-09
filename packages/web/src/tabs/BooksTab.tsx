@@ -151,15 +151,16 @@ export function BooksTab({
             </div>
           )}
         </div>
+      </div>
 
-        <Drawer
-          contained
-          open={drawerOpen}
-          side="right"
-          title={t("books.drawerTitle")}
-          onClose={() => onDrawerOpen(false)}
-        >
-          <div className="space-y-3 p-3">
+      <Drawer
+        contained
+        open={drawerOpen}
+        side="right"
+        title={t("books.drawerTitle")}
+        onClose={() => onDrawerOpen(false)}
+      >
+        <div className="space-y-3 p-3">
             <button
               type="button"
               data-testid="create-topic"
@@ -200,7 +201,6 @@ export function BooksTab({
             ))}
           </div>
         </Drawer>
-      </div>
 
       <Dialog open={Boolean(exportId)} onOpenChange={(o) => !o && setExportId(null)}>
         <DialogContent title={t("books.exportTitle")}>

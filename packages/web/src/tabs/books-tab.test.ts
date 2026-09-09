@@ -170,4 +170,20 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.ok(document.querySelector('[data-testid="books-pane-notes"]'));
     again.unmount();
   });
+
+  it("keeps the topic drawer out of the page stage so it stays full height", () => {
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: true, topic },
+    );
+    const stage = document.querySelector("[data-testid=books-stage]");
+    const drawer = document.querySelector("[data-testid=drawer-root]");
+    assert.ok(stage);
+    assert.ok(drawer);
+    assert.equal(stage.contains(drawer), false);
+    assert.match(drawer.className, /\babsolute\b/);
+    assert.match(drawer.className, /\binset-0\b/);
+    root.unmount();
+  });
 });

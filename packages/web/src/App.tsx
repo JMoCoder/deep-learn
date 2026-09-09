@@ -521,7 +521,10 @@ export default function App() {
   });
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-lg flex-col bg-paper shadow-[0_0_0_1px_var(--color-paper-line)] md:max-w-3xl lg:max-w-4xl">
+    <div
+      data-app-frame
+      className="relative mx-auto flex h-dvh w-full max-w-lg flex-col bg-paper shadow-[0_0_0_1px_var(--color-paper-line)] md:max-w-3xl lg:max-w-4xl"
+    >
       {loadError ? (
         <p className="border-b border-cinnabar/30 bg-cinnabar/10 px-4 py-2 text-xs text-cinnabar">
           {loadError} · {t("app.loadErrorSuffix")}
