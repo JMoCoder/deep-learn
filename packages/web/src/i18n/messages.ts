@@ -74,7 +74,7 @@ export const zh = {
   "me.saved": "已保存。密钥只留在服务器，不会写进日志或工具参数。",
   "me.saveFailed": "保存失败",
   "me.heatmap": "学习热力图",
-  "me.heatmapHint": "占位。格子按学习活动粗记，不是间隔复习科学。详见 docs/cores.md。",
+  "me.heatmapHint": "占位。格子按学习活动粗记，不是间隔复习科学。",
   "me.language": "界面语言",
   "me.languageHint": "只改 PWA 壳层文案，存在本机。银时回复跟随你的输入语言，不受此开关影响。",
   "me.languageZh": "中文",
@@ -336,7 +336,7 @@ export const en: Record<MessageKey, string> = {
   "me.saved": "Saved. The key stays on the server and never appears in logs or tool args.",
   "me.saveFailed": "Save failed",
   "me.heatmap": "Learning heatmap",
-  "me.heatmapHint": "Placeholder. Cells rough-count activity; not spaced-repetition science. See docs/cores.md.",
+  "me.heatmapHint": "Placeholder. Cells rough-count activity; not spaced-repetition science.",
   "me.language": "Interface language",
   "me.languageHint":
     "Changes PWA chrome only, stored on this device. Agent replies follow the language of your messages — this switch does not set a model locale.",

@@ -52,11 +52,12 @@ export function MeTab({
       <header data-testid="me-top-region" className="border-b border-paper-line px-5 py-4">
         <h1 className="font-serif text-2xl">{t("me.title")}</h1>
         <p className="mt-2 text-sm text-paper-muted">{t("me.lead")}</p>
-        <HeatmapBlock heatmap={heatmap} />
       </header>
 
       <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto px-5 py-6">
         <div data-testid="me-body" className="w-full space-y-10">
+          <HeatmapBlock heatmap={heatmap} />
+
           <section className="space-y-3">
             <h2 className="font-serif text-lg">{t("me.language")}</h2>
             <p className="text-sm text-paper-muted">{t("me.languageHint")}</p>
@@ -116,19 +117,19 @@ export function MeTab({
 function HeatmapBlock({ heatmap }: { heatmap: HeatmapDay[] }) {
   const t = useT();
   return (
-    <section data-testid="me-heatmap" className="mt-4">
+    <section data-testid="me-heatmap">
       <h2 className="font-serif text-lg">{t("me.heatmap")}</h2>
       <p className="mt-1 text-xs text-paper-muted">{t("me.heatmapHint")}</p>
       <div
-        className="mt-3 grid w-full gap-1"
-        style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}
+        className="mt-3 grid w-max gap-[3px]"
+        style={{ gridTemplateColumns: "repeat(20, 11px)" }}
       >
         {heatmap.map((d) => (
           <div
             key={d.date}
             title={`${d.date} · ${d.count}`}
             className={cn(
-              "aspect-square w-full min-h-2.5 rounded-[2px]",
+              "h-[11px] w-[11px] shrink-0 rounded-[2px]",
               d.count === 0 && "bg-paper-line",
               d.count === 1 && "bg-cinnabar-soft/50",
               d.count >= 2 && d.count < 5 && "bg-cinnabar-soft",
