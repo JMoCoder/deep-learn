@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "prototype.html"],
       manifest: {
-        name: "Quantum",
-        short_name: "Quantum",
+        name: "Deep Learn",
+        short_name: "Deep Learn",
         description: "Agent-driven lifelong learning",
         theme_color: "#f4efe4",
         background_color: "#f4efe4",
