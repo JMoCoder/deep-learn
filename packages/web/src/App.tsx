@@ -59,6 +59,8 @@ import {
   looksLikeRefuseCopy,
   uiNoteType,
 } from "@/lib/session-display";
+import { outlineOpenForViewport } from "@/lib/outline-rail";
+import { useOutlineRail } from "@/lib/use-outline-rail";
 import { cn } from "@/lib/utils";
 
 type Tab = "learn" | "books" | "me";
@@ -99,7 +101,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [heatmap, setHeatmap] = useState<HeatmapDay[]>([]);
-  const [outlineOpen, setOutlineOpen] = useState(false);
+  const outlineRail = useOutlineRail();
+  const [outlineOpen, setOutlineOpen] = useState(() => outlineOpenForViewport(outlineRail));
   const [sessionOpen, setSessionOpen] = useState(false);
   const [booksDrawer, setBooksDrawer] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -215,6 +218,10 @@ export default function App() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    setOutlineOpen(outlineOpenForViewport(outlineRail));
+  }, [outlineRail]);
 
   useEffect(() => {
     const id = snapshot?.currentTopicId;
@@ -347,7 +354,6 @@ export default function App() {
           setBoundaryConfirmed(false);
           setTab("learn");
           setSessionOpen(false);
-          setOutlineOpen(false);
           void refresh();
           break;
         }
@@ -523,7 +529,7 @@ export default function App() {
   return (
     <div
       data-app-frame
-      className="relative mx-auto flex h-dvh w-full max-w-lg flex-col bg-paper shadow-[0_0_0_1px_var(--color-paper-line)] md:max-w-3xl lg:max-w-4xl"
+      className="relative flex h-dvh w-full min-w-0 flex-col bg-paper"
     >
       {loadError ? (
         <p className="border-b border-cinnabar/30 bg-cinnabar/10 px-4 py-2 text-xs text-cinnabar">
@@ -539,6 +545,7 @@ export default function App() {
           prereqEdges={prereqEdges}
           currentSectionId={snapshot?.currentSectionId ?? null}
           outlineOpen={outlineOpen}
+          outlinePersistent={outlineRail}
           sessionOpen={sessionOpen}
           onOutlineOpen={setOutlineOpen}
           onSessionOpen={setSessionOpen}
