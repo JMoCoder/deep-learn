@@ -37,16 +37,18 @@ describe("Me page width + heatmap top region", () => {
     document.body.replaceChildren();
   });
 
-  it("puts the heatmap in the top region, before language and model", () => {
+  it("ranks the heatmap before language and model settings, not in the top bar, and does not fill the main area", () => {
     const root = mountMe();
     const top = document.querySelector("[data-testid=me-top-region]");
     const heat = document.querySelector("[data-testid=me-heatmap]");
     const body = document.querySelector("[data-testid=me-body]");
+    const appTopBar = document.querySelector("[data-testid=learn-top-region]");
     assert.ok(top);
     assert.ok(heat);
     assert.ok(body);
-    assert.equal(top.contains(heat), true);
-    assert.equal(body.contains(heat), false);
+    assert.equal(top.contains(heat), false);
+    assert.equal(body.contains(heat), true);
+    assert.equal(appTopBar, null);
 
     const headings = [...document.querySelectorAll("h1, h2")].map((el) => el.textContent ?? "");
     const heatAt = headings.findIndex((h) => /学习热力图|Learning heatmap/.test(h));
@@ -55,6 +57,19 @@ describe("Me page width + heatmap top region", () => {
     assert.ok(heatAt >= 0 && langAt >= 0 && modelAt >= 0);
     assert.ok(heatAt < langAt);
     assert.ok(langAt < modelAt);
+
+    assert.equal(/\bflex-1\b/.test(heat.className), false);
+    assert.equal(/\bgrow\b/.test(heat.className), false);
+    assert.equal(/\bh-full\b/.test(heat.className), false);
+    const grid = heat.querySelector(".grid");
+    assert.ok(grid);
+    assert.match(grid.className, /\bw-max\b/);
+    assert.equal(/\bw-full\b/.test(grid.className), false);
+    const cell = heat.querySelector("[title]");
+    assert.ok(cell);
+    assert.equal(/\bw-full\b/.test(cell.className), false);
+    assert.equal(/\baspect-square\b/.test(cell.className), false);
+    assert.equal((heat.textContent ?? "").includes("docs/cores.md"), false);
     root.unmount();
   });
 

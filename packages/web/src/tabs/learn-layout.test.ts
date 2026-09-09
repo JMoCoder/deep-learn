@@ -8,7 +8,7 @@ import { emptyBoundarySnapshot } from "@quantum/shared";
 import { LocaleProvider } from "@/i18n";
 import { LearnTab } from "./LearnTab.tsx";
 
-function mountLearn(frame = true): Root {
+function mountLearn(frame = true, open: { outlineOpen?: boolean; sessionOpen?: boolean } = {}): Root {
   const host = document.createElement("div");
   if (frame) host.setAttribute("data-app-frame", "");
   host.className = "relative flex h-dvh flex-col";
@@ -39,8 +39,8 @@ function mountLearn(frame = true): Root {
           outline: [],
           prereqEdges: [],
           currentSectionId: "s1",
-          outlineOpen: false,
-          sessionOpen: true,
+          outlineOpen: open.outlineOpen ?? false,
+          sessionOpen: open.sessionOpen ?? true,
           onOutlineOpen: () => {},
           onSessionOpen: () => {},
           onSelectSection: () => {},
@@ -79,6 +79,13 @@ describe("Learn sidebar is full-height of the frame", () => {
     assert.equal(stage.contains(drawer), false);
     assert.match(drawer.className, /\babsolute\b/);
     assert.match(drawer.className, /\binset-0\b/);
+    root.unmount();
+  });
+
+  it("leaves no closed drawer rail or overlay in the tree", () => {
+    const root = mountLearn(true, { outlineOpen: false, sessionOpen: false });
+    assert.equal(document.querySelector("[data-testid=drawer-root]"), null);
+    assert.equal(document.querySelector("[data-testid=drawer-header]"), null);
     root.unmount();
   });
 
