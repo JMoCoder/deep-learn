@@ -16,12 +16,13 @@ export function Drawer({
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** Sit in the page stage so the panel edge meets the title divider. */
+  /** Sit in the app frame (full height). Do not clip to the page stage. */
   contained?: boolean;
 }) {
   const t = useT();
   const node = (
     <div
+      data-testid="drawer-root"
       className={cn(
         contained ? "absolute inset-0 z-40" : "fixed inset-0 z-50",
         !open && "pointer-events-none",
@@ -58,7 +59,10 @@ export function Drawer({
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-paper-line px-4 py-3">
+        <header
+          data-testid="drawer-header"
+          className="flex h-[var(--top-region-height)] items-center justify-between border-b border-paper-line px-4"
+        >
           <h2 className="font-serif text-base">{title}</h2>
           <button type="button" className="text-sm text-paper-muted" onClick={onClose}>
             {t("drawer.close")}
