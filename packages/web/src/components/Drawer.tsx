@@ -251,6 +251,7 @@ export function Drawer({
         aria-label={title}
         aria-hidden={!open}
         data-testid="drawer-panel"
+        data-swipe-pan-y={swipeDismiss ? "true" : undefined}
         className={cn(
           "absolute inset-y-0 z-10 flex w-[var(--sidebar-width)] flex-col border-paper-line bg-paper shadow-2xl",
           "transition-transform duration-200 ease-out",
