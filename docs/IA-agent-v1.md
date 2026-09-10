@@ -1,4 +1,6 @@
-# Quantum — Agent 向信息架构（修订稿 v1.3.2）
+# Deep Learn — Agent 向信息架构（修订稿 v1.3.2）
+
+> 用户可见名：**Deep Learn**。Quantum 仅内部包名 / 路径。工具入参与分层以 [`backend-baseline-v0.5.md`](./backend-baseline-v0.5.md) 与 `@quantum/shared` 为准；本文是壳层 IA。
 
 > 选型基线：Pi（`@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`）
 > 已锁口径：同时只开一个「当前学习」；笔记由 AI 在交互中落盘（非用户手记）

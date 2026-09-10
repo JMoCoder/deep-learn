@@ -1,5 +1,7 @@
 # Quantum backend baseline — v0.5
 
+> **Superseded.** Contract truth is [`backend-baseline-v0.5.md`](./backend-baseline-v0.5.md), which follows `@quantum/shared` + `packages/server/src/tools/factory.ts`. This file kept for history; do not implement against it. Product name: **Deep Learn** (Quantum = internal packages only).
+
 Server contract. Runtime is **Pi** (`@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`). Not DeepSeek Harness / DSH.
 
 v0.5 names the **context and outline contracts** the two cores need. Heuristics below are product-lock *shapes*, not finished learning science. Open items stay **TODO (product research)**.

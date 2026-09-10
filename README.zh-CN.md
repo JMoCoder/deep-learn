@@ -79,7 +79,7 @@ pnpm --filter @quantum/web build
 packages/shared   工具名、事件、DTO
 packages/server   Pi agent、工具、SQLite、SSE、导出
 packages/web      PWA（学习 / 书籍 / 我的）
-docs/             IA、后端基线、core1/core2、验收
+docs/             IA、backend-baseline-v0.5、两核验收、手点
 ```
 
 ```
@@ -94,7 +94,7 @@ browser  :43127  →  nginx / vite (PWA)
 
 ### 学习
 
-访谈选项 → **边界卡**（用户确认）→ **大纲确认**（叶子数须落在负荷预算内）→ 对话 + GROUND 笔记。命中 `scope_out` 是 **REFUSE**：该轮不出现笔记卡、不出现 CiteRow。
+访谈选项 → **边界卡**（用户确认）→ **大纲卡**（叶子数须落在负荷预算内）→ 对话 + 读盘锚定笔记。命中 `scope_out` 是 **拒 + 回流**：该轮不出现笔记卡、不出现引用行。
 
 顶栏：主题·章节。左抽屉 = 大纲。右抽屉 = 会话。正文里没有输入框。
 
@@ -128,17 +128,17 @@ Agent **没有**单独的语言开关。回复跟随用户输入的语言。界�
 
 - 只在本地。运行时不外呼。
 - `scope_in` / `scope_out` 保持用户原文。
-- 笔记属于当前主题。该轮越界时 REFUSE 优先于 GROUND。
+- 笔记属于当前主题。该轮越界时拒回流优先于读盘接地。
 
 ## 两个核心的简要验收
 
 1. PWA → **书籍** → 右侧抽屉 → **新建主题**。Stub 走满八维（动机 → 终点 → 成功证据 → 先验 → 先修 → scope_in → 排除 → 深度 → 负荷）。
 2. `boundary_finalized` 之后，在学习页确认独立边界卡，再确认大纲，进入 `learning`。
-3. 会话追问应有 `message.strategy` + `citations[]`。笔记只来自 `append_note`。
-4. 书籍导出 `md | html | epub`，应收到 `export_ready`。
-5. 学习相位踩 `scope_out`（例如排除「弦论」后再让它讲弦论）→ `REFUSE_OFFSCOPE`，不写笔记。
+3. 会话追问在有正文时应出现引用行。笔记只来自 `append_note`。
+4. 书籍导出 `md | html | epub`，应收到可打开的下载（`export_ready`）。
+5. 学习相位踩 `scope_out`（例如排除「弦论」后再让它讲弦论）→ 短拒 + 拉回当前节，不写笔记。
 
-手点路径：`docs/hand-click-five-steps.md`。IA：`docs/IA-agent-v1.md`。双核：`docs/cores.md`。
+手点路径：`docs/hand-click-five-steps.md`。契约：`docs/backend-baseline-v0.5.md`。双核：`docs/cores.md`。
 
 ## 许可证
 

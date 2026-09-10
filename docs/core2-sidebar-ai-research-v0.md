@@ -1,9 +1,10 @@
 # Quantum 核心② — 侧栏 AI 交互：专业调研草稿 v0
 
+> **Historical.** 调研底稿。文中 L0–L4 / 策略六枚举是当时草案，**已过时**。分层真源是 packer `TutorContext`（见 [`two-cores-acceptance-v0.md`](./two-cores-acceptance-v0.md) 对照表）；策略闭集与工具入参以 `@quantum/shared` 为准。用户可见名：**Deep Learn**。  
 > 作者：结野主税（产品）  
 > 日期：2026-09-06  
-> 状态：调研草稿（首迭代输入；非正式定稿）  
-> 依据：用户锁定两核之②；衔接核心① `core1-onboarding-research-v0.md`；对齐 IA v1.3.1 / 基线 v0.4  
+> 状态：historical（首迭代输入；非正式定稿）  
+> 依据：用户锁定两核之②；衔接核心① `core1-onboarding-research-v0.md`；对齐当时 IA / 基线  
 > 非目标：不写业务代码；不重做①的边界/大纲口径
 
 ---
