@@ -15,6 +15,7 @@ export function drawerCloseTravel(side: DrawerSide, dx: number): number {
 /** Follow the finger only in the close direction. */
 export function clampDrawerDrag(side: DrawerSide, dx: number): number {
   const travel = Math.max(0, drawerCloseTravel(side, dx));
+  if (travel === 0) return 0;
   return side === "left" ? -travel : travel;
 }
 

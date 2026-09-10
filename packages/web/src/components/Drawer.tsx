@@ -1,5 +1,12 @@
 import { createPortal } from "react-dom";
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { useT } from "@/i18n";
 import {
   clampDrawerDrag,
@@ -9,6 +16,12 @@ import {
   type DrawerSide,
 } from "@/lib/drawer-dismiss";
 import { cn } from "@/lib/utils";
+
+const SWIPE_IGNORE = "input, textarea, select, [contenteditable='true']";
+
+function ignoreSwipeFrom(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest(SWIPE_IGNORE));
+}
 
 export function Drawer({
   open,
@@ -31,6 +44,8 @@ export function Drawer({
 }) {
   const t = useT();
   const panelRef = useRef<HTMLElement | null>(null);
+  const widthRef = useRef(0);
+  const suppressClickRef = useRef(false);
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -41,17 +56,24 @@ export function Drawer({
   const [dragX, setDragX] = useState<number | null>(null);
 
   const dragging = dragX !== null;
-  const panelWidth = () => panelRef.current?.getBoundingClientRect().width ?? 0;
+
+  useEffect(() => {
+    if (open) return;
+    dragRef.current = null;
+    setDragX((prev) => (prev === null ? prev : null));
+  }, [open]);
 
   function resetDrag() {
     dragRef.current = null;
-    setDragX(null);
+    setDragX((prev) => (prev === null ? prev : null));
   }
 
   function onPanelPointerDown(event: ReactPointerEvent<HTMLElement>) {
     event.stopPropagation();
     if (!open || !swipeDismiss) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (ignoreSwipeFrom(event.target)) return;
+    widthRef.current = panelRef.current?.getBoundingClientRect().width ?? 0;
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -83,19 +105,31 @@ export function Drawer({
   function finishDrag(event: ReactPointerEvent<HTMLElement>) {
     const drag = dragRef.current;
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const dx = drag.dx;
-    const dy = event.clientY - drag.startY;
     const dismiss =
       drag.axis === "h" &&
       shouldDismissDrawer({
         side,
-        dx,
-        dy,
-        width: panelWidth(),
+        dx: drag.dx,
+        dy: 0,
+        width: widthRef.current,
         enabled: swipeDismiss && open,
       });
+    if (drag.axis === "h") suppressClickRef.current = true;
     resetDrag();
     if (dismiss) onClose();
+  }
+
+  function onLostCapture(event: ReactPointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    resetDrag();
+  }
+
+  function onPanelClickCapture(event: ReactMouseEvent<HTMLElement>) {
+    if (!suppressClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = false;
   }
 
   const node = (
@@ -127,7 +161,7 @@ export function Drawer({
         )}
         style={
           dragX !== null
-            ? { opacity: drawerDragOverlayOpacity(side, dragX, panelWidth()) }
+            ? { opacity: drawerDragOverlayOpacity(side, dragX, widthRef.current) }
             : undefined
         }
         onClick={onClose}
@@ -150,7 +184,9 @@ export function Drawer({
         onPointerDown={onPanelPointerDown}
         onPointerMove={onPanelPointerMove}
         onPointerUp={finishDrag}
-        onPointerCancel={resetDrag}
+        onPointerCancel={onLostCapture}
+        onLostPointerCapture={onLostCapture}
+        onClickCapture={onPanelClickCapture}
         onClick={(event) => event.stopPropagation()}
       >
         <header

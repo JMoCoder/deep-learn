@@ -142,4 +142,69 @@ describe("Drawer overlay + reverse swipe dismiss", () => {
     assert.deepEqual(closes, []);
     root.unmount();
   });
+
+  it("does not start a swipe from a textarea (session composer)", async () => {
+    const closes: string[] = [];
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            contained: true,
+            open: true,
+            side: "right",
+            title: "会话",
+            onClose: () => closes.push("close"),
+          },
+          createElement("textarea", { name: "text", defaultValue: "caret" }),
+        ),
+      );
+    });
+    const field = document.querySelector("textarea[name=text]");
+    assert.ok(field);
+    await swipe(field, 40, 200);
+    assert.deepEqual(closes, []);
+    root.unmount();
+  });
+
+  it("swallows the click after a reverse swipe so a row is not activated", async () => {
+    const events: string[] = [];
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            contained: true,
+            open: true,
+            side: "left",
+            title: "大纲",
+            onClose: () => events.push("close"),
+          },
+          createElement(
+            "button",
+            {
+              type: "button",
+              "data-testid": "outline-row",
+              onClick: () => events.push("row"),
+            },
+            "测量",
+          ),
+        ),
+      );
+    });
+    const row = document.querySelector("[data-testid=outline-row]");
+    assert.ok(row);
+    await swipe(row, 160, 40);
+    await act(async () => {
+      row.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    assert.deepEqual(events, ["close"]);
+    root.unmount();
+  });
 });
