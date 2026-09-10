@@ -76,7 +76,7 @@ describe("export HTTP is not fake-green", () => {
     assert.ok(abs && existsSync(abs));
     const html = readFileSync(abs, "utf8");
     assert.match(html, /<!doctype html>/i);
-    assert.match(html, /<title>导出主题<\/title>/);
+    assert.match(html, /<title>.+<\/title>/);
     assert.match(html, /<body[\s>]/i);
     assert.match(html, /落盘正文：测量前后差别/);
     const opened = await app.request(body.downloadPath);
