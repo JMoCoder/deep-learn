@@ -402,8 +402,8 @@ describe("outline card uses web gates, not chat 可以", () => {
       );
     });
     const buttons = [...host.querySelectorAll("button")];
-    const confirm = buttons.find((btn) => (btn.textContent ?? "").includes("确认大纲"));
-    const revise = buttons.find((btn) => (btn.textContent ?? "").includes("要改结构"));
+    const confirm = buttons.find((btn) => /确认大纲|Confirm outline/.test(btn.textContent ?? ""));
+    const revise = buttons.find((btn) => /要改结构|Change the structure/.test(btn.textContent ?? ""));
     assert.ok(confirm);
     assert.ok(revise);
     act(() => {

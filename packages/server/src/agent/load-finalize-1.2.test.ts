@@ -65,14 +65,15 @@ describe("1.2 load-dim finalize", () => {
     const answers = (plan.tool?.args as { answers: Array<{ kind: string; answer: string }> }).answers;
     const load = answers.find((a) => a.kind === "time" || a.kind === "chunk_budget");
     assert.equal(load?.answer, WALK_ANSWERS.time);
-    assert.equal(store.listBoundaries(topic.id).find((b) => b.kind === loadKind)?.status, "answered");
-    assert.equal(store.listBoundaries(topic.id).find((b) => b.kind === loadKind)?.answer, WALK_ANSWERS.time);
+    assert.equal(store.listBoundaries(topic.id).find((b) => b.kind === loadKind)?.status, "asked");
+    assert.equal(store.listBoundaries(topic.id).find((b) => b.kind === loadKind)?.answer, "");
 
     const result = await exec(toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!, {
       answers,
     });
     assert.equal(result.details.ok, true);
     assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
+    assert.equal(store.listBoundaries(topic.id).find((b) => b.kind === loadKind)?.answer, WALK_ANSWERS.time);
   });
 
   it("chunk_budget as current kind finalizes, does not re-ask motivation", () => {

@@ -1,3 +1,4 @@
+import { looksLikeOutlineConfirm } from "./boundary.js";
 import type { OutlineNode } from "./dto.js";
 
 /**
