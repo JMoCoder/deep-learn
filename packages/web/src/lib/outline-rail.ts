@@ -1,4 +1,4 @@
-/** Wide enough for a real outline rail; below this the rail collapses to a drawer. */
+/** Wide enough for persistent Learn rails (outline + session); below this they collapse to drawers. */
 export const OUTLINE_RAIL_QUERY = "(min-width: 768px)";
 
 export function matchesOutlineRail(

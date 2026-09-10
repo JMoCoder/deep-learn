@@ -38,6 +38,7 @@ export function LearnTab({
   outlineOpen,
   outlinePersistent,
   sessionOpen,
+  sessionPersistent,
   onOutlineOpen,
   onSessionOpen,
   onSelectSection,
@@ -66,6 +67,7 @@ export function LearnTab({
   outlineOpen: boolean;
   outlinePersistent?: boolean;
   sessionOpen: boolean;
+  sessionPersistent?: boolean;
   onOutlineOpen: (open: boolean) => void;
   onSessionOpen: (open: boolean) => void;
   onSelectSection: (id: string) => void;
@@ -106,6 +108,35 @@ export function LearnTab({
 
   const railOpen = Boolean(outlinePersistent && outlineOpen);
   const outlineDrawerOpen = Boolean(!outlinePersistent && outlineOpen);
+  const sessionRailOpen = Boolean(sessionPersistent && sessionOpen);
+  const sessionDrawerOpen = Boolean(!sessionPersistent && sessionOpen);
+
+  function sessionPane() {
+    return (
+      <SessionPane
+        messages={messages}
+        liveRows={liveRows}
+        streaming={streaming}
+        busy={busy}
+        coachMode={coachMode}
+        error={error}
+        onSend={onSend}
+        phase={phase}
+        snapshot={snapshot}
+        askedKinds={askedKinds}
+        currentKind={currentKind}
+        pendingBoundary={pendingBoundary}
+        pendingOutline={pendingOutline}
+        overBudget={outlineBudget.overBudget}
+        scopeIn={snapshot.scope_in}
+        scopeOut={snapshot.scope_out}
+        sectionTitles={titles}
+        onCiteSection={onSelectSection}
+        canOpenCite={(id) => sectionHasProjectedBody(id, section, outline)}
+        awaitingTopicAnchor={awaitingTopicAnchor}
+      />
+    );
+  }
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -160,7 +191,9 @@ export function LearnTab({
               variant="ghost"
               size="icon"
               aria-label={t("learn.openSession")}
-              onClick={() => onSessionOpen(true)}
+              aria-expanded={sessionOpen}
+              data-testid="learn-session-toggle"
+              onClick={() => onSessionOpen(!sessionOpen)}
             >
               <Sparkles className="h-5 w-5" />
             </Button>
@@ -227,6 +260,32 @@ export function LearnTab({
             </div>
           </div>
         </div>
+
+        <aside
+          data-testid="session-rail"
+          data-state={sessionRailOpen ? "open" : "closed"}
+          aria-hidden={!sessionRailOpen}
+          inert={!sessionRailOpen}
+          className={cn(
+            "flex shrink-0 flex-col overflow-hidden bg-paper",
+            "transition-[width] duration-200 ease-out",
+            sessionRailOpen
+              ? "w-[var(--session-rail-width)] border-l border-paper-line"
+              : "pointer-events-none w-0 border-l-0",
+          )}
+        >
+          <div className="flex h-full w-[var(--session-rail-width)] min-w-[var(--session-rail-width)] flex-col">
+            <header
+              data-testid="session-rail-header"
+              className="flex h-[var(--top-region-height)] items-center border-b border-paper-line px-4"
+            >
+              <h2 className="font-serif text-base">{t("learn.drawerSession")}</h2>
+            </header>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {sessionPersistent ? sessionPane() : null}
+            </div>
+          </div>
+        </aside>
       </div>
 
       <Drawer
@@ -249,33 +308,12 @@ export function LearnTab({
 
       <Drawer
         contained
-        open={sessionOpen}
+        open={sessionDrawerOpen}
         side="right"
         title={t("learn.drawerSession")}
         onClose={() => onSessionOpen(false)}
       >
-        <SessionPane
-          messages={messages}
-          liveRows={liveRows}
-          streaming={streaming}
-          busy={busy}
-          coachMode={coachMode}
-          error={error}
-          onSend={onSend}
-          phase={phase}
-          snapshot={snapshot}
-          askedKinds={askedKinds}
-          currentKind={currentKind}
-          pendingBoundary={pendingBoundary}
-          pendingOutline={pendingOutline}
-          overBudget={outlineBudget.overBudget}
-          scopeIn={snapshot.scope_in}
-          scopeOut={snapshot.scope_out}
-          sectionTitles={titles}
-          onCiteSection={onSelectSection}
-          canOpenCite={(id) => sectionHasProjectedBody(id, section, outline)}
-          awaitingTopicAnchor={awaitingTopicAnchor}
-        />
+        {sessionPersistent ? null : sessionPane()}
       </Drawer>
     </div>
   );

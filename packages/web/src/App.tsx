@@ -101,7 +101,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const outlineRail = useOutlineRail();
   const [outlineOpen, setOutlineOpen] = useState(() => outlineOpenForViewport(outlineRail));
-  const [sessionOpen, setSessionOpen] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(() => outlineOpenForViewport(outlineRail));
   const [booksDrawer, setBooksDrawer] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [liveRows, setLiveRows] = useState<LiveSessionRow[]>([]);
@@ -217,7 +217,9 @@ export default function App() {
   }, [refresh]);
 
   useEffect(() => {
-    setOutlineOpen(outlineOpenForViewport(outlineRail));
+    const open = outlineOpenForViewport(outlineRail);
+    setOutlineOpen(open);
+    setSessionOpen(open);
   }, [outlineRail]);
 
   useEffect(() => {
@@ -544,6 +546,7 @@ export default function App() {
           outlineOpen={outlineOpen}
           outlinePersistent={outlineRail}
           sessionOpen={sessionOpen}
+          sessionPersistent={outlineRail}
           onOutlineOpen={setOutlineOpen}
           onSessionOpen={setSessionOpen}
           onSelectSection={(id) => void selectSection(id)}

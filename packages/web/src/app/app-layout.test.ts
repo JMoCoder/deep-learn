@@ -89,6 +89,22 @@ describe("app frame + default outline rail", () => {
     root.unmount();
   });
 
+  it("opens the session rail by default on a wide viewport, not the overlay drawer", async () => {
+    const root = await mountApp();
+    const rail = document.querySelector("[data-testid=session-rail]");
+    const drawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=right]");
+    const toggle = document.querySelector("[data-testid=learn-session-toggle]");
+    assert.ok(rail);
+    assert.ok(drawer);
+    assert.ok(toggle);
+    assert.equal(rail.getAttribute("data-state"), "open");
+    assert.match(rail.className, /w-\[var\(--session-rail-width\)\]/);
+    assert.match(rail.className, /transition-\[width\]/);
+    assert.equal(drawer.getAttribute("data-state"), "closed");
+    assert.equal(toggle.getAttribute("aria-expanded"), "true");
+    root.unmount();
+  });
+
   it("does not fetch /api/heatmap while loading or opening Me", async () => {
     const requested: string[] = [];
     const root = await mountApp(requested);
