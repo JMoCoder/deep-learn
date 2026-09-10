@@ -256,6 +256,42 @@ describe("Drawer overlay + reverse swipe dismiss", () => {
     root.unmount();
   });
 
+  it("fill body still swipe-dismisses and does not own the transcript scroll", async () => {
+    const closes: string[] = [];
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            contained: true,
+            fill: true,
+            open: true,
+            side: "right",
+            title: "会话",
+            onClose: () => closes.push("close"),
+          },
+          createElement("textarea", { name: "text", defaultValue: "caret" }),
+        ),
+      );
+    });
+    const body = document.querySelector("[data-testid=drawer-scroll]");
+    const field = document.querySelector("textarea[name=text]");
+    assert.ok(body);
+    assert.ok(field);
+    assert.equal(body.getAttribute("data-fill"), "true");
+    assert.match(body.className, /overflow-hidden/);
+    assert.equal(/\boverflow-y-auto\b/.test(body.className), false);
+    assert.equal(body.getAttribute("data-swipe-pan-y"), "true");
+    await swipe(field, 40, 200);
+    assert.deepEqual(closes, []);
+    await swipe(body, 40, 200);
+    assert.deepEqual(closes, ["close"]);
+    root.unmount();
+  });
+
   it("does not start a swipe from a textarea (session composer)", async () => {
     const closes: string[] = [];
     const host = document.createElement("div");

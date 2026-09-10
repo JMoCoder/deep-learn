@@ -105,6 +105,54 @@ describe("session pane hides internal strategy", () => {
     assert.equal((host.textContent ?? "").includes("你为什么现在要学这个"), false);
     root.unmount();
   });
+
+  it("keeps AcceptHint and InterviewGuide in the conversation scroll, not a sticky top strip", async () => {
+    const { host, root } = await renderPane({
+      phase: "boundary_interview",
+      pendingBoundary: false,
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          text: "先说你想学什么。",
+          createdAt: 1,
+        },
+      ],
+    });
+    const transcript = host.querySelector('[data-testid="session-transcript"]');
+    const guidance = host.querySelector('[data-testid="session-inflow-guidance"]');
+    const hint = host.querySelector('[data-testid="accept-hint"]');
+    const guide = host.querySelector('[data-testid="interview-guide"]');
+    assert.ok(transcript);
+    assert.ok(guidance);
+    assert.ok(hint);
+    assert.ok(guide);
+    assert.match(transcript.className, /overflow-y-auto/);
+    assert.equal(transcript.contains(guidance), true);
+    assert.equal(transcript.contains(hint), true);
+    assert.equal(transcript.contains(guide), true);
+    assert.equal(guidance?.closest(".sticky, .fixed"), null);
+    assert.equal(/\b(sticky|fixed)\b/.test(guidance?.className ?? ""), false);
+    const pane = transcript.parentElement;
+    assert.ok(pane);
+    assert.equal(pane.firstElementChild, transcript);
+    assert.equal(transcript.querySelector('[data-testid="session-composer"]'), null);
+    root.unmount();
+  });
+
+  it("still paints inflow guidance while the topic-anchor prompt is up", async () => {
+    const { host, root } = await renderPane({
+      phase: "boundary_interview",
+      awaitingTopicAnchor: true,
+    });
+    const transcript = host.querySelector('[data-testid="session-transcript"]');
+    assert.ok(transcript?.contains(host.querySelector('[data-testid="session-inflow-guidance"]')));
+    assert.ok(transcript?.contains(host.querySelector('[data-testid="accept-hint"]')));
+    assert.ok(transcript?.contains(host.querySelector('[data-testid="topic-anchor-prompt"]')));
+    assert.equal(host.querySelector('[data-testid="interview-guide"]'), null);
+    assert.equal(host.querySelector("[data-dim]"), null);
+    root.unmount();
+  });
 });
 
 function paneProps(
@@ -303,6 +351,45 @@ describe("session composer send path", () => {
     assert.deepEqual(sent, ["下一节", "下一节"]);
     assert.equal(host.querySelectorAll('[data-testid="session-pending-user"]').length, 1);
     root.unmount();
+  });
+
+  it("pins send to the composer bottom-right and keeps text above that row", async () => {
+    const { host, root } = await renderPane({ coachMode: "live" });
+    const shell = host.querySelector('[data-testid="session-composer-shell"]');
+    const box = host.querySelector<HTMLTextAreaElement>('[data-testid="session-composer"]');
+    const actions = host.querySelector('[data-testid="session-composer-actions"]');
+    const send = host.querySelector('[data-testid="session-send"]');
+    assert.ok(shell);
+    assert.ok(box);
+    assert.ok(actions);
+    assert.ok(send);
+    assert.equal(shell.contains(box), true);
+    assert.equal(shell.contains(send), true);
+    assert.equal(actions.contains(send), true);
+    assert.match(shell.className, /flex-col/);
+    assert.match(actions.className, /justify-end/);
+    assert.equal(box.nextElementSibling, actions);
+    assert.ok(Number(box.getAttribute("rows") ?? "0") >= 4);
+    assert.match(box.className, /min-h-24/);
+    assert.equal(box.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING, Node.DOCUMENT_POSITION_FOLLOWING);
+    root.unmount();
+  });
+
+  it("uses the same composer shell and inflow chrome in stub and live", async () => {
+    const stub = await renderPane({ coachMode: "stub", phase: "boundary_interview" });
+    const stubShell = stub.host.querySelector('[data-testid="session-composer-shell"]')?.className;
+    const stubRows = stub.host.querySelector('[data-testid="session-composer"]')?.getAttribute("rows");
+    const stubTranscript = stub.host.querySelector('[data-testid="session-transcript"]')?.className;
+    assert.ok(stub.host.querySelector('[data-testid="session-inflow-guidance"]'));
+    assert.ok(stub.host.querySelector('[data-testid="interview-guide"]'));
+    stub.root.unmount();
+    const live = await renderPane({ coachMode: "live", phase: "boundary_interview" });
+    assert.equal(live.host.querySelector('[data-testid="session-composer-shell"]')?.className, stubShell);
+    assert.equal(live.host.querySelector('[data-testid="session-composer"]')?.getAttribute("rows"), stubRows);
+    assert.equal(live.host.querySelector('[data-testid="session-transcript"]')?.className, stubTranscript);
+    assert.ok(live.host.querySelector('[data-testid="session-inflow-guidance"]'));
+    assert.ok(live.host.querySelector('[data-testid="interview-guide"]'));
+    live.root.unmount();
   });
 
   it("does not send while IME is composing", async () => {

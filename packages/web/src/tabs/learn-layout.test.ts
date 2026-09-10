@@ -8,6 +8,34 @@ import { emptyBoundarySnapshot } from "@quantum/shared";
 import { LocaleProvider } from "@/i18n";
 import { LearnTab } from "./LearnTab.tsx";
 
+function assertSessionChrome(host: Element | null) {
+  assert.ok(host);
+  const transcript = host.querySelector('[data-testid="session-transcript"]');
+  const guidance = host.querySelector('[data-testid="session-inflow-guidance"]');
+  const hint = host.querySelector('[data-testid="accept-hint"]');
+  const shell = host.querySelector('[data-testid="session-composer-shell"]');
+  const box = host.querySelector('[data-testid="session-composer"]');
+  const actions = host.querySelector('[data-testid="session-composer-actions"]');
+  const send = host.querySelector('[data-testid="session-send"]');
+  assert.ok(transcript);
+  assert.ok(guidance);
+  assert.ok(hint);
+  assert.ok(shell);
+  assert.ok(box);
+  assert.ok(actions);
+  assert.ok(send);
+  assert.match(transcript.className, /overflow-y-auto/);
+  assert.equal(transcript.contains(guidance), true);
+  assert.equal(transcript.contains(hint), true);
+  assert.equal(transcript.contains(shell), false);
+  assert.equal(shell.contains(box), true);
+  assert.equal(shell.contains(send), true);
+  assert.equal(box.nextElementSibling, actions);
+  assert.match(actions.className, /justify-end/);
+  assert.ok(Number(box.getAttribute("rows") ?? "0") >= 4);
+  assert.match(box.className, /min-h-24/);
+}
+
 function mountLearn(
   frame = true,
   open: {
@@ -15,6 +43,8 @@ function mountLearn(
     sessionOpen?: boolean;
     outlinePersistent?: boolean;
     sessionPersistent?: boolean;
+    coachMode?: "stub" | "live";
+    phase?: "learning" | "boundary_interview";
   } = {},
 ): Root {
   const host = document.createElement("div");
@@ -31,7 +61,7 @@ function mountLearn(
           topic: {
             id: "t1",
             title: "量子力学",
-            phase: "learning",
+            phase: open.phase ?? "learning",
             exportState: "idle",
             createdAt: 1,
             updatedAt: 1,
@@ -68,7 +98,7 @@ function mountLearn(
           liveRows: [],
           streaming: "",
           busy: false,
-          coachMode: "stub",
+          coachMode: open.coachMode ?? "stub",
           error: null,
           onSend: () => {},
           snapshot: emptyBoundarySnapshot(),
@@ -338,6 +368,44 @@ describe("Learn session rail + full-width stage", () => {
     assert.equal(rail.querySelector("textarea[name=text]"), null);
     assert.equal(drawer.querySelector("textarea[name=text]") !== null, true);
     root.unmount();
+  });
+
+  it("uses the same in-flow guidance + composer chrome on the rail and the drawer", () => {
+    const railRoot = mountLearn(true, {
+      sessionOpen: true,
+      sessionPersistent: true,
+      coachMode: "stub",
+      phase: "boundary_interview",
+    });
+    const rail = document.querySelector("[data-testid=session-rail]");
+    assertSessionChrome(rail);
+    assert.equal(rail?.querySelector("[data-testid=interview-guide]") !== null, true);
+    const railClasses = {
+      transcript: rail?.querySelector("[data-testid=session-transcript]")?.className,
+      shell: rail?.querySelector("[data-testid=session-composer-shell]")?.className,
+      actions: rail?.querySelector("[data-testid=session-composer-actions]")?.className,
+    };
+    railRoot.unmount();
+
+    const drawerRoot = mountLearn(true, {
+      sessionOpen: true,
+      sessionPersistent: false,
+      coachMode: "live",
+      phase: "boundary_interview",
+    });
+    const drawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=right]");
+    const body = drawer?.querySelector("[data-testid=drawer-scroll]");
+    assert.ok(drawer);
+    assert.ok(body);
+    assert.equal(body.getAttribute("data-fill"), "true");
+    assert.match(body.className, /overflow-hidden/);
+    assert.equal(/\boverflow-y-auto\b/.test(body.className), false);
+    assertSessionChrome(drawer);
+    assert.equal(drawer.querySelector("[data-testid=interview-guide]") !== null, true);
+    assert.equal(drawer.querySelector("[data-testid=session-transcript]")?.className, railClasses.transcript);
+    assert.equal(drawer.querySelector("[data-testid=session-composer-shell]")?.className, railClasses.shell);
+    assert.equal(drawer.querySelector("[data-testid=session-composer-actions]")?.className, railClasses.actions);
+    drawerRoot.unmount();
   });
 });
 

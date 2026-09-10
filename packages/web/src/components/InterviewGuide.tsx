@@ -22,7 +22,10 @@ export function InterviewGuide({
   const complete = dims.length === 8 && dims.every((dim) => dim.chip === "filled");
 
   return (
-    <section className="rounded-xl border border-paper-line bg-paper-deep/50 px-3 py-2">
+    <section
+      data-testid="interview-guide"
+      className="rounded-xl border border-paper-line bg-paper-deep/50 px-3 py-2"
+    >
       <p className="text-[11px] font-semibold tracking-wide text-paper-muted">{t("interview.dims")}</p>
       <ul className="mt-2 flex flex-wrap gap-1.5">
         {dims.map((dim) => (

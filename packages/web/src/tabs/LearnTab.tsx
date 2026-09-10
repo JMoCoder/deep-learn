@@ -316,6 +316,7 @@ export function LearnTab({
       <Drawer
         contained
         swipeDismiss
+        fill
         open={sessionDrawerOpen}
         side="right"
         title={t("learn.drawerSession")}
