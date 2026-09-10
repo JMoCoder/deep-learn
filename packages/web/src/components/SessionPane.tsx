@@ -108,34 +108,22 @@ export function SessionPane({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="space-y-2 border-b border-paper-line px-4 py-2">
-        <p className="text-xs text-paper-muted">
-          {coachMode === "stub" ? t("session.stub") : t("session.live")}
-        </p>
-        <AcceptHint
+      <div
+        data-testid="session-transcript"
+        className="quantum-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"
+      >
+        <InflowGuidance
+          coachMode={coachMode}
           phase={phase}
+          snapshot={snapshot}
+          askedKinds={askedKinds}
+          currentKind={currentKind}
           pendingBoundary={pendingBoundary}
           pendingOutline={pendingOutline}
-          hasTopic={Boolean(phase)}
           overBudget={overBudget}
           awaitingTopicAnchor={awaitingTopicAnchor}
+          showGuide={showGuide}
         />
-        {showGuide ? (
-          <InterviewGuide
-            snapshot={snapshot}
-            askedKinds={askedKinds}
-            coachMode={coachMode}
-            currentKind={currentKind}
-          />
-        ) : null}
-        {pendingBoundary ? (
-          <p className="text-xs text-cinnabar">{t("session.confirmBoundaryFirst")}</p>
-        ) : null}
-        {pendingOutline && overBudget ? (
-          <p className="text-xs text-cinnabar">{t("session.overBudgetHint")}</p>
-        ) : null}
-      </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {awaitingTopicAnchor ? (
           <p className="text-sm leading-relaxed text-paper-ink/90" data-testid="topic-anchor-prompt">
             {t("session.topicAnchor")}
@@ -226,31 +214,98 @@ export function SessionPane({
         {error ? <p className="text-sm text-cinnabar">{error}</p> : null}
       </div>
       <form onSubmit={submit} className="border-t border-paper-line p-3">
-        <Textarea
-          name="text"
-          rows={3}
-          data-testid="session-composer"
-          placeholder={composerPlaceholderText(
-            {
-              phase,
-              currentKind,
-              pendingBoundary,
-              pendingOutline,
-              overBudget,
-              awaitingTopicAnchor,
-            },
-            t,
-          )}
-          disabled={lockComposer}
-          onKeyDown={onComposerKeyDown}
-        />
-        <div className="mt-2 flex justify-end">
-          <Button type="submit" data-testid="session-send" disabled={lockComposer} size="sm">
-            {lockComposer ? t("session.thinking") : t("session.send")}
-          </Button>
+        <div
+          data-testid="session-composer-shell"
+          className="flex flex-col rounded-md border border-paper-line bg-paper focus-within:border-cinnabar"
+        >
+          <Textarea
+            name="text"
+            rows={4}
+            data-testid="session-composer"
+            className="min-h-24 border-0 bg-transparent pb-1 focus:border-transparent"
+            placeholder={composerPlaceholderText(
+              {
+                phase,
+                currentKind,
+                pendingBoundary,
+                pendingOutline,
+                overBudget,
+                awaitingTopicAnchor,
+              },
+              t,
+            )}
+            disabled={lockComposer}
+            onKeyDown={onComposerKeyDown}
+          />
+          <div
+            data-testid="session-composer-actions"
+            className="flex shrink-0 justify-end px-2 pb-2 pt-1"
+          >
+            <Button type="submit" data-testid="session-send" disabled={lockComposer} size="sm">
+              {lockComposer ? t("session.thinking") : t("session.send")}
+            </Button>
+          </div>
         </div>
       </form>
     </div>
+  );
+}
+
+function InflowGuidance({
+  coachMode,
+  phase,
+  snapshot,
+  askedKinds,
+  currentKind,
+  pendingBoundary,
+  pendingOutline,
+  overBudget,
+  awaitingTopicAnchor,
+  showGuide,
+}: {
+  coachMode: "stub" | "live";
+  phase: TopicPhase | "";
+  snapshot: BoundarySnapshot;
+  askedKinds: string[];
+  currentKind?: string | null;
+  pendingBoundary: boolean;
+  pendingOutline: boolean;
+  overBudget?: boolean;
+  awaitingTopicAnchor?: boolean;
+  showGuide: boolean;
+}) {
+  const t = useT();
+  return (
+    <article data-testid="session-inflow-guidance" className="space-y-2 text-sm">
+      <div className="mb-0.5 text-[11px] uppercase tracking-wide text-paper-muted">
+        {t("session.guide")}
+      </div>
+      <p className="text-xs text-paper-muted" data-testid="session-coach-mode">
+        {coachMode === "stub" ? t("session.stub") : t("session.live")}
+      </p>
+      <AcceptHint
+        phase={phase}
+        pendingBoundary={pendingBoundary}
+        pendingOutline={pendingOutline}
+        hasTopic={Boolean(phase)}
+        overBudget={overBudget}
+        awaitingTopicAnchor={awaitingTopicAnchor}
+      />
+      {showGuide ? (
+        <InterviewGuide
+          snapshot={snapshot}
+          askedKinds={askedKinds}
+          coachMode={coachMode}
+          currentKind={currentKind}
+        />
+      ) : null}
+      {pendingBoundary ? (
+        <p className="text-xs text-cinnabar">{t("session.confirmBoundaryFirst")}</p>
+      ) : null}
+      {pendingOutline && overBudget ? (
+        <p className="text-xs text-cinnabar">{t("session.overBudgetHint")}</p>
+      ) : null}
+    </article>
   );
 }
 
