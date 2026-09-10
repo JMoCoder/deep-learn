@@ -148,6 +148,7 @@ export function LearnTab({
         <aside
           data-testid="outline-rail"
           data-state={railOpen ? "open" : "closed"}
+          data-swipe-dismiss="false"
           aria-hidden={!railOpen}
           className={cn(
             "flex shrink-0 flex-col overflow-hidden bg-paper",
@@ -268,6 +269,7 @@ export function LearnTab({
         <aside
           data-testid="session-rail"
           data-state={sessionRailOpen ? "open" : "closed"}
+          data-swipe-dismiss="false"
           aria-hidden={!sessionRailOpen}
           inert={!sessionRailOpen}
           className={cn(
@@ -294,6 +296,7 @@ export function LearnTab({
 
       <Drawer
         contained
+        swipeDismiss
         open={outlineDrawerOpen}
         side="left"
         title={t("learn.drawerOutline")}
@@ -312,6 +315,7 @@ export function LearnTab({
 
       <Drawer
         contained
+        swipeDismiss
         open={sessionDrawerOpen}
         side="right"
         title={t("learn.drawerSession")}

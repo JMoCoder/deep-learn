@@ -174,6 +174,11 @@ describe("Learn outline rail + full-width stage", () => {
     assert.match(rail.className, /\bw-0\b/);
     assert.equal(drawer.getAttribute("data-state"), "open");
     assert.equal(drawer.hasAttribute("inert"), false);
+    assert.equal(drawer.getAttribute("data-swipe-dismiss"), "true");
+    assert.match(drawer.className, /transition-opacity/);
+    const panel = drawer.querySelector("[data-testid=drawer-panel]");
+    assert.ok(panel);
+    assert.match(panel.className, /transition-transform/);
     root.unmount();
   });
 });
@@ -327,7 +332,9 @@ describe("Learn session rail + full-width stage", () => {
     assert.equal(rail.hasAttribute("inert"), true);
     assert.equal(drawer.getAttribute("data-state"), "open");
     assert.equal(drawer.hasAttribute("inert"), false);
+    assert.equal(drawer.getAttribute("data-swipe-dismiss"), "true");
     assert.match(drawer.className, /\babsolute\b/);
+    assert.match(drawer.className, /transition-opacity/);
     assert.equal(rail.querySelector("textarea[name=text]"), null);
     assert.equal(drawer.querySelector("textarea[name=text]") !== null, true);
     root.unmount();
@@ -413,6 +420,239 @@ describe("outline card uses web gates, not chat 可以", () => {
     assert.deepEqual(sent, []);
     assert.deepEqual(confirmed, ["card"]);
     assert.deepEqual(revised, ["card"]);
+    root.unmount();
+  });
+});
+
+describe("Learn swipe dismiss is drawer-only", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it("does not swipe-dismiss persistent wide rails", async () => {
+    let outlineOpen = true;
+    let sessionOpen = true;
+    const host = document.createElement("div");
+    host.setAttribute("data-app-frame", "");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    function render() {
+      act(() => {
+        root.render(
+          createElement(
+            LocaleProvider,
+            null,
+            createElement(LearnTab, {
+              topic: {
+                id: "t1",
+                title: "量子力学",
+                phase: "learning",
+                exportState: "idle",
+                createdAt: 1,
+                updatedAt: 1,
+              },
+              section: {
+                id: "s1",
+                topicId: "t1",
+                outlineNodeId: "n1",
+                title: "测量",
+                bodyMd: "正文",
+                generatedAt: 1,
+              },
+              outline: [],
+              prereqEdges: [],
+              currentSectionId: "s1",
+              outlineOpen,
+              outlinePersistent: true,
+              sessionOpen,
+              sessionPersistent: true,
+              onOutlineOpen: (open: boolean) => {
+                outlineOpen = open;
+                render();
+              },
+              onSessionOpen: (open: boolean) => {
+                sessionOpen = open;
+                render();
+              },
+              onSelectSection: () => {},
+              messages: [],
+              liveRows: [],
+              streaming: "",
+              busy: false,
+              coachMode: "stub",
+              error: null,
+              onSend: () => {},
+              snapshot: emptyBoundarySnapshot(),
+              askedKinds: [],
+              pendingBoundary: false,
+              pendingOutline: false,
+              onConfirmBoundary: () => {},
+            }),
+          ),
+        );
+      });
+    }
+
+    render();
+    const outlineRail = document.querySelector("[data-testid=outline-rail]");
+    const sessionRail = document.querySelector("[data-testid=session-rail]");
+    const outlineDrawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=left]");
+    const sessionDrawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=right]");
+    assert.ok(outlineRail);
+    assert.ok(sessionRail);
+    assert.ok(outlineDrawer);
+    assert.ok(sessionDrawer);
+    assert.equal(outlineRail.getAttribute("data-state"), "open");
+    assert.equal(sessionRail.getAttribute("data-state"), "open");
+    assert.equal(outlineRail.getAttribute("data-swipe-dismiss"), "false");
+    assert.equal(sessionRail.getAttribute("data-swipe-dismiss"), "false");
+    assert.equal(outlineDrawer.getAttribute("data-state"), "closed");
+    assert.equal(sessionDrawer.getAttribute("data-state"), "closed");
+
+    await act(async () => {
+      outlineRail.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 160,
+          clientY: 40,
+        }),
+      );
+      outlineRail.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 20,
+          clientY: 40,
+        }),
+      );
+      outlineRail.dispatchEvent(
+        new PointerEvent("pointerup", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 20,
+          clientY: 40,
+        }),
+      );
+    });
+    assert.equal(outlineOpen, true);
+    assert.equal(sessionOpen, true);
+    assert.equal(outlineRail.getAttribute("data-state"), "open");
+    root.unmount();
+  });
+
+  it("closes a narrow outline drawer on a reverse swipe", async () => {
+    let outlineOpen = true;
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    function render() {
+      act(() => {
+        root.render(
+          createElement(
+            LocaleProvider,
+            null,
+            createElement(LearnTab, {
+              topic: {
+                id: "t1",
+                title: "量子力学",
+                phase: "learning",
+                exportState: "idle",
+                createdAt: 1,
+                updatedAt: 1,
+              },
+              section: {
+                id: "s1",
+                topicId: "t1",
+                outlineNodeId: "n1",
+                title: "测量",
+                bodyMd: "正文",
+                generatedAt: 1,
+              },
+              outline: [],
+              prereqEdges: [],
+              currentSectionId: "s1",
+              outlineOpen,
+              outlinePersistent: false,
+              sessionOpen: false,
+              sessionPersistent: false,
+              onOutlineOpen: (open: boolean) => {
+                outlineOpen = open;
+                render();
+              },
+              onSessionOpen: () => {},
+              onSelectSection: () => {},
+              messages: [],
+              liveRows: [],
+              streaming: "",
+              busy: false,
+              coachMode: "stub",
+              error: null,
+              onSend: () => {},
+              snapshot: emptyBoundarySnapshot(),
+              askedKinds: [],
+              pendingBoundary: false,
+              pendingOutline: false,
+              onConfirmBoundary: () => {},
+            }),
+          ),
+        );
+      });
+    }
+
+    render();
+    const drawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=left]");
+    const panel = document.querySelector("[data-testid=drawer-panel]");
+    const rail = document.querySelector("[data-testid=outline-rail]");
+    assert.ok(drawer);
+    assert.ok(panel);
+    assert.ok(rail);
+    assert.equal(drawer.getAttribute("data-swipe-dismiss"), "true");
+    assert.equal(rail.getAttribute("data-swipe-dismiss"), "false");
+    assert.equal(drawer.getAttribute("data-state"), "open");
+
+    await act(async () => {
+      panel.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 160,
+          clientY: 48,
+        }),
+      );
+      panel.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 40,
+          clientY: 48,
+        }),
+      );
+      panel.dispatchEvent(
+        new PointerEvent("pointerup", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 40,
+          clientY: 48,
+        }),
+      );
+    });
+    assert.equal(outlineOpen, false);
+    assert.equal(drawer.getAttribute("data-state"), "closed");
     root.unmount();
   });
 });

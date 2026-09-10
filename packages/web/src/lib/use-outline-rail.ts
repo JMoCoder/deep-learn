@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { matchesOutlineRail, OUTLINE_RAIL_QUERY } from "@/lib/outline-rail";
 
+/** Wide layout ≥768px. Same query as persistent Learn rails. */
 export function useOutlineRail(): boolean {
   const [wide, setWide] = useState(() => matchesOutlineRail());
 
@@ -14,3 +15,5 @@ export function useOutlineRail(): boolean {
 
   return wide;
 }
+
+export const useWideLayout = useOutlineRail;

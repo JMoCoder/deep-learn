@@ -11,6 +11,8 @@ import {
   BOOKS_PANE_INACTIVE,
   BOOKS_PANE_KEY,
   BOOKS_PANE_SURFACE,
+  booksMainSurface,
+  booksNarrowMainSurface,
   booksSpreadPaneSurface,
   readBooksPane,
 } from "./BooksTab.tsx";
@@ -21,23 +23,43 @@ function hasClassToken(className: string, token: string): boolean {
   return className.split(/\s+/).includes(token);
 }
 
-function assertChipMatchesContent(pane: "body" | "notes"): void {
+function assertChipFill(pane: "body" | "notes"): void {
   const expected = BOOKS_PANE_SURFACE[pane];
   const other = pane === "notes" ? BOOKS_PANE_SURFACE.body : BOOKS_PANE_SURFACE.notes;
   const tab = document.querySelector(`[data-testid=books-tab-${pane}]`);
+  assert.ok(tab);
+  assert.equal(tab.getAttribute("aria-selected"), "true");
+  assert.equal(hasClassToken(tab.className, expected), true);
+  assert.equal(hasClassToken(tab.className, other), false);
+}
+
+function assertWideChipMatchesContent(pane: "body" | "notes"): void {
+  const expected = BOOKS_PANE_SURFACE[pane];
+  const other = pane === "notes" ? BOOKS_PANE_SURFACE.body : BOOKS_PANE_SURFACE.notes;
   const surface = document.querySelector("[data-testid=books-content-surface]");
   const panel = document.querySelector(`[data-testid=books-pane-${pane}]`);
-  assert.ok(tab);
   assert.ok(surface);
   assert.ok(panel);
-  assert.equal(tab.getAttribute("aria-selected"), "true");
+  assertChipFill(pane);
   assert.equal(surface.getAttribute("data-pane"), pane);
-  assert.equal(hasClassToken(tab.className, expected), true);
   assert.equal(hasClassToken(surface.className, expected), true);
   assert.equal(hasClassToken(panel.className, expected), true);
-  assert.equal(hasClassToken(tab.className, other), false);
   assert.equal(hasClassToken(surface.className, other), false);
   assert.equal(hasClassToken(panel.className, other), false);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE), false);
+}
+
+function assertNarrowMainMatchesBody(pane: "body" | "notes"): void {
+  const surface = document.querySelector("[data-testid=books-content-surface]");
+  const panel = document.querySelector(`[data-testid=books-pane-${pane}]`);
+  assert.ok(surface);
+  assert.ok(panel);
+  assertChipFill(pane);
+  assert.equal(surface.getAttribute("data-pane"), pane);
+  assert.equal(hasClassToken(surface.className, BOOKS_PANE_SURFACE.body), true);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_SURFACE.body), true);
+  assert.equal(hasClassToken(surface.className, BOOKS_PANE_SURFACE.notes), false);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_SURFACE.notes), false);
   assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE), false);
 }
 
@@ -213,14 +235,14 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.equal(bodyTab.getAttribute("aria-selected"), "true");
     assert.ok(document.querySelector('[data-testid="books-pane-body"]'));
     assert.match(document.body.textContent ?? "", /投影正文在这一段/);
-    assertChipMatchesContent("body");
+    assertWideChipMatchesContent("body");
 
     await act(async () => {
       notesTab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
     assert.equal(notesTab.getAttribute("aria-selected"), "true");
-    assertChipMatchesContent("notes");
+    assertWideChipMatchesContent("notes");
     assert.equal(bodyTab.getAttribute("aria-selected"), "false");
     assert.ok(document.querySelector('[data-testid="books-pane-notes"]'));
     assert.match(document.body.textContent ?? "", /一条落盘笔记/);
@@ -296,7 +318,16 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.notEqual(BOOKS_PANE_SURFACE.notes, BOOKS_PANE_INACTIVE);
   });
 
-  it("paints the content surface with the active tab chip background", async () => {
+  it("keeps phone notes on the Body main fill and leaves wide facing-page dim", () => {
+    assert.equal(booksNarrowMainSurface(), BOOKS_PANE_SURFACE.body);
+    assert.equal(booksMainSurface("notes", false), BOOKS_PANE_SURFACE.body);
+    assert.equal(booksMainSurface("body", false), BOOKS_PANE_SURFACE.body);
+    assert.equal(booksMainSurface("notes", true), BOOKS_PANE_SURFACE.notes);
+    assert.equal(booksMainSurface("body", true), BOOKS_PANE_SURFACE.body);
+    assert.notEqual(BOOKS_PANE_SURFACE.notes, BOOKS_PANE_SURFACE.body);
+  });
+
+  it("paints wide content with the active chip fill and phone notes with Body fill", async () => {
     assert.notEqual(BOOKS_PANE_SURFACE.body, BOOKS_PANE_SURFACE.notes);
 
     stubOutlineRail(false);
@@ -305,13 +336,14 @@ describe("books hero switch + 正文/笔记 tabs", () => {
       () => {},
       { drawerOpen: false, topic },
     );
-    assertChipMatchesContent("body");
+    assertNarrowMainMatchesBody("body");
     const notesTab = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
     assert.ok(notesTab);
     await act(async () => {
       notesTab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
-    assertChipMatchesContent("notes");
+    assertNarrowMainMatchesBody("notes");
+    assert.equal(hasClassToken(notesTab.className, BOOKS_PANE_SURFACE.notes), true);
     narrow.unmount();
     sessionStorage.removeItem(BOOKS_PANE_KEY);
 
@@ -321,14 +353,14 @@ describe("books hero switch + 正文/笔记 tabs", () => {
       () => {},
       { drawerOpen: false, topic },
     );
-    assertChipMatchesContent("body");
+    assertWideChipMatchesContent("body");
     assertWideInactiveDimmed("notes");
     const wideNotes = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
     assert.ok(wideNotes);
     await act(async () => {
       wideNotes.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
-    assertChipMatchesContent("notes");
+    assertWideChipMatchesContent("notes");
     assertWideInactiveDimmed("body");
     wide.unmount();
   });
@@ -346,8 +378,9 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.equal(document.querySelector("[data-testid=books-spread]"), null);
     const narrowBody = document.querySelector('[data-testid="books-pane-body"]');
     assert.ok(narrowBody);
-    assertChipMatchesContent("body");
+    assertNarrowMainMatchesBody("body");
     assert.equal(/shadow-\[inset/.test(narrowBody.className), false);
+    assert.equal(hasClassToken(narrowBody.className, BOOKS_PANE_INACTIVE), false);
     assert.equal(document.querySelector('[data-testid="books-pane-notes"]'), null);
 
     const notesTab = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
@@ -357,7 +390,8 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     });
     const narrowNotes = document.querySelector('[data-testid="books-pane-notes"]');
     assert.ok(narrowNotes);
-    assertChipMatchesContent("notes");
+    assertNarrowMainMatchesBody("notes");
+    assert.equal(hasClassToken(narrowNotes.className, BOOKS_PANE_INACTIVE), false);
     assert.equal(hasClassToken(narrowNotes.className, "border-l"), false);
     assert.equal(/shadow-\[inset/.test(narrowNotes.className), false);
     assert.equal(document.querySelector('[data-testid="books-pane-body"]'), null);
@@ -470,7 +504,7 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.equal(/shadow-\[inset/.test(notes.className), false);
     assert.equal(/#fffaf2/.test(body.className), false);
     assert.equal(/#f6efe3/.test(notes.className), false);
-    assertChipMatchesContent("body");
+    assertWideChipMatchesContent("body");
     assertWideInactiveDimmed("notes");
     assert.equal(hasClassToken(notes.className, "border-l"), true);
     assert.notEqual(body.className, notes.className);
@@ -490,7 +524,7 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.equal(bodyTab.getAttribute("aria-selected"), "false");
     assert.equal(notes.getAttribute("data-active"), "true");
     assert.equal(body.getAttribute("data-active"), "false");
-    assertChipMatchesContent("notes");
+    assertWideChipMatchesContent("notes");
     assertWideInactiveDimmed("body");
     assert.ok(document.querySelector("[data-testid=books-pane-body]"));
     assert.ok(document.querySelector("[data-testid=books-pane-notes]"));
