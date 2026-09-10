@@ -24,11 +24,21 @@ Docker Compose 是唯一支持的预览路径。`docker compose up --build` 之�
 | 面 | URL |
 | --- | --- |
 | PWA | `http://127.0.0.1:43127` |
-| API / health | `http://127.0.0.1:43128/api/health` |
+| API / health | `http://127.0.0.1:43127/api/health` 或 `http://127.0.0.1:43128/api/health` |
 
 不要把 `pnpm --filter @quantum/web dev` 当成验收。
 
+Compose **只绑 loopback**：`127.0.0.1:43127:80` 与 `127.0.0.1:43128:43128`。`QUANTUM_HOST` 默认 `127.0.0.1`。禁止裸发布 `:43128`（会听全接口并绕过 nginx）。若要故意绑 LAN/公网，必须显式改 `QUANTUM_HOST` 和 `ports:`。
+
 SQLite 和导出在 `quantum-data`（容器内 `QUANTUM_DATA_DIR=/data`）。`Ctrl+C` 或 `docker compose down` 停止。volume 在 `down` 后仍在；要清空用 `docker compose down -v`。
+
+### 预览 token（仅 loopback 的弱口令）
+
+Compose 只给 **server + nginx** 设 `QUANTUM_API_TOKEN=local-preview`。这是 **loopback 预览用的弱口令**。任何 LAN/公网绑定前必须改掉（`QUANTUM_API_TOKEN=… docker compose up --build`）。空/未设 token 等于不设门，同样只许 loopback。
+
+设了 token 后，除 `GET /api/health` 外全部 `/api/*`（读、写、SSE、exports）都要带匹配的 `Authorization: Bearer <token>` 或 `X-Quantum-Token: <token>`。health 保持开放，且不多吐配置。
+
+浏览器 **不得**持有明文 token。没有 `VITE_*` 烘焙，也没有登录 UI。nginx 反代 `/api` 时注入 `X-Quantum-Token`。Vite dev/preview 代理从 `process.env.QUANTUM_API_TOKEN` 同样注入。直连 `:43128` 会绕过 nginx，须自己带头。
 
 ## 安装
 
@@ -40,9 +50,9 @@ cd deep-learn
 docker compose up --build
 ```
 
-首次启动会拉运行时镜像并创建 `quantum-data`。`:43127` 能打开 PWA、`:43128/api/health` 返回 `{"ok":true,"name":"quantum",...}` 即就绪。
+首次启动会拉运行时镜像并创建 `quantum-data`。`:43127` 能打开 PWA、`/api/health` 返回 `{"ok":true,"name":"quantum",...}` 即就绪。
 
-Compose 服务：`server`（Hono `:43128`，同时发布 PWA `:43127` → `:80`）和 `web`（nginx + 构建后的 PWA）。`web` 使用 `network_mode: service:server`，因此 `/api` 与 SSE 在 PWA 同源代理到 `127.0.0.1:43128`。
+Compose 服务：`server`（Hono 听 `127.0.0.1:43128`，同时发布 PWA `127.0.0.1:43127` → `:80`）和 `web`（nginx + 构建后的 PWA）。`web` 使用 `network_mode: service:server`，因此 `/api` 与 SSE 在 PWA 同源代理到 `127.0.0.1:43128`，并由 nginx 注入预览 token。
 
 ### 本地开发（可选）
 

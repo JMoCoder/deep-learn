@@ -9,6 +9,8 @@ export const config = {
   host: env("QUANTUM_HOST", "127.0.0.1"),
   port: Number(env("QUANTUM_PORT", "43128")),
   dataDir: resolve(env("QUANTUM_DATA_DIR", "./data")),
+  /** Empty = no HTTP gate (local unit tests). Compose sets a preview default. */
+  apiToken: env("QUANTUM_API_TOKEN", ""),
 };
 
 mkdirSync(config.dataDir, { recursive: true });

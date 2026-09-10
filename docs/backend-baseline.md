@@ -176,6 +176,12 @@ Settings fields: `provider`, `modelId`, `baseUrl`, `apiKey`.
 ## Export
 
 `export_topic({ format })` writes under `data/exports/{topicId}/`.
+`GET /api/exports/:topicId/:filename` calls `requireTopic`, rejects `..` /
+separators, and after resolve/realpath must stay under the exports root.
+
+When `QUANTUM_API_TOKEN` is set, every `/api/*` except `GET /api/health`
+requires `Authorization: Bearer` or `X-Quantum-Token`. Compose preview injects
+that header in nginx (and the Vite proxy) — not in browser JS.
 
 - `md` — title, boundaries, outline, sections, notes
 - `html` — same, wrapped

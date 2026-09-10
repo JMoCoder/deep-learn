@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname } from "node:path";
 import JSZip from "jszip";
 import type { ExportFormat, ExportResult } from "@quantum/shared";
-import { config } from "../config.js";
 import { digestBoundaries } from "../learning/boundary-interview.js";
 import { flattenOutline, type Store } from "../store/repos.js";
+import { resolveExportFile } from "./safe-path.js";
 
 export async function exportTopic(
   store: Store,
@@ -39,11 +39,11 @@ export async function exportTopic(
     "",
   ].join("\n");
 
-  const dir = resolve(config.dataDir, "exports", topicId);
-  mkdirSync(dir, { recursive: true });
   const filename =
     format === "md" ? `${topicId}.md` : format === "html" ? `${topicId}.html` : `${topicId}.epub`;
-  const abs = resolve(dir, filename);
+  const abs = resolveExportFile(topicId, filename);
+  if (!abs) throw new Error("export path escaped exports root");
+  mkdirSync(dirname(abs), { recursive: true });
 
   if (format === "md") {
     writeFileSync(abs, md, "utf8");

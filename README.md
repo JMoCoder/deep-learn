@@ -24,11 +24,21 @@ Docker Compose is the only supported preview path. After `docker compose up --bu
 | Surface | URL |
 | --- | --- |
 | PWA | `http://127.0.0.1:43127` |
-| API / health | `http://127.0.0.1:43128/api/health` |
+| API / health | `http://127.0.0.1:43127/api/health` or `http://127.0.0.1:43128/api/health` |
 
 Do not treat `pnpm --filter @quantum/web dev` as acceptance.
 
+Compose publishes **loopback only**: `127.0.0.1:43127:80` and `127.0.0.1:43128:43128`. `QUANTUM_HOST` defaults to `127.0.0.1`. Do not publish a bare `:43128` (that would listen on all interfaces and skip nginx). Intentional LAN/public bind must set `QUANTUM_HOST` and rewrite `ports:` explicitly.
+
 SQLite and exports live in `quantum-data` (`QUANTUM_DATA_DIR=/data` in the server container). Stop with `Ctrl+C` or `docker compose down`. The volume survives `down`; wipe it with `docker compose down -v`.
+
+### Preview token (loopback-only weak secret)
+
+Compose sets `QUANTUM_API_TOKEN=local-preview` on **server + nginx** only. That default is a **weak password for loopback preview**. Change it before any LAN or public bind (`QUANTUM_API_TOKEN=… docker compose up --build`). An empty/unset token leaves the HTTP gate off — treat that the same way: loopback only.
+
+When the token is set, **every** `/api/*` except `GET /api/health` needs a matching `Authorization: Bearer <token>` or `X-Quantum-Token: <token>` (reads, writes, SSE, exports). Health stays open and does not dump config.
+
+The browser must **not** hold the token. There is no `VITE_*` bake-in and no login UI. Nginx injects `X-Quantum-Token` when proxying `/api` to `:43128`. The Vite dev/preview proxy does the same from `process.env.QUANTUM_API_TOKEN`. Hitting `:43128` directly bypasses nginx, so you must send the header yourself.
 
 ## Install
 
@@ -40,9 +50,9 @@ cd deep-learn
 docker compose up --build
 ```
 
-First boot pulls the runtime image and creates `quantum-data`. Ready when `:43127` serves the PWA and `/api/health` on `:43128` returns `{"ok":true,"name":"quantum",...}`.
+First boot pulls the runtime image and creates `quantum-data`. Ready when `:43127` serves the PWA and `/api/health` returns `{"ok":true,"name":"quantum",...}`.
 
-Compose services: `server` (Hono on `:43128`, also publishes PWA `:43127` → `:80`) and `web` (nginx + built PWA). `web` uses `network_mode: service:server` so `/api` and SSE proxy to `127.0.0.1:43128` on the PWA origin.
+Compose services: `server` (Hono on `127.0.0.1:43128`, also publishes PWA `127.0.0.1:43127` → `:80`) and `web` (nginx + built PWA). `web` uses `network_mode: service:server` so `/api` and SSE proxy to `127.0.0.1:43128` on the PWA origin, with nginx injecting the preview token.
 
 ### Local development (optional)
 
