@@ -1,8 +1,9 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 import type { BoundarySnapshot, SessionMessage, TopicPhase } from "@quantum/shared";
 import { isRefuseOffscopeSignal } from "@quantum/shared";
 import { AcceptHint } from "@/components/AcceptHint";
 import { InterviewGuide } from "@/components/InterviewGuide";
+import { composerKeyShouldSend } from "@/lib/composer-keys";
 import { composerShouldLock, looksLikeKickoffUserLine } from "@/lib/interview-ui";
 import { composerPlaceholderText, localizedRefuseCopy, useLocale, useT } from "@/i18n";
 import { CiteRow, NoteSystemRow, RefuseRedirectRow, ToolSystemRow } from "@/components/SessionRows";
@@ -64,18 +65,37 @@ export function SessionPane({
 }) {
   const t = useT();
   const locale = useLocale();
+  const [pendingSends, setPendingSends] = useState<Array<{ text: string; afterCount: number }>>(
+    [],
+  );
   const lockComposer = awaitingTopicAnchor
     ? false
     : composerShouldLock({ busy, phase, currentKind });
+  const userCount = messages.filter((m) => m.role === "user").length;
 
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
+  function sendFromComposer(form: HTMLFormElement) {
     const field = form.elements.namedItem("text");
     const text = (field && "value" in field ? String(field.value) : "").trim();
     if (!text || lockComposer) return;
     if (field && "value" in field) field.value = "";
+    // Optimistic user row: do not wait for session_end / messages refresh.
+    setPendingSends((prev) => [
+      ...prev,
+      { text, afterCount: userCount + prev.length + 1 },
+    ]);
     onSend(text);
+  }
+
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    sendFromComposer(e.currentTarget);
+  }
+
+  function onComposerKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (!composerKeyShouldSend(e)) return;
+    e.preventDefault();
+    const form = e.currentTarget.form;
+    if (form) sendFromComposer(form);
   }
 
   const extras = awaitingTopicAnchor ? [] : visibleLiveRows(messages, liveRows);
@@ -83,6 +103,7 @@ export function SessionPane({
   const visibleMessages = awaitingTopicAnchor
     ? []
     : messages.filter((m) => !(m.role === "user" && looksLikeKickoffUserLine(m.text)));
+  const visiblePending = pendingSends.filter((item) => userCount < item.afterCount);
   const citeProps = { onOpenSection: onCiteSection, canOpenSection: canOpenCite };
 
   return (
@@ -120,7 +141,11 @@ export function SessionPane({
             {t("session.topicAnchor")}
           </p>
         ) : null}
-        {!awaitingTopicAnchor && visibleMessages.length === 0 && !streaming && extras.length === 0 ? (
+        {!awaitingTopicAnchor &&
+        visibleMessages.length === 0 &&
+        !streaming &&
+        extras.length === 0 &&
+        visiblePending.length === 0 ? (
           <p className="text-sm text-paper-muted">
             {t("session.empty")}
           </p>
@@ -170,6 +195,18 @@ export function SessionPane({
             </article>
           );
         })}
+        {visiblePending.map((item, index) => (
+          <article
+            key={`pending-${item.afterCount}-${index}`}
+            data-testid="session-pending-user"
+            className="space-y-2 text-sm"
+          >
+            <div className="mb-0.5 text-[11px] uppercase tracking-wide text-paper-muted">
+              {t("session.you")}
+            </div>
+            <p className="whitespace-pre-wrap leading-relaxed">{item.text}</p>
+          </article>
+        ))}
         {extras.map((row) => (
           <LiveBundle
             key={row.id}
@@ -192,6 +229,7 @@ export function SessionPane({
         <Textarea
           name="text"
           rows={3}
+          data-testid="session-composer"
           placeholder={composerPlaceholderText(
             {
               phase,
@@ -204,9 +242,10 @@ export function SessionPane({
             t,
           )}
           disabled={lockComposer}
+          onKeyDown={onComposerKeyDown}
         />
         <div className="mt-2 flex justify-end">
-          <Button type="submit" disabled={lockComposer} size="sm">
+          <Button type="submit" data-testid="session-send" disabled={lockComposer} size="sm">
             {lockComposer ? t("session.thinking") : t("session.send")}
           </Button>
         </div>
