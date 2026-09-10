@@ -125,8 +125,121 @@ describe("Drawer overlay + reverse swipe dismiss", () => {
     assert.ok(rootEl);
     assert.ok(panel);
     assert.equal(rootEl.getAttribute("data-swipe-dismiss"), "false");
+    assert.equal(panel.hasAttribute("data-swipe-pan-y"), false);
+    const scroll = document.querySelector("[data-testid=drawer-scroll]");
+    assert.ok(scroll);
+    assert.equal(scroll.hasAttribute("data-swipe-pan-y"), false);
     await swipe(panel, 160, 40);
     assert.deepEqual(closes, []);
+    root.unmount();
+  });
+
+  it("keeps a reverse swipe after lostpointercapture and pointercancel (iOS scroll child)", async () => {
+    const { root, closes } = mountDrawer({ side: "left" });
+    const panel = document.querySelector("[data-testid=drawer-panel]");
+    assert.ok(panel);
+    await act(async () => {
+      pointer(panel, "pointerdown", 160, 48);
+      pointer(panel, "pointermove", 140, 48);
+      panel.dispatchEvent(
+        new PointerEvent("lostpointercapture", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 140,
+          clientY: 48,
+        }),
+      );
+      panel.dispatchEvent(
+        new PointerEvent("pointercancel", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 140,
+          clientY: 48,
+        }),
+      );
+      pointer(panel, "pointermove", 40, 48);
+      pointer(panel, "pointerup", 40, 48);
+    });
+    assert.deepEqual(closes, ["close"]);
+    root.unmount();
+  });
+
+  it("closes on pointercancel when reverse travel already qualifies", async () => {
+    const { root, closes } = mountDrawer({ side: "left" });
+    const panel = document.querySelector("[data-testid=drawer-panel]");
+    assert.ok(panel);
+    await act(async () => {
+      pointer(panel, "pointerdown", 160, 48);
+      pointer(panel, "pointermove", 40, 48);
+      panel.dispatchEvent(
+        new PointerEvent("pointercancel", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 40,
+          clientY: 48,
+        }),
+      );
+    });
+    assert.deepEqual(closes, ["close"]);
+    root.unmount();
+  });
+
+  it("tracks a reverse swipe from the overflow body via document listeners", async () => {
+    const { root, closes } = mountDrawer({ side: "left" });
+    const panel = document.querySelector("[data-testid=drawer-panel]");
+    const body = document.querySelector<HTMLElement>("[data-testid=drawer-scroll]");
+    assert.ok(panel);
+    assert.ok(body);
+    assert.equal(panel.getAttribute("data-swipe-pan-y"), "true");
+    assert.equal(body.getAttribute("data-swipe-pan-y"), "true");
+    assert.match(panel.className, /touch-pan-y/);
+    assert.match(body.className, /touch-pan-y/);
+    assert.equal(body.style.touchAction, "pan-y");
+    assert.equal(/\btouch-none\b/.test(panel.className), false);
+    await swipe(body, 160, 40);
+    assert.deepEqual(closes, ["close"]);
+    root.unmount();
+  });
+
+  it("keeps reverse swipe when a nested overflow child has no touch-pan-y class", async () => {
+    const closes: string[] = [];
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        createElement(
+          Drawer,
+          {
+            contained: true,
+            open: true,
+            side: "right",
+            title: "会话",
+            onClose: () => closes.push("close"),
+          },
+          createElement(
+            "div",
+            { className: "min-h-0 flex-1 overflow-y-auto", "data-testid": "nested-scroll" },
+            "transcript",
+          ),
+        ),
+      );
+    });
+    const panel = document.querySelector("[data-testid=drawer-panel]");
+    const nested = document.querySelector("[data-testid=nested-scroll]");
+    assert.ok(panel);
+    assert.ok(nested);
+    assert.equal(panel.getAttribute("data-swipe-pan-y"), "true");
+    assert.equal(panel.contains(nested), true);
+    assert.equal(/\btouch-pan-y\b/.test(nested.className), false);
+    await swipe(nested, 40, 160);
+    assert.deepEqual(closes, ["close"]);
     root.unmount();
   });
 

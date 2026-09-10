@@ -122,6 +122,20 @@ body {
   scrollbar-color: transparent transparent;
 }
 
+/*
+ * Overlay swipe drawers: the panel's touch-pan-y is not inherited.
+ * Nested overflow-y-auto (session transcript) keeps touch-action:auto and
+ * mobile Safari/Chrome will claim the horizontal pan before JS axis lock.
+ */
+[data-swipe-pan-y],
+[data-swipe-pan-y] * {
+  touch-action: pan-y;
+}
+
+[data-swipe-pan-y] :is(input, textarea, select, [contenteditable="true"]) {
+  touch-action: auto;
+}
+
 .quantum-scroll:hover,
 .quantum-scroll:focus-within {
   scrollbar-color: color-mix(in srgb, var(--color-paper-line) 85%, var(--color-cinnabar) 15%)
