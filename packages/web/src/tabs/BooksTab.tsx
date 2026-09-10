@@ -433,11 +433,6 @@ function TopicHero({
               <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
               {goal ? (
                 <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
-              ) : (
-                <p className="mt-2 text-sm text-paper-muted">{t("books.noGoal")}</p>
-              )}
-              {topic.phase === "outline_draft" ? (
-                <p className="mt-2 text-xs text-paper-muted">{t("books.outlineOnLearn")}</p>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-1.5">{chips}</div>
             </>
@@ -446,7 +441,6 @@ function TopicHero({
               <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">
                 {t("books.noCurrentTitle")}
               </h1>
-              <p className="mt-2 text-sm text-paper-muted">{t("books.noCurrentBody")}</p>
               <div className="mt-3 flex flex-wrap gap-1.5">{chips}</div>
             </>
           )}

@@ -463,7 +463,7 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     root.unmount();
   });
 
-  it("keeps empty/no-goal second-line copy on the narrow Books hero", () => {
+  it("omits status-hint second-line copy on the narrow Books hero", () => {
     stubOutlineRail(false);
     const root = mountBooks(
       () => {},
@@ -477,8 +477,29 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     const accent = hero.querySelector(".hero-accent");
     assert.ok(accent);
     assert.equal(/hero-accent--wide/.test(accent.className), false);
-    assert.match(hero.textContent ?? "", /边界未齐时，先打开学习页右上角会话|If the boundary is incomplete/);
+    const heroText = hero.textContent ?? "";
+    assert.match(heroText, /量子力学/);
+    assert.match(heroText, /当前主题|Current topic/);
+    assert.equal(/边界未齐/.test(heroText), false);
+    assert.equal(/先打开学习页/.test(heroText), false);
+    assert.equal(/If the boundary is incomplete/.test(heroText), false);
+    assert.equal(/完整边界卡在学习页/.test(heroText), false);
+    assert.equal(/this line does not advance/.test(heroText), false);
     root.unmount();
+
+    const empty = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic: null },
+    );
+    const emptyHero = document.querySelector("[data-testid=books-hero]");
+    assert.ok(emptyHero);
+    assert.equal(emptyHero.getAttribute("data-layout"), "narrow");
+    const emptyText = emptyHero.textContent ?? "";
+    assert.match(emptyText, /还没有当前主题|No current topic/);
+    assert.equal(/点右侧打开主题抽屉/.test(emptyText), false);
+    assert.equal(/Open the topic drawer on the right/.test(emptyText), false);
+    empty.unmount();
   });
 
   it("opens 正文 and 笔记 as facing pages at the outline-rail breakpoint", async () => {
