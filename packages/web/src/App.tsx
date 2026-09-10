@@ -4,7 +4,6 @@ import type {
   BoundaryRecord,
   BoundarySnapshot,
   ExportFormat,
-  HeatmapDay,
   NoteRecord,
   OutlineNode,
   PrereqEdge,
@@ -100,7 +99,6 @@ export default function App() {
   const [streaming, setStreaming] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [heatmap, setHeatmap] = useState<HeatmapDay[]>([]);
   const outlineRail = useOutlineRail();
   const [outlineOpen, setOutlineOpen] = useState(() => outlineOpenForViewport(outlineRail));
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -119,7 +117,6 @@ export default function App() {
       let state = await api.state();
       const listed = await api.topics();
       setTopics(listed);
-      setHeatmap(await api.heatmap());
       setMessages(await api.messages());
 
       let topicId = state.currentTopicId;
@@ -588,7 +585,6 @@ export default function App() {
       {tab === "me" ? (
         <MeTab
           settings={settings}
-          heatmap={heatmap}
           onSave={async (next) => {
             await api.saveSettings(next);
             await refresh();

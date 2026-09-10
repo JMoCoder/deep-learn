@@ -7,11 +7,6 @@ import { describe, it, afterEach } from "node:test";
 import { LocaleProvider } from "@/i18n";
 import { MeTab } from "./MeTab.tsx";
 
-const heatmap = [
-  { date: "2026-09-01", count: 0 },
-  { date: "2026-09-02", count: 3 },
-];
-
 function mountMe(): Root {
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -23,7 +18,6 @@ function mountMe(): Root {
         null,
         createElement(MeTab, {
           settings: { provider: "openai", modelId: "gpt-4o-mini", baseUrl: "", hasApiKey: false },
-          heatmap,
           onSave: async () => {},
         }),
       ),
@@ -32,46 +26,45 @@ function mountMe(): Root {
   return root;
 }
 
-describe("Me page width + heatmap top region", () => {
+const heatmapCopy = /学习热力图|Learning heatmap|占位热力图|placeholder heatmap|me-heatmap/i;
+
+describe("Me page settings only", () => {
   afterEach(() => {
     document.body.replaceChildren();
   });
 
-  it("ranks the heatmap before language and model settings, not in the top bar, and does not fill the main area", () => {
+  it("keeps description, language, and model settings, and does not render a heatmap", () => {
     const root = mountMe();
     const top = document.querySelector("[data-testid=me-top-region]");
-    const heat = document.querySelector("[data-testid=me-heatmap]");
     const body = document.querySelector("[data-testid=me-body]");
+    const heat = document.querySelector("[data-testid=me-heatmap]");
+    const grid = document.querySelector("[data-testid=me-heatmap-grid]");
     const appTopBar = document.querySelector("[data-testid=learn-top-region]");
     assert.ok(top);
-    assert.ok(heat);
     assert.ok(body);
-    assert.equal(top.contains(heat), false);
-    assert.equal(body.contains(heat), true);
+    assert.equal(heat, null);
+    assert.equal(grid, null);
     assert.equal(appTopBar, null);
 
     const headings = [...document.querySelectorAll("h1, h2")].map((el) => el.textContent ?? "");
-    const heatAt = headings.findIndex((h) => /学习热力图|Learning heatmap/.test(h));
+    const titleAt = headings.findIndex((h) => /我的|Me/.test(h));
     const langAt = headings.findIndex((h) => /界面语言|Interface language/.test(h));
     const modelAt = headings.findIndex((h) => /模型代理|Model proxy/.test(h));
-    assert.ok(heatAt >= 0 && langAt >= 0 && modelAt >= 0);
-    assert.ok(heatAt < langAt);
+    assert.ok(titleAt >= 0 && langAt >= 0 && modelAt >= 0);
+    assert.ok(titleAt < langAt);
     assert.ok(langAt < modelAt);
+    assert.equal(
+      headings.some((h) => /学习热力图|Learning heatmap/.test(h)),
+      false,
+    );
 
-    assert.equal(/\bflex-1\b/.test(heat.className), false);
-    assert.equal(/\bgrow\b/.test(heat.className), false);
-    assert.equal(/\bh-full\b/.test(heat.className), false);
-    const grid = heat.querySelector("[data-testid=me-heatmap-grid]");
-    assert.ok(grid);
-    assert.match(grid.className, /\bw-max\b/);
-    assert.equal(/\bw-full\b/.test(grid.className), false);
-    assert.match(grid.getAttribute("style") ?? "", /repeat\(7/);
-    assert.match(grid.getAttribute("style") ?? "", /grid-auto-flow:\s*column/);
-    const cell = heat.querySelector("[title]");
-    assert.ok(cell);
-    assert.equal(/\bw-full\b/.test(cell.className), false);
-    assert.equal(/\baspect-square\b/.test(cell.className), false);
-    assert.equal((heat.textContent ?? "").includes("docs/cores.md"), false);
+    const pageText = document.body.textContent ?? "";
+    assert.match(pageText, /模型代理与界面语言|Model proxy and interface language/);
+    assert.equal(heatmapCopy.test(pageText), false);
+    assert.ok(document.querySelector('[data-testid="locale-zh"]'));
+    assert.ok(document.querySelector('[data-testid="locale-en"]'));
+    assert.ok(document.querySelector('form input[name="provider"]'));
+    assert.ok(document.querySelector('form input[name="modelId"]'));
     root.unmount();
   });
 
