@@ -4,7 +4,8 @@ import {
   interviewDimensionStatus,
   isDefaultTopicTitle,
   kindsToDimensionIds,
-  shouldShowBoundaryCard,
+  looksLikeOutlineConfirm,
+  outlineComposerPlaceholder,
 } from "@quantum/shared";
 
 export {
@@ -75,23 +76,13 @@ export function composerShouldLock(input: {
   return true;
 }
 
-/**
- * Whole-utterance card/outline confirm. Must not match load answers like「每周 3 小时就行」.
- */
-export function isChatOutlineConfirm(text: string): boolean {
-  const trimmed = text.trim();
-  if (!trimmed) return false;
-  if (/^(可以|锁定|定稿|开始学|好的|好|确认大纲|确认边界)[。.!！]*$/.test(trimmed)) return true;
-  return /确认边界|看大纲|确认大纲/.test(trimmed) && trimmed.length <= 16;
-}
-
 export function shouldBlockComposerConfirm(input: {
   text: string;
   pendingCard: boolean;
   interviewing: boolean;
 }): boolean {
   if (!input.pendingCard || input.interviewing) return false;
-  return isChatOutlineConfirm(input.text);
+  return looksLikeOutlineConfirm(input.text);
 }
 
 export function needsTopicAnchor(input: {
@@ -132,29 +123,10 @@ export function composerPlaceholder(input: {
     return askingId ? map[askingId] : "直接回答当前这一问";
   }
   if (input.pendingBoundary) return "先确认学习页边界卡；缺维在这里补一句，不要直接说「可以」";
-  if (input.pendingOutline) {
-    return input.overBudget
-      ? "超负荷预算，请说「减叶」或「重拟」，不要回「可以」"
-      : "大纲可以的话回复「可以」；要改结构直接说";
-  }
+  if (input.pendingOutline) return outlineComposerPlaceholder(Boolean(input.overBudget));
   if (input.phase === "learning") {
     return "问这一节，或说「下一节」推进；踩排除区会被拒回流";
   }
   return "直接回答，或说卡住了哪里";
 }
 
-export function shouldShowLearnBoundaryCard(input: {
-  phase: string;
-  snapshot: BoundarySnapshot | null;
-  confirmed: boolean;
-  finalized?: boolean;
-}): boolean {
-  if (input.confirmed) return false;
-  if (input.phase === "learning" || input.phase === "done") return false;
-  if (input.finalized) return true;
-  return shouldShowBoundaryCard({
-    phase: input.phase,
-    snapshot: input.snapshot,
-    confirmed: input.confirmed,
-  });
-}

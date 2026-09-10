@@ -59,7 +59,8 @@ export function evaluateFinalize(records: Array<{ kind: string; answer: string }
   const missing = missingFinalizeFields(snapshot);
   const unasked = missingInterviewWalk(snapshot);
   return {
-    ok: missing.length === 0 && unasked.length === 0,
+    // Product freeze: five required fields only. `unasked` is coverage, not a gate.
+    ok: missing.length === 0,
     missing,
     unasked,
     snapshot,

@@ -16,8 +16,13 @@ import type {
   TutorStrategy,
 } from "@quantum/shared";
 import {
+  draftToolLooksOverBudget,
   emptyBoundarySnapshot,
+  evaluateOutlineLeafBudget,
   isRefuseOffscopeSignal,
+  looksLikeOutlineConfirm,
+  shouldBlockOverBudgetConfirm,
+  shouldShowBoundaryCard,
   shouldShowOutlineConfirm,
   snapshotFromAnswers,
 } from "@quantum/shared";
@@ -39,17 +44,10 @@ import {
 } from "@/lib/boundary-session";
 import {
   currentUnansweredKind,
-  isChatOutlineConfirm,
   needsTopicAnchor,
   shouldBlockComposerConfirm,
-  shouldShowLearnBoundaryCard,
   topicTitleFromUtterance,
 } from "@/lib/interview-ui";
-import {
-  draftToolLooksOverBudget,
-  evaluateOutlineLeafBudget,
-  shouldBlockOverBudgetConfirm,
-} from "@/lib/outline-budget";
 import { mergePrereqEdges, outlineTitleMap } from "@/lib/prereq-display";
 import type { LiveSessionRow } from "@/lib/session-display";
 import {
@@ -397,7 +395,7 @@ export default function App() {
     const unanswered = currentUnansweredKind(boundaries);
     const interviewing =
       snapshot?.topic?.phase === "boundary_interview" || Boolean(unanswered);
-    const pendingCard = shouldShowLearnBoundaryCard({
+    const pendingCard = shouldShowBoundaryCard({
       phase: snapshot?.topic?.phase ?? "",
       snapshot: boundarySnapshot,
       confirmed: boundaryConfirmed,
@@ -424,7 +422,7 @@ export default function App() {
           boundaryConfirmed,
           hasOutline: outline.length > 0,
         }),
-        isConfirm: isChatOutlineConfirm(text),
+        isConfirm: looksLikeOutlineConfirm(text),
       })
     ) {
       setError(t("app.error.overBudget"));
@@ -513,7 +511,7 @@ export default function App() {
   const settings = snapshot?.settings ?? emptySettings;
   const askedKinds = boundaries.map((b) => b.kind);
   const currentKind = currentUnansweredKind(boundaries);
-  const pendingBoundary = shouldShowLearnBoundaryCard({
+  const pendingBoundary = shouldShowBoundaryCard({
     phase: topic?.phase ?? "",
     snapshot: boundarySnapshot,
     confirmed: boundaryConfirmed,

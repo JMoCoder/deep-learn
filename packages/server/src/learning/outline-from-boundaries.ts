@@ -1,4 +1,5 @@
 import type { BoundaryRecord, OutlineDraftNode, OutlineNode } from "@quantum/shared";
+import { leafBudget, parseChunkBudgetMinutes } from "@quantum/shared";
 import { collectDraftLeaves, ensureDraftPrereqEdges, flattenDraft } from "./prereq-edges.js";
 
 /**
@@ -11,18 +12,7 @@ import { collectDraftLeaves, ensureDraftPrereqEdges, flattenDraft } from "./prer
 export function inferWeeklyMinutes(boundaries: BoundaryRecord[]): number {
   const time =
     boundaries.find((b) => b.kind === "time" || b.kind === "chunk_budget")?.answer ?? "";
-  const hour = time.match(/(\d+(?:\.\d+)?)\s*小时/);
-  if (hour) return Math.round(Number(hour[1]) * 60);
-  const minutes = time.match(/(\d+)\s*分钟/);
-  if (minutes) return Number(minutes[1]);
-  if (/每天|每日/.test(time)) return 5 * 40;
-  if (/周末/.test(time)) return 120;
-  return 90;
-}
-
-export function leafBudget(weeklyMinutes: number, weeks = 4): number {
-  const sittings = Math.max(4, Math.round((weeklyMinutes * weeks) / 35));
-  return Math.min(12, Math.max(6, sittings));
+  return parseChunkBudgetMinutes(time);
 }
 
 export function titleFromBoundaries(boundaries: BoundaryRecord[], fallback = "未命名主题"): string {

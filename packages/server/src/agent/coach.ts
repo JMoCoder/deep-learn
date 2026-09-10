@@ -2,6 +2,8 @@ import type { BoundaryKind, TutorStrategy } from "@quantum/shared";
 import {
   TOPIC_ANCHOR_QUESTION,
   isDefaultTopicTitle,
+  looksLikeLeafRedraft,
+  looksLikeOutlineConfirm,
   topicTitleFromUtterance,
 } from "@quantum/shared";
 import {
@@ -77,10 +79,9 @@ function planAfterTool(store: Store, topicId: string, toolName: string, last: st
   if (toolName === "finalize_boundary") {
     if (topic.phase !== "outline_draft") {
       const check = evaluateFinalize(store.listBoundaries(topicId));
-      const gaps = [...check.missing, ...check.unasked];
       return {
-        text: gaps.length
-          ? `还不能定稿，缺少：${gaps.join("、")}。末维已记下，补缺口后再锁定。`
+        text: check.missing.length
+          ? `还不能定稿，缺少：${check.missing.join("、")}。末维已记下，补缺口后再锁定。`
           : "边界还没锁定。末维已记下，缺的维补一句即可。",
       };
     }
@@ -221,7 +222,7 @@ function planOutline(store: Store, topicId: string, last: string): CoachPlan {
       ? evaluateOutlineDraft(storedOutlineToDraft(stored), snapshot)
       : { ok: false, errors: ["还没有落盘大纲"], leafCount: 0, leafCap: 0 };
 
-  if (stored.length === 0 || !check.ok || looksLikeLeafCut(last)) {
+  if (stored.length === 0 || !check.ok || looksLikeLeafRedraft(last)) {
     return {
       text: check.ok
         ? "按负荷预算砍叶重拟。"
@@ -233,7 +234,7 @@ function planOutline(store: Store, topicId: string, last: string): CoachPlan {
     };
   }
 
-  if (last && !looksLikeKickoff(last) && looksLikeOutlineLock(last)) {
+  if (last && !looksLikeKickoff(last) && looksLikeOutlineConfirm(last)) {
     return {
       text: "锁定大纲，进入学习。",
       tool: { name: "finalize_outline", args: { title: store.requireTopic(topicId).title } },
@@ -320,7 +321,7 @@ function planLearning(store: Store, topicId: string, last: string): CoachPlan {
     };
   }
 
-  if (last && !looksLikeKickoff(last) && !/(可以|锁定|定稿|开始学)/.test(last) && section) {
+  if (last && !looksLikeKickoff(last) && !looksLikeOutlineConfirm(last) && section) {
     if (topicHitsScopeOut(store, topicId, last)) {
       return {
         text: learningRefuseReply(store, topicId, section.title),
@@ -356,15 +357,6 @@ function nextKindAfter(kind: BoundaryKind): BoundaryKind | null {
 
 function looksLikeKickoff(text: string): boolean {
   return /开始边界|新建主题|继续引导|请开始/.test(text);
-}
-
-function looksLikeLeafCut(text: string): boolean {
-  return /减叶|重拟|砍叶|减到|少几叶|收一叶/.test(text.trim());
-}
-
-function looksLikeOutlineLock(text: string): boolean {
-  return /^(可以|锁定|定稿|开始学|好的|好|确认大纲)[。.!！]*$/.test(text.trim())
-    || (/确认大纲|锁定大纲/.test(text.trim()) && text.trim().length <= 16);
 }
 
 function looksLikeAdvance(text: string): boolean {

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { emptyBoundarySnapshot, snapshotFromAnswers } from "@quantum/shared";
+import {
+  emptyBoundarySnapshot,
+  looksLikeOutlineConfirm,
+  shouldShowBoundaryCard,
+  snapshotFromAnswers,
+} from "@quantum/shared";
 import {
   ALL_ASKED_COPY,
   allInterviewChipsFilled,
@@ -8,10 +13,8 @@ import {
   composerShouldLock,
   currentUnansweredKind,
   interviewGuideCopy,
-  isChatOutlineConfirm,
   needsTopicAnchor,
   shouldBlockComposerConfirm,
-  shouldShowLearnBoundaryCard,
   topicTitleFromUtterance,
   visibleInterviewChips,
 } from "./interview-ui.ts";
@@ -70,9 +73,11 @@ describe("1.2 interview UI honesty + send", () => {
   });
 
   it("does not treat load answers as outline confirm", () => {
-    assert.equal(isChatOutlineConfirm("每周 3 小时就行"), false);
-    assert.equal(isChatOutlineConfirm("每次 20 分钟"), false);
-    assert.equal(isChatOutlineConfirm("可以"), true);
+    assert.equal(looksLikeOutlineConfirm("每周 3 小时就行"), false);
+    assert.equal(looksLikeOutlineConfirm("每次 20 分钟"), false);
+    assert.equal(looksLikeOutlineConfirm("可以"), true);
+    assert.equal(looksLikeOutlineConfirm("行"), false);
+    assert.equal(looksLikeOutlineConfirm("就行"), false);
     assert.equal(
       shouldBlockComposerConfirm({
         text: "每周 3 小时就行",
@@ -143,7 +148,7 @@ describe("1.3 boundary card visibility", () => {
   it("shows the card after finalize even if phase still lags", () => {
     const snap = snapshotFromAnswers(EIGHT);
     assert.equal(
-      shouldShowLearnBoundaryCard({
+      shouldShowBoundaryCard({
         phase: "boundary_interview",
         snapshot: snap,
         confirmed: false,
@@ -152,7 +157,7 @@ describe("1.3 boundary card visibility", () => {
       true,
     );
     assert.equal(
-      shouldShowLearnBoundaryCard({
+      shouldShowBoundaryCard({
         phase: "outline_draft",
         snapshot: snap,
         confirmed: false,
@@ -160,7 +165,7 @@ describe("1.3 boundary card visibility", () => {
       true,
     );
     assert.equal(
-      shouldShowLearnBoundaryCard({
+      shouldShowBoundaryCard({
         phase: "outline_draft",
         snapshot: snap,
         confirmed: true,

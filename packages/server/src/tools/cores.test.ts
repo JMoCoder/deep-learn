@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
+import { missingFinalizeFields, missingInterviewWalk } from "@quantum/shared";
 import { createApp } from "../app.js";
 import { openMemoryDb } from "../store/db.js";
 import { Store } from "../store/repos.js";
@@ -54,22 +55,23 @@ describe("two cores backend", () => {
     assert.equal(store.requireTopic(topic.id).phase, "boundary_interview");
   });
 
-  it("finalize_boundary keeps five required fields but rejects an incomplete interview walk", async () => {
+  it("finalize_boundary allows five required fields even if the interview walk is incomplete", async () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("只五必填");
     const finalize = toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!;
     const result = await exec(finalize, { answers: FIVE_REQUIRED });
-    assert.equal(result.details.ok, false);
-    assert.deepEqual(result.details.missing, []);
-    const unasked = result.details.unasked as string[];
+    assert.equal(result.details.ok, true);
+    const snap = result.details.snapshot as Parameters<typeof missingFinalizeFields>[0];
+    assert.deepEqual(missingFinalizeFields(snap), []);
+    const unasked = missingInterviewWalk(snap);
     assert.ok(unasked.includes("motivation"));
     assert.ok(unasked.includes("success_evidence"));
     assert.ok(unasked.includes("prior_gaps"));
     assert.ok(unasked.includes("scope_in"));
-    assert.equal(store.requireTopic(topic.id).phase, "boundary_interview");
+    assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
   });
 
-  it("finalize_boundary succeeds only after the full interview walk", async () => {
+  it("finalize_boundary still succeeds after the full interview walk", async () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("齐了");
     const finalize = toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!;

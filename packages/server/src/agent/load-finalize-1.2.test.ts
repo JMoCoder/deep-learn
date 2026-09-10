@@ -101,15 +101,13 @@ describe("1.2 load-dim finalize", () => {
 
   it("rejected finalize still writes the load answer and stays in interview", async () => {
     const store = new Store(openMemoryDb());
-    const topic = store.createTopic("缺动机");
+    const topic = store.createTopic("缺深度");
     store.askBoundary(topic.id, "goal", "g");
     store.recordBoundaryAnswer(topic.id, "goal", "我能独立画一遍");
     store.askBoundary(topic.id, "prior", "p");
     store.recordBoundaryAnswer(topic.id, "prior", "零基础");
     store.askBoundary(topic.id, "constraint", "c");
     store.recordBoundaryAnswer(topic.id, "constraint", "弦论");
-    store.askBoundary(topic.id, "depth", "d");
-    store.recordBoundaryAnswer(topic.id, "depth", "能讲清");
     store.askBoundary(topic.id, "time", "负荷？");
 
     const result = await exec(toolsFor(store, topic.id).find((t) => t.name === "finalize_boundary")!, {
@@ -117,16 +115,15 @@ describe("1.2 load-dim finalize", () => {
         { kind: "goal", question: "g", answer: "我能独立画一遍" },
         { kind: "prior", question: "p", answer: "零基础" },
         { kind: "constraint", question: "c", answer: "弦论" },
-        { kind: "depth", question: "d", answer: "能讲清" },
         { kind: "time", question: "负荷？", answer: "每次 20 分钟" },
       ],
     });
     assert.equal(result.details.ok, false);
+    assert.ok((result.details.missing as string[]).includes("depth"));
     assert.equal(store.requireTopic(topic.id).phase, "boundary_interview");
     const time = store.listBoundaries(topic.id).find((b) => b.kind === "time");
     assert.equal(time?.answer, "每次 20 分钟");
     assert.equal(time?.status, "answered");
-    assert.ok((result.details.unasked as string[]).includes("motivation"));
   });
 
   it("planAfterTool does not draft outline after a failed finalize", () => {

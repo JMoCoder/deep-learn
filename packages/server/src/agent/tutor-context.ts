@@ -1,4 +1,4 @@
-import type { TutorContext, TutorStrategy } from "@quantum/shared";
+import { snapshotCardFieldLines, type TutorContext, type TutorStrategy } from "@quantum/shared";
 import { flattenOutline, type Store } from "../store/repos.js";
 import { snapshotFromRecords } from "../learning/boundary-snapshot.js";
 
@@ -107,16 +107,7 @@ export function renderTutorContext(ctx: TutorContext): string {
       ? `节「${ctx.L1.title ?? "未命名"}」摘录：\n${ctx.L1.body}`
       : "（当前叶子尚无正文）",
     ctx.L1.truncated ? "…(truncated)" : "",
-    `- goal_outcome: ${s.goal_outcome || "（空）"}`,
-    `- prior_level: ${s.prior_level || "（空）"}`,
-    `- scope_out: ${s.scope_out || "（空）"}`,
-    `- depth: ${s.depth || "（空）"}`,
-    `- chunk_budget: ${s.chunk_budget || "（空）"}`,
-    `- motivation: ${s.motivation || "（空）"}`,
-    `- success_evidence: ${s.success_evidence || s.success || "（空）"}`,
-    `- prior_known: ${s.prior_known || "（空）"}`,
-    `- prior_gaps: ${s.prior_gaps || s.first_gap || "（空）"}`,
-    `- scope_in: ${s.scope_in || "（空）"}`,
+    ...snapshotCardFieldLines(s),
     "",
     "L2 大纲位置（压缩树，不是全书）",
     `当前：${ctx.L2.currentTitle ?? "未选中"}  objective：${ctx.L2.currentObjective ?? "—"}`,

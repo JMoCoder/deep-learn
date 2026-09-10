@@ -1,7 +1,9 @@
-import type { OutlineNode } from "@quantum/shared";
+import type { OutlineNode } from "./dto.js";
 
-/** Frozen copy of server outline-constraints / leafBudget. Do not raise the cap. */
-export const OVER_BUDGET_COPY = "超负荷预算，请重拟";
+/**
+ * Single leaf-budget API. Hard cap — over budget must replan/cut leaves.
+ * Do not raise the cap or soft-pass.
+ */
 
 export function parseChunkBudgetMinutes(chunk: string): number {
   const hour = chunk.match(/(\d+(?:\.\d+)?)\s*小时/);
@@ -19,6 +21,8 @@ export function leafBudget(weeklyMinutes: number, weeks = 4): number {
   const sittings = Math.max(4, Math.round((weeklyMinutes * weeks) / 35));
   return Math.min(12, Math.max(6, sittings));
 }
+
+export const OVER_BUDGET_COPY = "超负荷预算，请重拟";
 
 export function countOutlineLeaves(nodes: OutlineNode[]): number {
   let n = 0;
@@ -87,5 +91,5 @@ export function outlineComposerPlaceholder(overBudget: boolean): string {
 }
 
 export function outlineSessionHint(overBudget: boolean): string | null {
-  return overBudget ? "超负荷预算，请重拟。在会话里说「减叶」或「重拟」，不要回「可以」。" : null;
+  return overBudget ? `${OVER_BUDGET_COPY}。在会话里说「减叶」或「重拟」，不要回「可以」。` : null;
 }
