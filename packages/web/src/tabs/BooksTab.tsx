@@ -18,6 +18,16 @@ import { cn, formatTime } from "@/lib/utils";
 export const BOOKS_PANE_KEY = "quantum.booksContentPane";
 export type BooksPane = "body" | "notes";
 
+/** Selected chip fill per pane. The content surface reuses the same token. */
+export const BOOKS_PANE_SURFACE = {
+  body: "bg-paper",
+  notes: "bg-paper-deep/70",
+} as const;
+
+export function booksActiveSurface(pane: BooksPane): string {
+  return BOOKS_PANE_SURFACE[pane];
+}
+
 export function readBooksPane(): BooksPane {
   try {
     return sessionStorage.getItem(BOOKS_PANE_KEY) === "notes" ? "notes" : "body";
@@ -92,9 +102,12 @@ export function BooksTab({
 
       <div className="relative min-h-0 flex-1 overflow-hidden" data-testid="books-stage">
         <div
+          data-testid="books-content-surface"
+          data-pane={topic ? pane : undefined}
           className={cn(
             "h-full min-h-0 px-5",
             wide ? "flex flex-col overflow-hidden py-4" : "quantum-scroll overflow-y-auto py-6",
+            topic && booksActiveSurface(pane),
           )}
         >
           {!topic ? (
@@ -109,16 +122,18 @@ export function BooksTab({
               <div
                 role="tablist"
                 aria-label={t("books.contentTabs")}
-                className="relative z-10 flex shrink-0 gap-1 rounded-full border border-paper-line bg-paper-deep/70 p-1"
+                className="relative z-10 flex shrink-0 gap-1 rounded-full border border-paper-line bg-paper-ink/10 p-1"
               >
                 <PaneTab
                   testId="books-tab-body"
+                  pane="body"
                   selected={pane === "body"}
                   label={t("books.tabBody")}
                   onSelect={() => selectPane("body")}
                 />
                 <PaneTab
                   testId="books-tab-notes"
+                  pane="notes"
                   selected={pane === "notes"}
                   label={t("books.tabNotes")}
                   onSelect={() => selectPane("notes")}
@@ -135,7 +150,8 @@ export function BooksTab({
                     data-testid="books-pane-body"
                     data-active={pane === "body" ? "true" : "false"}
                     className={cn(
-                      "quantum-scroll min-h-0 overflow-y-auto bg-paper px-5 py-5",
+                      "quantum-scroll min-h-0 overflow-y-auto px-5 py-5",
+                      booksActiveSurface(pane),
                       pane === "body" && "ring-1 ring-inset ring-cinnabar/25",
                     )}
                   >
@@ -146,7 +162,8 @@ export function BooksTab({
                     data-testid="books-pane-notes"
                     data-active={pane === "notes" ? "true" : "false"}
                     className={cn(
-                      "quantum-scroll min-h-0 overflow-y-auto border-l border-paper-line bg-paper-deep/70 px-5 py-5",
+                      "quantum-scroll min-h-0 overflow-y-auto border-l border-paper-line px-5 py-5",
+                      booksActiveSurface(pane),
                       pane === "notes" && "ring-1 ring-inset ring-cinnabar/25",
                     )}
                   >
@@ -154,11 +171,19 @@ export function BooksTab({
                   </section>
                 </div>
               ) : pane === "body" ? (
-                <section role="tabpanel" data-testid="books-pane-body">
+                <section
+                  role="tabpanel"
+                  data-testid="books-pane-body"
+                  className={booksActiveSurface("body")}
+                >
                   <BodyCopy section={section} />
                 </section>
               ) : (
-                <section role="tabpanel" data-testid="books-pane-notes">
+                <section
+                  role="tabpanel"
+                  data-testid="books-pane-notes"
+                  className={booksActiveSurface("notes")}
+                >
                   <NotesCopy notes={notes} locale={locale} />
                 </section>
               )}
@@ -240,11 +265,13 @@ export function BooksTab({
 }
 
 function PaneTab({
+  pane,
   selected,
   label,
   onSelect,
   testId,
 }: {
+  pane: BooksPane;
   selected: boolean;
   label: string;
   onSelect: () => void;
@@ -265,7 +292,7 @@ function PaneTab({
       className={cn(
         "relative z-10 min-h-9 flex-1 rounded-full px-3 py-1.5 text-sm transition-colors",
         selected
-          ? "bg-paper text-cinnabar shadow-sm"
+          ? cn(booksActiveSurface(pane), "text-cinnabar shadow-sm")
           : "text-paper-muted hover:text-paper-ink",
       )}
     >
