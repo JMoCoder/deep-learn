@@ -375,14 +375,20 @@ describe("session composer send path", () => {
     root.unmount();
   });
 
-  it("uses the same composer shell in stub and live", async () => {
-    const stub = await renderPane({ coachMode: "stub" });
+  it("uses the same composer shell and inflow chrome in stub and live", async () => {
+    const stub = await renderPane({ coachMode: "stub", phase: "boundary_interview" });
     const stubShell = stub.host.querySelector('[data-testid="session-composer-shell"]')?.className;
     const stubRows = stub.host.querySelector('[data-testid="session-composer"]')?.getAttribute("rows");
+    const stubTranscript = stub.host.querySelector('[data-testid="session-transcript"]')?.className;
+    assert.ok(stub.host.querySelector('[data-testid="session-inflow-guidance"]'));
+    assert.ok(stub.host.querySelector('[data-testid="interview-guide"]'));
     stub.root.unmount();
-    const live = await renderPane({ coachMode: "live" });
+    const live = await renderPane({ coachMode: "live", phase: "boundary_interview" });
     assert.equal(live.host.querySelector('[data-testid="session-composer-shell"]')?.className, stubShell);
     assert.equal(live.host.querySelector('[data-testid="session-composer"]')?.getAttribute("rows"), stubRows);
+    assert.equal(live.host.querySelector('[data-testid="session-transcript"]')?.className, stubTranscript);
+    assert.ok(live.host.querySelector('[data-testid="session-inflow-guidance"]'));
+    assert.ok(live.host.querySelector('[data-testid="interview-guide"]'));
     live.root.unmount();
   });
 

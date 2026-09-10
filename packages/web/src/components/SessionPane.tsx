@@ -107,7 +107,7 @@ export function SessionPane({
   const citeProps = { onOpenSection: onCiteSection, canOpenSection: canOpenCite };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <div
         data-testid="session-transcript"
         className="quantum-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"

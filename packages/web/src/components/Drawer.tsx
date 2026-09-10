@@ -32,6 +32,7 @@ export function Drawer({
   children,
   contained = false,
   swipeDismiss = true,
+  fill = false,
 }: {
   open: boolean;
   side: DrawerSide;
@@ -42,6 +43,8 @@ export function Drawer({
   contained?: boolean;
   /** Overlay drawers only. Persistent wide rails must not pass this. */
   swipeDismiss?: boolean;
+  /** Children fill the panel and own their own scroll (session pane). */
+  fill?: boolean;
 }) {
   const t = useT();
   const panelRef = useRef<HTMLElement | null>(null);
@@ -304,8 +307,12 @@ export function Drawer({
         </header>
         <div
           data-testid="drawer-scroll"
+          data-fill={fill ? "true" : "false"}
           data-swipe-pan-y={swipeDismiss ? "true" : undefined}
-          className="quantum-scroll min-h-0 flex-1 overflow-y-auto touch-pan-y"
+          className={cn(
+            "min-h-0 flex-1 touch-pan-y",
+            fill ? "flex flex-col overflow-hidden" : "quantum-scroll overflow-y-auto",
+          )}
           style={swipeDismiss ? { touchAction: "pan-y" } : undefined}
         >
           {children}
