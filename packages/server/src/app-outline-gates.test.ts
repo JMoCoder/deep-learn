@@ -44,14 +44,40 @@ describe("outline confirm / reduce HTTP gates", () => {
     assert.equal(store.requireTopic(topic.id).phase, "learning");
   });
 
+  it("reduce-outline requires the same card visibility gate as confirm", async () => {
+    const { app, topic, store } = draftTopic(false);
+    const res = await app.request(`/api/topics/${topic.id}/reduce-outline`, { method: "POST" });
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { ok: boolean };
+    assert.equal(body.ok, false);
+    assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
+  });
+
   it("reduce-outline re-drafts via draft_outline", async () => {
     const { app, topic, store } = draftTopic(true);
-    const before = store.getOutline(topic.id).length;
+    const beforeLeaves = flattenLeafCount(store.getOutline(topic.id));
     const res = await app.request(`/api/topics/${topic.id}/reduce-outline`, { method: "POST" });
     assert.equal(res.status, 200);
-    const body = (await res.json()) as { ok: boolean };
+    const body = (await res.json()) as { ok: boolean; leafCount?: number };
     assert.equal(body.ok, true);
     assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
-    assert.ok(store.getOutline(topic.id).length > 0 || before >= 0);
+    const afterLeaves = flattenLeafCount(store.getOutline(topic.id));
+    assert.ok(afterLeaves > 0);
+    assert.ok(typeof body.leafCount === "number");
+    assert.equal(body.leafCount, afterLeaves);
+    assert.ok(beforeLeaves >= afterLeaves || afterLeaves > 0);
   });
 });
+
+function flattenLeafCount(nodes: Array<{ children: unknown[] }>): number {
+  let n = 0;
+  const walk = (list: Array<{ children: unknown[] }>) => {
+    for (const node of list) {
+      const kids = node.children as Array<{ children: unknown[] }>;
+      if (!kids.length) n += 1;
+      else walk(kids);
+    }
+  };
+  walk(nodes);
+  return n;
+}

@@ -29,8 +29,9 @@ HTTP 闸（与工具同 execute）：
 ### 2. 导出不许假绿
 
 - `md` **必须**写出文件，且 `GET /api/exports/:topicId/:filename` 能下载。
-- `html` / `epub` 必须是可识别的真文件（html 含 doctype+body；epub 为 zip）。做不到则 **`ok: false`**，不得半成品成功 / 空壳。
-- `POST /api/topics/:id/export` 在文件落盘前不得 `ok: true`。
+- **本闸 `html` 必须是可打开的真文件**（doctype + body，非空壳）。
+- **`epub` 允许诚实桩 / 入口禁用**（灰掉或明确「未就绪」）；若实现则必须是可识别 zip，**不得假绿**。当前实现写出真 epub，不是桩。
+- 做不到的格式返回 **`ok: false`**。`POST /api/topics/:id/export` 在文件落盘前不得 `ok: true`。
 - 红 1 路径安全保持：`requireTopic`、拒绝 `..` / 分隔符、realpath 不出 exports 根；token / loopback / CORS 不动。无 `VITE_` 密钥。
 
 ### 3. 根测试跑满包
@@ -50,3 +51,4 @@ live/stub 双脑、`toClientMessages` 字段裁剪、docs v0.5 重写、热力�
 - 无模型密钥时仍走 **本地 stub coach**（真工具循环；正文是脚手架，不是成书）。
 - Me 页热力图文案键仍在，UI 已摘（红闸外）。
 - live 模型提示词仍可能提到会话「可以」——本闸只锁 stub coach + web 闸，不改双脑提示。
+- **`epub` 本闸不是桩**：当前与 html 一样写出真文件。冻结允许它改成诚实禁用，但未做。

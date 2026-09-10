@@ -72,10 +72,7 @@ describe("export HTTP is not fake-green", () => {
         downloadPath?: string;
         error?: string;
       };
-      if (!body.ok) {
-        assert.ok(body.error);
-        continue;
-      }
+      assert.equal(body.ok, true, `${format} must be a real file, not ok:false`);
       assert.ok(body.filename && body.downloadPath);
       const abs = resolveExportFile(topic.id, body.filename);
       assert.ok(abs && existsSync(abs), `${format} claimed ok without a file`);

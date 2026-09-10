@@ -245,8 +245,15 @@ export function createApp(
     } catch {
       return c.json({ error: "not found" }, 404);
     }
-    if (topic.phase !== "outline_draft") {
-      return c.json({ ok: false, error: "not in outline_draft" }, 400);
+    const gates = topicGates(store, id, topic.phase);
+    if (
+      !shouldShowOutlineConfirm({
+        phase: topic.phase,
+        boundaryConfirmed: gates.boundaryConfirmed,
+        hasOutline: store.getOutline(id).length > 0,
+      })
+    ) {
+      return c.json({ ok: false, error: "outline reduce not available" }, 400);
     }
     const drafted = outlineFromBoundaries(store.listBoundaries(id));
     store.setCurrentTopic(id);

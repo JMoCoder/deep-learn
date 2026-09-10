@@ -231,7 +231,7 @@ export function LearnTab({
                   chunkBudget={snapshot.chunk_budget}
                   draftRejected={draftRejected}
                   onConfirm={() => (onConfirmOutline ?? (() => {}))()}
-                  onRevise={() => (onReviseOutline ?? (() => onSessionOpen(true)))()}
+                  onRevise={() => (onReviseOutline ?? (() => {}))()}
                 />
               ) : !section ? (
                 <Empty
