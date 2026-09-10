@@ -265,6 +265,7 @@ export function LearnTab({
           data-testid="session-rail"
           data-state={sessionRailOpen ? "open" : "closed"}
           aria-hidden={!sessionRailOpen}
+          inert={!sessionRailOpen}
           className={cn(
             "flex shrink-0 flex-col overflow-hidden bg-paper",
             "transition-[width] duration-200 ease-out",
@@ -280,7 +281,9 @@ export function LearnTab({
             >
               <h2 className="font-serif text-base">{t("learn.drawerSession")}</h2>
             </header>
-            <div className="min-h-0 flex-1 overflow-hidden">{sessionPane()}</div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {sessionPersistent ? sessionPane() : null}
+            </div>
           </div>
         </aside>
       </div>
@@ -310,7 +313,7 @@ export function LearnTab({
         title={t("learn.drawerSession")}
         onClose={() => onSessionOpen(false)}
       >
-        {sessionPane()}
+        {sessionPersistent ? null : sessionPane()}
       </Drawer>
     </div>
   );

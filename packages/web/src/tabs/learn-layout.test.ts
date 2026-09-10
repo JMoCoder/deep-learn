@@ -203,6 +203,9 @@ describe("Learn session rail + full-width stage", () => {
     assert.equal(/\babsolute\b/.test(rail.className), false);
     assert.equal(drawer.getAttribute("data-state"), "closed");
     assert.equal(drawer.hasAttribute("inert"), true);
+    assert.equal(rail.hasAttribute("inert"), false);
+    assert.equal(rail.querySelector("textarea[name=text]") !== null, true);
+    assert.equal(drawer.querySelector("textarea[name=text]"), null);
     assert.match(article.className, /\bw-full\b/);
     assert.match(header.className, /h-\[var\(--top-region-height\)\]/);
     root.unmount();
@@ -222,6 +225,7 @@ describe("Learn session rail + full-width stage", () => {
     assert.equal(rail.getAttribute("data-state"), "closed");
     assert.match(rail.className, /\bw-0\b/);
     assert.match(rail.className, /transition-\[width\]/);
+    assert.equal(rail.hasAttribute("inert"), true);
     assert.equal(drawer.getAttribute("data-state"), "closed");
     assert.equal(toggle.getAttribute("aria-expanded"), "false");
     root.unmount();
@@ -320,9 +324,12 @@ describe("Learn session rail + full-width stage", () => {
     assert.ok(drawer);
     assert.equal(rail.getAttribute("data-state"), "closed");
     assert.match(rail.className, /\bw-0\b/);
+    assert.equal(rail.hasAttribute("inert"), true);
     assert.equal(drawer.getAttribute("data-state"), "open");
     assert.equal(drawer.hasAttribute("inert"), false);
     assert.match(drawer.className, /\babsolute\b/);
+    assert.equal(rail.querySelector("textarea[name=text]"), null);
+    assert.equal(drawer.querySelector("textarea[name=text]") !== null, true);
     root.unmount();
   });
 });
