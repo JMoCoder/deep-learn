@@ -22,9 +22,10 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-async function mountApp() {
+async function mountApp(requested: string[] = []) {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = String(input);
+    requested.push(url);
     if (url === "/api/state") {
       return json({
         currentTopicId: null,
@@ -35,7 +36,6 @@ async function mountApp() {
       });
     }
     if (url === "/api/topics") return json([]);
-    if (url === "/api/heatmap") return json([]);
     if (url === "/api/session/messages") return json([]);
     if (url === "/api/topics/current/projection") {
       return json({
@@ -86,6 +86,24 @@ describe("app frame + default outline rail", () => {
     assert.ok(rail);
     assert.equal(rail.getAttribute("data-state"), "open");
     assert.match(rail.textContent ?? "", /还没有大纲|No outline yet/);
+    root.unmount();
+  });
+
+  it("does not fetch /api/heatmap while loading or opening Me", async () => {
+    const requested: string[] = [];
+    const root = await mountApp(requested);
+    const me = document.querySelector<HTMLButtonElement>('[data-testid="tab-me"]');
+    assert.ok(me);
+    await act(async () => {
+      me.click();
+    });
+    assert.equal(
+      requested.some((url) => url === "/api/heatmap" || url.includes("/api/heatmap")),
+      false,
+    );
+    assert.equal(document.querySelector("[data-testid=me-heatmap]"), null);
+    const pageText = document.body.textContent ?? "";
+    assert.equal(/学习热力图|Learning heatmap|占位热力图|placeholder heatmap/i.test(pageText), false);
     root.unmount();
   });
 });

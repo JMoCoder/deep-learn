@@ -61,7 +61,6 @@ describe("settings language switch", () => {
           null,
           createElement(MeTab, {
             settings: { provider: "openai", modelId: "gpt-4o-mini", baseUrl: "", hasApiKey: false },
-            heatmap: [],
             onSave: async () => {},
           }),
         ),
@@ -78,6 +77,7 @@ describe("settings language switch", () => {
     assert.match(host.textContent ?? "", /Interface language/);
     assert.match(host.textContent ?? "", /Agent replies follow/);
     assert.equal((host.textContent ?? "").includes("我的"), false);
+    assert.equal(/学习热力图|Learning heatmap|placeholder heatmap/i.test(host.textContent ?? ""), false);
     root.unmount();
   });
 });

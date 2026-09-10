@@ -94,7 +94,6 @@ describe("1.1 create topic posts /api/topics", () => {
           phase: created.phase,
         });
       }
-      if (url === "/api/heatmap") return json([]);
       if (url === "/api/session/messages") return json([]);
       if (url === "/api/session/prompt" && method === "POST") return json({ ok: true });
       return json({ error: url }, 404);

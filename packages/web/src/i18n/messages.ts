@@ -61,7 +61,7 @@ export const zh = {
   "books.notStarted": "未开始",
 
   "me.title": "我的",
-  "me.lead": "模型代理与占位热力图。密钥不要贴到会话里。",
+  "me.lead": "模型代理与界面语言。密钥不要贴到会话里。",
   "me.model": "模型代理",
   "me.provider": "Provider",
   "me.modelId": "Model ID",
@@ -323,7 +323,7 @@ export const en: Record<MessageKey, string> = {
   "books.notStarted": "Not started",
 
   "me.title": "Me",
-  "me.lead": "Model proxy and a placeholder heatmap. Do not paste secrets into the session.",
+  "me.lead": "Model proxy and interface language. Do not paste secrets into the session.",
   "me.model": "Model proxy",
   "me.provider": "Provider",
   "me.modelId": "Model ID",

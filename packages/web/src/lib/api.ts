@@ -1,7 +1,6 @@
 import {
   CLIENT_SSE_EVENTS,
   type AppSnapshot,
-  type HeatmapDay,
   type PublicSettings,
   type SessionEvent,
   type SessionMessage,
@@ -46,7 +45,6 @@ export const api = {
   settings: () => req<PublicSettings>("/api/settings"),
   saveSettings: (body: SettingsInput) =>
     req<PublicSettings>("/api/settings", { method: "PUT", body: JSON.stringify(body) }),
-  heatmap: () => req<HeatmapDay[]>("/api/heatmap"),
   messages: () => req<SessionMessage[]>("/api/session/messages"),
   prompt: (text: string) =>
     req<{ ok: boolean }>("/api/session/prompt", {
