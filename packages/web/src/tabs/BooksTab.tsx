@@ -359,12 +359,12 @@ function TopicHero({
       data-layout={wide ? "wide" : "narrow"}
       className={cn(
         "hero-topic relative flex min-w-0 items-center gap-3 overflow-hidden rounded-[1.35rem] border border-paper-line/90 pl-5",
-        wide ? "px-4 py-2" : "px-4 py-4",
+        wide ? "min-h-16 px-4 py-2" : "px-4 py-4",
       )}
     >
-      <span aria-hidden className="hero-accent" />
+      <span aria-hidden className={cn("hero-accent", wide && "hero-accent--wide")} />
       {wide ? (
-        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4">
           <div className="flex min-w-0 items-baseline gap-2">
             <p className="shrink-0 text-[11px] font-semibold tracking-[0.18em] text-cinnabar">
               {t("books.currentTopic")}
@@ -379,16 +379,6 @@ function TopicHero({
           >
             {chips}
           </div>
-          <p className="col-span-2 line-clamp-1 text-sm text-paper-ink/80">
-            {topic
-              ? [
-                  goal || t("books.noGoal"),
-                  topic.phase === "outline_draft" ? t("books.outlineOnLearn") : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : t("books.noCurrentBody")}
-          </p>
         </div>
       ) : (
         <div className="min-w-0 flex-1">
