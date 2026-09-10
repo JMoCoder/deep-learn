@@ -132,6 +132,26 @@ export function Drawer({
     const onPointerUp = (event: PointerEvent) => {
       finishDrag(event.pointerId);
     };
+    const onPointerCancel = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      applySwipeMove(event.clientX - drag.startX, event.clientY - drag.startY, event);
+      const live = liveRef.current;
+      if (
+        drag.axis === "h" &&
+        shouldDismissDrawer({
+          side: live.side,
+          dx: drag.dx,
+          dy: 0,
+          width: widthRef.current,
+          enabled: live.swipeDismiss && live.open,
+        })
+      ) {
+        finishDrag(event.pointerId);
+        return;
+      }
+      if (drag.axis === "v") resetDrag();
+    };
     const onTouchEnd = (event: TouchEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
@@ -149,10 +169,12 @@ export function Drawer({
       resetDrag();
     };
 
-    // Ignore pointercancel / lostpointercapture: iOS fires them when the
-    // overflow-y child starts a native pan, but touchmove/touchend continue.
+    // pointercancel: dismiss if reverse travel already qualifies; otherwise
+    // keep listeners so touchmove/touchend can finish. Do not abort an
+    // in-progress horizontal swipe (that was the phone no-op).
     document.addEventListener("pointermove", onPointerMove, { capture: true, passive: false });
     document.addEventListener("pointerup", onPointerUp, { capture: true });
+    document.addEventListener("pointercancel", onPointerCancel, { capture: true });
     document.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
     document.addEventListener("touchend", onTouchEnd, { capture: true });
     document.addEventListener("touchcancel", onTouchCancel, { capture: true });
@@ -162,6 +184,7 @@ export function Drawer({
     detachSwipeRef.current = () => {
       document.removeEventListener("pointermove", onPointerMove, { capture: true });
       document.removeEventListener("pointerup", onPointerUp, { capture: true });
+      document.removeEventListener("pointercancel", onPointerCancel, { capture: true });
       document.removeEventListener("touchmove", onTouchMove, { capture: true });
       document.removeEventListener("touchend", onTouchEnd, { capture: true });
       document.removeEventListener("touchcancel", onTouchCancel, { capture: true });
@@ -260,7 +283,10 @@ export function Drawer({
           open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full",
           dragging && "duration-0",
         )}
-        style={dragX !== null ? { transform: `translateX(${dragX}px)` } : undefined}
+        style={{
+          ...(swipeDismiss ? { touchAction: "pan-y" as const } : {}),
+          ...(dragX !== null ? { transform: `translateX(${dragX}px)` } : {}),
+        }}
         onPointerDown={onPanelPointerDown}
         onPointerMove={onPanelPointerMove}
         onPointerUp={onPanelPointerUp}
@@ -276,7 +302,14 @@ export function Drawer({
             {t("drawer.close")}
           </button>
         </header>
-        <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto touch-pan-y">{children}</div>
+        <div
+          data-testid="drawer-scroll"
+          data-swipe-pan-y={swipeDismiss ? "true" : undefined}
+          className="quantum-scroll min-h-0 flex-1 overflow-y-auto touch-pan-y"
+          style={swipeDismiss ? { touchAction: "pan-y" } : undefined}
+        >
+          {children}
+        </div>
       </aside>
     </div>
   );
