@@ -208,6 +208,47 @@ describe("session composer send path", () => {
     root.unmount();
   });
 
+  it("paints the user bubble before session_end refresh (optimistic)", async () => {
+    const sent: string[] = [];
+    const { host, root } = await renderPane({
+      coachMode: "live",
+      messages: [],
+      onSend: (text: string) => sent.push(text),
+    });
+    const box = host.querySelector<HTMLTextAreaElement>('[data-testid="session-composer"]');
+    const send = host.querySelector<HTMLButtonElement>('[data-testid="session-send"]');
+    assert.ok(box);
+    assert.ok(send);
+    box.value = "do not wait for session_end";
+    await act(async () => {
+      send.click();
+    });
+    assert.deepEqual(sent, ["do not wait for session_end"]);
+    assert.match(
+      host.querySelector('[data-testid="session-pending-user"]')?.textContent ?? "",
+      /do not wait for session_end/,
+    );
+
+    await act(async () => {
+      root.render(
+        createElement(
+          SessionPane,
+          paneProps({
+            coachMode: "live",
+            messages: [],
+            onSend: (text: string) => sent.push(text),
+          }),
+        ),
+      );
+    });
+    assert.equal(host.querySelectorAll('[data-testid="session-pending-user"]').length, 1);
+    assert.match(
+      host.querySelector('[data-testid="session-pending-user"]')?.textContent ?? "",
+      /do not wait for session_end/,
+    );
+    root.unmount();
+  });
+
   it("live composer uses the same send path and shows a user bubble immediately", async () => {
     const sent: string[] = [];
     const { host, root } = await renderPane({

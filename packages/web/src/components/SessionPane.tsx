@@ -78,6 +78,7 @@ export function SessionPane({
     const text = (field && "value" in field ? String(field.value) : "").trim();
     if (!text || lockComposer) return;
     if (field && "value" in field) field.value = "";
+    // Optimistic user row: do not wait for session_end / messages refresh.
     setPendingSends((prev) => [
       ...prev,
       { text, afterCount: userCount + prev.length + 1 },
