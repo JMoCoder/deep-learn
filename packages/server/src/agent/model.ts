@@ -3,7 +3,7 @@ import type { ModelSettings } from "../store/repos.js";
 
 const STUB_MODEL: Model<"openai-completions"> = {
   id: "quantum-stub",
-  name: "Quantum local coach",
+  name: "Deep Learn local coach",
   api: "openai-completions",
   provider: "quantum-stub",
   baseUrl: "http://127.0.0.1/unused",

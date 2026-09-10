@@ -8,6 +8,11 @@ release dates that were never tagged.
 
 ### Changed
 
+- Yellow pack (product freeze): live and stub share one gate/tool path
+  (five-required, confirm/leaf-reduce, refuse+reflow). `toClientMessages`
+  keeps learn-projection `strategy` / citations. Learner-visible copy is
+  Deep Learn (packages / `QUANTUM_*` unchanged). Load-minutes / leaf-budget
+  compose only through `@quantum/shared`.
 - Docs v0.5 alignment (red 5): `backend-baseline-v0.5` follows `@quantum/shared`
   + factory (tool args, five-required gate, strategy closed set, `reason_code`).
   Two-cores L0/L1 mapped to the packer. Hand-click covers reject+reflow /

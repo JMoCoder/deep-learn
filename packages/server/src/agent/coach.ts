@@ -1,9 +1,10 @@
 import type { BoundaryKind, TutorStrategy } from "@quantum/shared";
 import {
+  OUTLINE_ACTION_CARD_ONLY,
   TOPIC_ANCHOR_QUESTION,
   isDefaultTopicTitle,
-  looksLikeLeafRedraft,
   looksLikeOutlineConfirm,
+  shouldDeferOutlineActionToCard,
   topicTitleFromUtterance,
 } from "@quantum/shared";
 import {
@@ -222,13 +223,11 @@ function planOutline(store: Store, topicId: string, last: string): CoachPlan {
     };
   }
 
-  if (last && !looksLikeKickoff(last) && (looksLikeOutlineConfirm(last) || looksLikeLeafRedraft(last))) {
-    return {
-      text: "大纲确认和减叶只走学习页大纲卡，不在会话里用「可以」或「减叶」旁路。",
-    };
+  if (shouldDeferOutlineActionToCard({ text: last, pendingOutline: true })) {
+    return { text: OUTLINE_ACTION_CARD_ONLY };
   }
   return {
-    text: "大纲已在左侧。确认或重拟请用学习页大纲卡，不要在会话里回「可以」或「减叶」。",
+    text: `大纲已在左侧。${OUTLINE_ACTION_CARD_ONLY}`,
   };
 }
 

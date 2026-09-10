@@ -23,7 +23,16 @@ export function leafBudget(weeklyMinutes: number, weeks = 4): number {
   return Math.min(12, Math.max(6, sittings));
 }
 
+/** Single load-minutes → leaf-cap composition. Do not re-derive elsewhere. */
+export function leafCapFromChunkBudget(chunkBudget: string): number {
+  return leafBudget(parseChunkBudgetMinutes(chunkBudget));
+}
+
 export const OVER_BUDGET_COPY = "超负荷预算，请重拟";
+
+/** Live and stub share this sentence. Chat「可以 / 减叶」is not a parallel path. */
+export const OUTLINE_ACTION_CARD_ONLY =
+  "大纲确认和减叶只走学习页大纲卡，不要在会话里回「可以」或「减叶」。";
 
 export function countOutlineLeaves(nodes: OutlineNode[]): number {
   let n = 0;
@@ -49,7 +58,7 @@ export function evaluateOutlineLeafBudget(
   chunkBudget: string,
 ): OutlineLeafBudget {
   const leafCount = countOutlineLeaves(nodes);
-  const leafCap = leafBudget(parseChunkBudgetMinutes(chunkBudget));
+  const leafCap = leafCapFromChunkBudget(chunkBudget);
   const overBudget = leafCount > leafCap;
   return {
     leafCount,

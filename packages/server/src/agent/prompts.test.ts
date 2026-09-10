@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { FINALIZE_GATE_SENTENCE, FINALIZE_REQUIRED_FIELDS } from "@quantum/shared";
+import { FINALIZE_GATE_SENTENCE, FINALIZE_REQUIRED_FIELDS, OUTLINE_ACTION_CARD_ONLY } from "@quantum/shared";
 import { baseSystemPrompt, phasePrompt } from "./prompts.js";
 
 describe("live prompt finalize gate (product freeze)", () => {
@@ -19,5 +19,22 @@ describe("live prompt finalize gate (product freeze)", () => {
       assert.ok(base.includes(field));
       assert.ok(interview.includes(field));
     }
+  });
+
+  it("live and stub share card-only confirm/reduce and refuse+reflow", () => {
+    const base = baseSystemPrompt();
+    const outline = phasePrompt("outline_draft");
+    const learning = phasePrompt("learning");
+    assert.ok(base.includes(OUTLINE_ACTION_CARD_ONLY));
+    assert.ok(outline.includes(OUTLINE_ACTION_CARD_ONLY));
+    assert.equal(outline.includes("得到学习者确认后再 finalize_outline"), false);
+    assert.ok(learning.includes("REFUSE_OFFSCOPE"));
+    assert.ok(learning.includes("禁止 append_note"));
+  });
+
+  it("learner-visible prompt identity is Deep Learn, not Quantum", () => {
+    const base = baseSystemPrompt();
+    assert.match(base, /Deep Learn/);
+    assert.equal(base.includes("你是 Quantum"), false);
   });
 });

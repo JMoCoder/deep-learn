@@ -10,7 +10,7 @@ import type {
 import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { countOutlineLeaves, uiNoteType } from "@/lib/session-display";
+import { countProjectedLeaves, uiNoteType } from "@/lib/session-display";
 import { useOutlineRail } from "@/lib/use-outline-rail";
 import { phaseText, useLocale, useT, type Locale } from "@/i18n";
 import { cn, formatTime } from "@/lib/utils";
@@ -83,7 +83,7 @@ export function BooksTab({
   const [pane, setPane] = useState<BooksPane>(readBooksPane);
   const goal =
     boundaries.find((b) => b.kind === "goal_outcome" || b.kind === "goal")?.answer.trim() || "";
-  const leaves = countOutlineLeaves(outline);
+  const leaves = countProjectedLeaves(outline);
 
   useEffect(() => {
     writeBooksPane(pane);

@@ -1,5 +1,5 @@
 import type { BoundarySnapshot, OutlineDraftNode } from "@quantum/shared";
-import { leafBudget, parseChunkBudgetMinutes } from "@quantum/shared";
+import { leafCapFromChunkBudget } from "@quantum/shared";
 
 export type OutlineConstraintResult = {
   ok: boolean;
@@ -25,8 +25,7 @@ export function evaluateOutlineDraft(
   }
 
   const leaves = collectLeaves(nodes);
-  const minutes = parseChunkBudgetMinutes(snapshot.chunk_budget);
-  const leafCap = leafBudget(minutes);
+  const leafCap = leafCapFromChunkBudget(snapshot.chunk_budget);
   if (leaves.length > leafCap) {
     errors.push(`叶子 ${leaves.length} 超过 chunk_budget 上限 ${leafCap}`);
   }

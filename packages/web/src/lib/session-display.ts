@@ -233,7 +233,8 @@ export function citationsFromTool(toolName: string, summary: string): Citation[]
   return [];
 }
 
-export function countOutlineLeaves(nodes: OutlineNode[]): { ready: number; total: number } {
+/** Books progress (ready/total). Leaf-budget counts stay in @quantum/shared. */
+export function countProjectedLeaves(nodes: OutlineNode[]): { ready: number; total: number } {
   let ready = 0;
   let total = 0;
   const walk = (list: OutlineNode[]) => {
