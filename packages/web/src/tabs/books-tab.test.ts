@@ -5,7 +5,26 @@ import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
 import { describe, it, afterEach } from "node:test";
 import type { NoteRecord, SectionRecord, TopicSummary } from "@quantum/shared";
+import { OUTLINE_RAIL_QUERY } from "@/lib/outline-rail";
 import { BooksTab, BOOKS_PANE_KEY, readBooksPane } from "./BooksTab.tsx";
+
+const originalMatchMedia = window.matchMedia;
+
+function stubOutlineRail(wide: boolean): void {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: (query: string) => ({
+      matches: query === OUTLINE_RAIL_QUERY ? wide : false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      onchange: null,
+    }),
+  });
+}
 
 const topic: TopicSummary = {
   id: "t1",
@@ -67,6 +86,10 @@ function mountBooks(
 
 describe("1.1 books drawer 新建主题", () => {
   afterEach(() => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: originalMatchMedia,
+    });
     document.body.replaceChildren();
     sessionStorage.removeItem(BOOKS_PANE_KEY);
   });
@@ -111,6 +134,10 @@ describe("1.1 books drawer 新建主题", () => {
 
 describe("books hero switch + 正文/笔记 tabs", () => {
   afterEach(() => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: originalMatchMedia,
+    });
     document.body.replaceChildren();
     sessionStorage.removeItem(BOOKS_PANE_KEY);
   });
@@ -154,7 +181,6 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.equal(notesTab.getAttribute("aria-selected"), "true");
     assert.equal(bodyTab.getAttribute("aria-selected"), "false");
     assert.ok(document.querySelector('[data-testid="books-pane-notes"]'));
-    assert.equal(document.querySelector('[data-testid="books-pane-body"]'), null);
     assert.match(document.body.textContent ?? "", /一条落盘笔记/);
     assert.equal(readBooksPane(), "notes");
     root.unmount();
@@ -217,5 +243,117 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.match(drawer.className, /\babsolute\b/);
     assert.match(drawer.className, /\binset-0\b/);
     root.unmount();
+  });
+
+  it("keeps exclusive 正文/笔记 panes on a narrow viewport", async () => {
+    stubOutlineRail(false);
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    const hero = document.querySelector("[data-testid=books-hero]");
+    assert.ok(hero);
+    assert.equal(hero.getAttribute("data-layout"), "narrow");
+    assert.equal(document.querySelector("[data-testid=books-spread]"), null);
+    assert.ok(document.querySelector('[data-testid="books-pane-body"]'));
+    assert.equal(document.querySelector('[data-testid="books-pane-notes"]'), null);
+
+    const notesTab = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
+    assert.ok(notesTab);
+    await act(async () => {
+      notesTab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    assert.ok(document.querySelector('[data-testid="books-pane-notes"]'));
+    assert.equal(document.querySelector('[data-testid="books-pane-body"]'), null);
+    assert.equal(readBooksPane(), "notes");
+    root.unmount();
+  });
+
+  it("packs the wide hero into two lines and uses the trailing space for chips", () => {
+    stubOutlineRail(true);
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    const hero = document.querySelector("[data-testid=books-hero]");
+    const meta = document.querySelector("[data-testid=books-hero-meta]");
+    assert.ok(hero);
+    assert.ok(meta);
+    assert.equal(hero.getAttribute("data-layout"), "wide");
+    assert.match(hero.className, /\bpy-2\b/);
+    assert.equal(/\bpy-4\b/.test(hero.className), false);
+    assert.match(hero.className, /items-center/);
+    assert.equal(hero.contains(meta), true);
+    assert.match(meta.className, /justify-end/);
+    root.unmount();
+  });
+
+  it("opens 正文 and 笔记 as facing pages at the outline-rail breakpoint", async () => {
+    stubOutlineRail(true);
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    const spread = document.querySelector("[data-testid=books-spread]");
+    const body = document.querySelector("[data-testid=books-pane-body]");
+    const notes = document.querySelector("[data-testid=books-pane-notes]");
+    assert.ok(spread);
+    assert.ok(body);
+    assert.ok(notes);
+    assert.match(spread.className, /grid-cols-2/);
+    assert.equal(spread.firstElementChild, body);
+    assert.equal(spread.lastElementChild, notes);
+    assert.equal(body.getAttribute("data-active"), "true");
+    assert.equal(notes.getAttribute("data-active"), "false");
+    assert.match(document.body.textContent ?? "", /投影正文在这一段/);
+    assert.match(document.body.textContent ?? "", /一条落盘笔记/);
+
+    const notesTab = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
+    const bodyTab = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-body"]');
+    assert.ok(notesTab);
+    assert.ok(bodyTab);
+    await act(async () => {
+      notesTab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    assert.equal(notesTab.getAttribute("aria-selected"), "true");
+    assert.equal(bodyTab.getAttribute("aria-selected"), "false");
+    assert.equal(notes.getAttribute("data-active"), "true");
+    assert.equal(body.getAttribute("data-active"), "false");
+    assert.ok(document.querySelector("[data-testid=books-pane-body]"));
+    assert.ok(document.querySelector("[data-testid=books-pane-notes]"));
+    assert.equal(readBooksPane(), "notes");
+    root.unmount();
+  });
+
+  it("uses the outline rail query for the books wide layout, not a second breakpoint", () => {
+    assert.equal(OUTLINE_RAIL_QUERY, "(min-width: 768px)");
+    stubOutlineRail(false);
+    const narrow = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    assert.equal(document.querySelector("[data-testid=books-spread]"), null);
+    assert.equal(
+      document.querySelector("[data-testid=books-hero]")?.getAttribute("data-layout"),
+      "narrow",
+    );
+    narrow.unmount();
+
+    stubOutlineRail(true);
+    const wide = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    assert.ok(document.querySelector("[data-testid=books-spread]"));
+    assert.equal(
+      document.querySelector("[data-testid=books-hero]")?.getAttribute("data-layout"),
+      "wide",
+    );
+    wide.unmount();
   });
 });
