@@ -128,15 +128,14 @@ export function BooksTab({
               {wide ? (
                 <div
                   data-testid="books-spread"
-                  className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden rounded-xl border border-paper-line bg-paper-deep/40"
+                  className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden rounded-lg border border-paper-line"
                 >
                   <section
                     role="tabpanel"
                     data-testid="books-pane-body"
                     data-active={pane === "body" ? "true" : "false"}
                     className={cn(
-                      "quantum-scroll min-h-0 overflow-y-auto bg-[#fffaf2] px-5 py-5",
-                      "shadow-[inset_-14px_0_18px_-16px_rgba(43,42,38,0.28)]",
+                      "quantum-scroll min-h-0 overflow-y-auto bg-paper px-5 py-5",
                       pane === "body" && "ring-1 ring-inset ring-cinnabar/25",
                     )}
                   >
@@ -147,8 +146,7 @@ export function BooksTab({
                     data-testid="books-pane-notes"
                     data-active={pane === "notes" ? "true" : "false"}
                     className={cn(
-                      "quantum-scroll min-h-0 overflow-y-auto bg-[#f6efe3] px-5 py-5",
-                      "shadow-[inset_14px_0_18px_-16px_rgba(43,42,38,0.28)]",
+                      "quantum-scroll min-h-0 overflow-y-auto border-l border-paper-line bg-paper-deep/70 px-5 py-5",
                       pane === "notes" && "ring-1 ring-inset ring-cinnabar/25",
                     )}
                   >
@@ -364,18 +362,21 @@ function TopicHero({
     >
       <span aria-hidden className={cn("hero-accent", wide && "hero-accent--wide")} />
       {wide ? (
-        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4">
-          <div className="flex min-w-0 items-baseline gap-2">
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center self-center gap-x-4">
+          <div
+            data-testid="books-hero-primary"
+            className="flex min-w-0 items-center gap-2"
+          >
             <p className="shrink-0 text-[11px] font-semibold tracking-[0.18em] text-cinnabar">
               {t("books.currentTopic")}
             </p>
-            <h1 className="min-w-0 truncate font-serif text-[1.15rem] leading-tight">
+            <h1 className="min-w-0 truncate font-serif text-[1.15rem] leading-none">
               {topic ? topic.title : t("books.noCurrentTitle")}
             </h1>
           </div>
           <div
             data-testid="books-hero-meta"
-            className="flex flex-wrap items-center justify-end gap-1.5"
+            className="flex flex-wrap items-center justify-end self-center gap-1.5"
           >
             {chips}
           </div>
