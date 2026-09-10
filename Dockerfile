@@ -32,4 +32,5 @@ FROM nginx:1.27-alpine AS web
 ENV NGINX_ENVSUBST_FILTER=^QUANTUM_API_TOKEN$
 COPY deploy/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/packages/web/dist /usr/share/nginx/html
+RUN chmod -R a+rX /usr/share/nginx/html
 EXPOSE 80
