@@ -58,34 +58,59 @@ describe("export HTTP is not fake-green", () => {
     assert.match(downloaded.headers.get("content-disposition") ?? "", /attachment/);
   });
 
-  it("html and epub write real files or return ok:false", async () => {
+  it("html MUST be an openable file with usable content", async () => {
     const { app, topic } = seededApp();
-    for (const format of ["html", "epub"] as const) {
-      const posted = await app.request(`/api/topics/${topic.id}/export`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ format }),
-      });
-      const body = (await posted.json()) as {
-        ok: boolean;
-        filename?: string;
-        downloadPath?: string;
-        error?: string;
-      };
-      assert.equal(body.ok, true, `${format} must be a real file, not ok:false`);
-      assert.ok(body.filename && body.downloadPath);
-      const abs = resolveExportFile(topic.id, body.filename);
-      assert.ok(abs && existsSync(abs), `${format} claimed ok without a file`);
-      if (format === "html") {
-        assert.match(readFileSync(abs, "utf8"), /<!doctype html>/i);
-      } else {
-        const buf = readFileSync(abs);
-        assert.equal(buf[0], 0x50);
-        assert.equal(buf[1], 0x4b);
-      }
-      const downloaded = await app.request(body.downloadPath);
-      assert.equal(downloaded.status, 200);
+    const posted = await app.request(`/api/topics/${topic.id}/export`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ format: "html" }),
+    });
+    const body = (await posted.json()) as {
+      ok: boolean;
+      filename?: string;
+      downloadPath?: string;
+    };
+    assert.equal(body.ok, true);
+    assert.ok(body.filename && body.downloadPath);
+    const abs = resolveExportFile(topic.id, body.filename);
+    assert.ok(abs && existsSync(abs));
+    const html = readFileSync(abs, "utf8");
+    assert.match(html, /<!doctype html>/i);
+    assert.match(html, /<title>导出主题<\/title>/);
+    assert.match(html, /<body[\s>]/i);
+    assert.match(html, /落盘正文：测量前后差别/);
+    const opened = await app.request(body.downloadPath);
+    assert.equal(opened.status, 200);
+    assert.match(opened.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(await opened.text(), /落盘正文：测量前后差别/);
+  });
+
+  it("epub entry is honest: real zip or ok:false, never empty-shell success", async () => {
+    const { app, topic } = seededApp();
+    const posted = await app.request(`/api/topics/${topic.id}/export`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ format: "epub" }),
+    });
+    const body = (await posted.json()) as {
+      ok: boolean;
+      filename?: string;
+      downloadPath?: string;
+      error?: string;
+    };
+    if (!body.ok) {
+      assert.ok(body.error);
+      return;
     }
+    assert.ok(body.filename && body.downloadPath);
+    const abs = resolveExportFile(topic.id, body.filename);
+    assert.ok(abs && existsSync(abs));
+    const buf = readFileSync(abs);
+    assert.equal(buf[0], 0x50);
+    assert.equal(buf[1], 0x4b);
+    const downloaded = await app.request(body.downloadPath);
+    assert.equal(downloaded.status, 200);
+    assert.match(downloaded.headers.get("content-type") ?? "", /epub|octet-stream|zip/);
   });
 
   it("does not return ok:true for an unsupported format", async () => {

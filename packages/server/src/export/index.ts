@@ -75,9 +75,11 @@ export function assertRealExportFile(abs: string, format: ExportFormat): void {
   }
   if (format === "html") {
     const html = readFileSync(abs, "utf8");
-    if (!/<!doctype html>/i.test(html) || !/<body[\s>]/i.test(html)) {
+    if (!/<!doctype html>/i.test(html) || !/<body[\s>]/i.test(html) || !/<title>/.test(html)) {
       throw new Error("html export is not a real HTML file");
     }
+    const visible = html.replace(/<[^>]+>/g, "").replace(/&[a-z]+;/gi, " ").trim();
+    if (visible.length < 8) throw new Error("html export is an empty shell");
     return;
   }
   const buf = readFileSync(abs);
