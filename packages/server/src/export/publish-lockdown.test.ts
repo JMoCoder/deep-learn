@@ -60,6 +60,7 @@ describe("local preview publish lockdown", () => {
       { path: "/api/session/prompt", method: "POST", body: JSON.stringify({ text: "hi" }) },
       { path: "/api/topics", method: "POST", body: JSON.stringify({ title: "新" }) },
       { path: `/api/topics/${topic.id}/export`, method: "POST", body: JSON.stringify({ format: "md" }) },
+      { path: `/api/topics/${topic.id}/confirm-boundary`, method: "POST" },
     ];
 
     for (const item of protectedPaths) {

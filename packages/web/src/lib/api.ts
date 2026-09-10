@@ -37,6 +37,11 @@ export const api = {
       body: JSON.stringify({ title }),
     }),
   switchTopic: (id: string) => req(`/api/topics/${id}/switch`, { method: "POST" }),
+  confirmBoundary: (id: string) =>
+    req<{ ok: boolean; topicId: string; boundaryConfirmed: boolean; boundaryFinalized: boolean }>(
+      `/api/topics/${id}/confirm-boundary`,
+      { method: "POST" },
+    ),
   selectSection: (topicId: string, sectionId: string) =>
     req(`/api/topics/${topicId}/select-section`, {
       method: "POST",

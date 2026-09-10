@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
-import type { ExportFormat, SettingsInput } from "@quantum/shared";
-import { snapshotFromAnswers } from "@quantum/shared";
+import type { AppSnapshot, ExportFormat, SettingsInput } from "@quantum/shared";
+import { learnGatesFromServer, snapshotFromAnswers } from "@quantum/shared";
 import { AgentHost } from "./agent/runtime.js";
 import { bus } from "./agent/bus.js";
 import { config } from "./config.js";
@@ -55,16 +55,7 @@ export function createApp(
     c.json({ ok: true, name: "quantum", coachMode: store.hasLiveModel() ? "live" : "stub" }),
   );
 
-  app.get("/api/state", (c) => {
-    const currentTopicId = store.getCurrentTopicId();
-    return c.json({
-      currentTopicId,
-      topic: currentTopicId ? store.getTopic(currentTopicId) : null,
-      currentSectionId: store.getCurrentSectionId(),
-      coachMode: store.hasLiveModel() ? "live" : "stub",
-      settings: store.publicSettings(),
-    });
-  });
+  app.get("/api/state", (c) => c.json(appSnapshot(store)));
 
   app.get("/api/settings", (c) => c.json(store.publicSettings()));
 
@@ -159,13 +150,43 @@ export function createApp(
     const topic = store.requireTopic(id);
     const currentSectionId = store.getCurrentSectionId();
     const boundaries = store.listBoundaries(id);
+    const gates = topicGates(store, topic.id, topic.phase);
     return c.json({
       topic,
       boundaries,
       boundary_snapshot: snapshotFromAnswers(boundaries),
+      boundary_confirmed: gates.boundaryConfirmed,
+      boundary_finalized: gates.boundaryFinalized,
       outline: store.getOutline(id),
       currentSection: currentSectionId ? store.getSection(currentSectionId) : null,
       notes: store.listNotes(id),
+    });
+  });
+
+  app.post("/api/topics/:id/confirm-boundary", (c) => {
+    const id = c.req.param("id");
+    let topic;
+    try {
+      topic = store.requireTopic(id);
+    } catch {
+      return c.json({ error: "not found" }, 404);
+    }
+    const stored = store.getTopicGates(id);
+    if (
+      !learnGatesFromServer({
+        phase: topic.phase,
+        boundaryConfirmed: stored.boundaryConfirmed,
+        boundaryFinalized: stored.boundaryFinalized,
+      }).boundaryFinalized
+    ) {
+      return c.json({ error: "boundary not finalized" }, 400);
+    }
+    store.setTopicGates(id, { boundaryConfirmed: true });
+    return c.json({
+      ok: true,
+      topicId: id,
+      ...topicGates(store, id, topic.phase),
+      state: appSnapshot(store),
     });
   });
 
@@ -265,6 +286,31 @@ export function createApp(
   });
 
   return { app, store, host };
+}
+
+function appSnapshot(store: Store): AppSnapshot {
+  const currentTopicId = store.getCurrentTopicId();
+  const topic = currentTopicId ? store.getTopic(currentTopicId) : null;
+  const gates = topic
+    ? topicGates(store, topic.id, topic.phase)
+    : { boundaryConfirmed: false, boundaryFinalized: false };
+  return {
+    currentTopicId,
+    topic,
+    currentSectionId: store.getCurrentSectionId(),
+    coachMode: store.hasLiveModel() ? "live" : "stub",
+    settings: store.publicSettings(),
+    ...gates,
+  };
+}
+
+function topicGates(store: Store, topicId: string, phase: string) {
+  const stored = store.getTopicGates(topicId);
+  return learnGatesFromServer({
+    phase,
+    boundaryConfirmed: stored.boundaryConfirmed,
+    boundaryFinalized: stored.boundaryFinalized,
+  });
 }
 
 function presentedToken(authorization: string | undefined, xToken: string | undefined): string {

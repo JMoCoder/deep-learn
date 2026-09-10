@@ -23,6 +23,28 @@ describe("store invariants", () => {
     assert.match(store.listNotes(topic.id)[0]!.body, /卡点/);
   });
 
+  it("persists boundary confirm/finalize on the topic, not only in phase", () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("闸门");
+    assert.deepEqual(store.getTopicGates(topic.id), {
+      boundaryConfirmed: false,
+      boundaryFinalized: false,
+    });
+    store.finalizeBoundaries(topic.id, [
+      { kind: "goal", question: "目标？", answer: "我能独立推一遍" },
+      { kind: "prior", question: "先验？", answer: "只会定义" },
+    ]);
+    assert.deepEqual(store.getTopicGates(topic.id), {
+      boundaryConfirmed: false,
+      boundaryFinalized: true,
+    });
+    store.setTopicGates(topic.id, { boundaryConfirmed: true });
+    assert.deepEqual(store.getTopicGates(topic.id), {
+      boundaryConfirmed: true,
+      boundaryFinalized: true,
+    });
+  });
+
   it("phase moves only through finalize helpers", () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("阶段");

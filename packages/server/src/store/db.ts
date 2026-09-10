@@ -41,7 +41,9 @@ function migrate(database: DatabaseSync): void {
       phase TEXT NOT NULL,
       export_state TEXT NOT NULL,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      boundary_confirmed INTEGER NOT NULL DEFAULT 0,
+      boundary_finalized INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS boundaries (
@@ -105,6 +107,8 @@ function migrate(database: DatabaseSync): void {
   addColumn(database, "outline_nodes", "target_chars INTEGER NOT NULL DEFAULT 0");
   addColumn(database, "notes", "reason_code TEXT NOT NULL DEFAULT '1'");
   addColumn(database, "notes", "note_type TEXT NOT NULL DEFAULT '思考'");
+  addColumn(database, "topics", "boundary_confirmed INTEGER NOT NULL DEFAULT 0");
+  addColumn(database, "topics", "boundary_finalized INTEGER NOT NULL DEFAULT 0");
 }
 
 function addColumn(database: DatabaseSync, table: string, definition: string): void {

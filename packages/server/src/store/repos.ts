@@ -169,6 +169,31 @@ export class Store {
     this.db.prepare("UPDATE topics SET updated_at = ? WHERE id = ?").run(this.now(), topicId);
   }
 
+  getTopicGates(topicId: string): { boundaryConfirmed: boolean; boundaryFinalized: boolean } {
+    const row = this.db
+      .prepare("SELECT boundary_confirmed, boundary_finalized FROM topics WHERE id = ?")
+      .get(topicId) as { boundary_confirmed: number; boundary_finalized: number } | undefined;
+    return {
+      boundaryConfirmed: Boolean(row?.boundary_confirmed),
+      boundaryFinalized: Boolean(row?.boundary_finalized),
+    };
+  }
+
+  setTopicGates(
+    topicId: string,
+    patch: { boundaryConfirmed?: boolean; boundaryFinalized?: boolean },
+  ): void {
+    this.requireTopic(topicId);
+    const current = this.getTopicGates(topicId);
+    const confirmed = patch.boundaryConfirmed ?? current.boundaryConfirmed;
+    const finalized = patch.boundaryFinalized ?? current.boundaryFinalized;
+    this.db
+      .prepare(
+        "UPDATE topics SET boundary_confirmed = ?, boundary_finalized = ?, updated_at = ? WHERE id = ?",
+      )
+      .run(confirmed ? 1 : 0, finalized ? 1 : 0, this.now(), topicId);
+  }
+
   listBoundaries(topicId: string): BoundaryRecord[] {
     const rows = this.db
       .prepare("SELECT * FROM boundaries WHERE topic_id = ? ORDER BY sort_order ASC")
@@ -286,6 +311,7 @@ export class Store {
       )
       .run(topicId);
     this.updateTopic(topicId, { phase: "outline_draft" });
+    this.setTopicGates(topicId, { boundaryConfirmed: false, boundaryFinalized: true });
     return this.listBoundaries(topicId);
   }
 

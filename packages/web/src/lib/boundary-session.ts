@@ -1,3 +1,11 @@
+/**
+ * Cold-start cache for Learn gates and the current-topic pointer.
+ *
+ * UI truth is only GET /api/state (currentTopicId, boundaryConfirmed,
+ * boundaryFinalized) and server phase / boundary events. These keys are
+ * overwritten after every successful state fetch. On conflict, state always
+ * wins — storage must not alone decide “card confirmed” or “current topic”.
+ */
 const CONFIRMED_PREFIX = "quantum.boundary-card.confirmed.";
 const FINALIZED_PREFIX = "quantum.boundary-card.finalized.";
 const TOPIC_PTR = "quantum.current-topic-id";
@@ -40,7 +48,7 @@ export function writeBoundaryFinalized(topicId: string, finalized: boolean): voi
   writeSessionFlag(`${FINALIZED_PREFIX}${topicId}`, finalized);
 }
 
-/** Last known current topic. Refresh recovery — not a substitute for app_state. */
+/** Last /api/state.currentTopicId. Cold-start hint — not a substitute for app_state. */
 export function readCachedTopicId(): string | null {
   if (typeof localStorage === "undefined") return null;
   try {
@@ -78,4 +86,16 @@ export function writeTopicAnchor(topicId: string, title: string): void {
   } catch {
     /* private mode */
   }
+}
+
+/** Mirror GET /api/state onto the cache. Call after every successful fetch. */
+export function overwriteGateCacheFromState(state: {
+  currentTopicId: string | null;
+  boundaryConfirmed: boolean;
+  boundaryFinalized: boolean;
+}): void {
+  writeCachedTopicId(state.currentTopicId);
+  if (!state.currentTopicId) return;
+  writeBoundaryConfirmed(state.currentTopicId, state.boundaryConfirmed);
+  writeBoundaryFinalized(state.currentTopicId, state.boundaryFinalized);
 }
