@@ -11,7 +11,8 @@ import {
   shouldShowOutlineConfirm,
   snapshotFromAnswers,
 } from "@quantum/shared";
-import { BOUNDARY_SCRIPT } from "./boundary-interview.js";
+import * as interview from "./boundary-interview.js";
+import { evaluateFinalize } from "./boundary-snapshot.js";
 
 describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
   it("packs full dimensions and keeps required-five finalize gate", () => {
@@ -109,7 +110,7 @@ describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
 
   it("lists stub interview kinds in core1 §3.1 order", () => {
     assert.deepEqual(
-      BOUNDARY_SCRIPT.map((s) => s.kind),
+      interview.BOUNDARY_SCRIPT.map((s) => s.kind),
       [
         "motivation",
         "goal",
@@ -131,6 +132,16 @@ describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
     ]);
     assert.deepEqual(missingFinalizeFields(fiveOnly), []);
     assert.ok(missingInterviewWalk(fiveOnly).includes("motivation"));
+    const check = evaluateFinalize([
+      { kind: "goal_outcome", answer: "我能做" },
+      { kind: "prior_level", answer: "零" },
+      { kind: "scope_out", answer: "没有" },
+      { kind: "depth", answer: "认路" },
+      { kind: "chunk_budget", answer: "20 分钟" },
+    ]);
+    assert.equal(check.ok, true);
+    assert.equal("REQUIRED_TO_FINALIZE" in interview, false);
+    assert.equal("canFinalize" in interview, false);
   });
 
   it("detects REFUSE_OFFSCOPE without inventing a new SSE domain name", () => {

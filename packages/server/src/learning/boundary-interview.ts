@@ -1,5 +1,4 @@
 import type { BoundaryKind, BoundaryRecord } from "@quantum/shared";
-import { evaluateFinalize } from "./boundary-snapshot.js";
 
 /**
  * Default interview order from core1 §3.1. Questions may merge semantics,
@@ -60,15 +59,6 @@ export const BOUNDARY_SCRIPT: Array<{
   },
 ];
 
-/** Interview kinds that fill the five operational required snapshot fields. */
-export const REQUIRED_TO_FINALIZE: BoundaryKind[] = [
-  "goal",
-  "prior",
-  "time",
-  "depth",
-  "constraint",
-];
-
 /** Load dim aliases. Last in the stub walk; answering any of these must finalize, not re-ask. */
 export const LOAD_KINDS: ReadonlySet<BoundaryKind> = new Set(["time", "chunk_budget", "time_budget"]);
 
@@ -91,10 +81,6 @@ export function nextBoundaryKind(existing: BoundaryRecord[]): BoundaryKind | nul
 
 export function questionFor(kind: BoundaryKind): string {
   return BOUNDARY_SCRIPT.find((s) => s.kind === kind)?.question ?? "还有什么边界需要说清？";
-}
-
-export function canFinalize(existing: BoundaryRecord[]) {
-  return evaluateFinalize(existing);
 }
 
 export function digestBoundaries(existing: BoundaryRecord[]): string {

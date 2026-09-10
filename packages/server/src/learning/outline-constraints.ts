@@ -1,8 +1,6 @@
 import type { BoundarySnapshot, OutlineDraftNode } from "@quantum/shared";
 import { leafBudget, parseChunkBudgetMinutes } from "@quantum/shared";
 
-export { leafBudget, parseChunkBudgetMinutes };
-
 export type OutlineConstraintResult = {
   ok: boolean;
   errors: string[];

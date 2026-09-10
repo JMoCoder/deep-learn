@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import type { BoundaryKind } from "@quantum/shared";
+import { leafBudget } from "@quantum/shared";
 import { planCoachTurn } from "../agent/coach.js";
 import { createQuantumTools } from "../tools/factory.js";
 import { openMemoryDb } from "../store/db.js";
@@ -9,7 +10,6 @@ import { flattenOutline, Store } from "../store/repos.js";
 import { collectDraftLeaves } from "./prereq-edges.js";
 import {
   inferWeeklyMinutes,
-  leafBudget,
   outlineFromBoundaries,
   trimOutlineToLeafCap,
 } from "./outline-from-boundaries.js";

@@ -2,8 +2,6 @@ import type { BoundaryRecord, OutlineDraftNode, OutlineNode } from "@quantum/sha
 import { leafBudget, parseChunkBudgetMinutes } from "@quantum/shared";
 import { collectDraftLeaves, ensureDraftPrereqEdges, flattenDraft } from "./prereq-edges.js";
 
-export { leafBudget, parseChunkBudgetMinutes };
-
 /**
  * Deterministic outline scaffold used by the local coach and as a prompt example.
  * Sequence is loosely Gagné / backward-design: orient → prerequisites → core → apply → transfer.
