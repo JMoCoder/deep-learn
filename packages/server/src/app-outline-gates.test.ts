@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { countOutlineLeaves } from "@quantum/shared";
 import { createApp } from "./app.js";
 import { outlineFromBoundaries } from "./learning/outline-from-boundaries.js";
 import { openMemoryDb } from "./store/db.js";
@@ -55,13 +56,13 @@ describe("outline confirm / reduce HTTP gates", () => {
 
   it("reduce-outline re-drafts via draft_outline", async () => {
     const { app, topic, store } = draftTopic(true);
-    const beforeLeaves = flattenLeafCount(store.getOutline(topic.id));
+    const beforeLeaves = countOutlineLeaves(store.getOutline(topic.id));
     const res = await app.request(`/api/topics/${topic.id}/reduce-outline`, { method: "POST" });
     assert.equal(res.status, 200);
     const body = (await res.json()) as { ok: boolean; leafCount?: number };
     assert.equal(body.ok, true);
     assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
-    const afterLeaves = flattenLeafCount(store.getOutline(topic.id));
+    const afterLeaves = countOutlineLeaves(store.getOutline(topic.id));
     assert.ok(afterLeaves > 0);
     assert.ok(typeof body.leafCount === "number");
     assert.equal(body.leafCount, afterLeaves);
@@ -69,15 +70,3 @@ describe("outline confirm / reduce HTTP gates", () => {
   });
 });
 
-function flattenLeafCount(nodes: Array<{ children: unknown[] }>): number {
-  let n = 0;
-  const walk = (list: Array<{ children: unknown[] }>) => {
-    for (const node of list) {
-      const kids = node.children as Array<{ children: unknown[] }>;
-      if (!kids.length) n += 1;
-      else walk(kids);
-    }
-  };
-  walk(nodes);
-  return n;
-}

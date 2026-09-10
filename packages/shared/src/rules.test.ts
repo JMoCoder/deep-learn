@@ -7,10 +7,12 @@ import {
   FINALIZE_GATE_SENTENCE,
   FINALIZE_REQUIRED_FIELDS,
   INTERVIEW_WALK_FIELDS,
+  OUTLINE_ACTION_CARD_ONLY,
   OVER_BUDGET_COPY,
   canConfirmBoundaryCard,
   evaluateOutlineLeafBudget,
   leafBudget,
+  leafCapFromChunkBudget,
   looksLikeOutlineConfirm,
   missingFinalizeFields,
   missingInterviewWalk,
@@ -68,6 +70,8 @@ describe("Red-2 shared rule single-source", () => {
   it("leafBudget / parseChunkBudgetMinutes keep the frozen 20 分钟 → 6 cap", () => {
     assert.equal(parseChunkBudgetMinutes("每次 20 分钟"), 20);
     assert.equal(leafBudget(20), 6);
+    assert.equal(leafCapFromChunkBudget("每次 20 分钟"), 6);
+    assert.equal(leafCapFromChunkBudget("每周 3 小时"), 12);
     assert.equal(leafBudget(parseChunkBudgetMinutes("每周 3 小时")), 12);
     assert.ok(leafBudget(10_000) <= 12);
   });
@@ -105,6 +109,8 @@ describe("Red-2 shared rule single-source", () => {
     );
     assert.equal(shouldDeferOutlineActionToCard({ text: "可以", pendingOutline: true }), true);
     assert.equal(shouldDeferOutlineActionToCard({ text: "减叶", pendingOutline: true }), true);
+    assert.match(OUTLINE_ACTION_CARD_ONLY, /大纲卡/);
+    assert.match(OUTLINE_ACTION_CARD_ONLY, /可以/);
     assert.equal(shouldDeferOutlineActionToCard({ text: "可以", pendingOutline: false }), false);
     assert.equal(shouldDeferOutlineActionToCard({ text: "这段在讲什么", pendingOutline: true }), false);
   });

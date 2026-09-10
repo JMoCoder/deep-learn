@@ -1,5 +1,5 @@
 import type { BoundaryRecord, OutlineDraftNode, OutlineNode } from "@quantum/shared";
-import { leafBudget, parseChunkBudgetMinutes } from "@quantum/shared";
+import { leafCapFromChunkBudget, parseChunkBudgetMinutes, snapshotFromAnswers } from "@quantum/shared";
 import { collectDraftLeaves, ensureDraftPrereqEdges, flattenDraft } from "./prereq-edges.js";
 
 /**
@@ -9,10 +9,9 @@ import { collectDraftLeaves, ensureDraftPrereqEdges, flattenDraft } from "./prer
  * TODO (product research): leaf-count vs. reported weekly minutes; transfer node timing.
  */
 
+/** Load-minutes truth is snapshot.chunk_budget → @quantum/shared parse. */
 export function inferWeeklyMinutes(boundaries: BoundaryRecord[]): number {
-  const time =
-    boundaries.find((b) => b.kind === "time" || b.kind === "chunk_budget")?.answer ?? "";
-  return parseChunkBudgetMinutes(time);
+  return parseChunkBudgetMinutes(snapshotFromAnswers(boundaries).chunk_budget);
 }
 
 export function titleFromBoundaries(boundaries: BoundaryRecord[], fallback = "未命名主题"): string {
@@ -36,8 +35,9 @@ export function outlineFromBoundaries(boundaries: BoundaryRecord[]): {
   const constraint =
     boundaries.find((b) => b.kind === "constraint" || b.kind === "scope_out")?.answer.trim() ||
     "无额外约束";
-  const minutes = inferWeeklyMinutes(boundaries);
-  const leaves = leafBudget(minutes);
+  const snapshot = snapshotFromAnswers(boundaries);
+  const minutes = parseChunkBudgetMinutes(snapshot.chunk_budget);
+  const leaves = leafCapFromChunkBudget(snapshot.chunk_budget);
 
   const title = titleFromBoundaries(boundaries);
   const nodes: OutlineDraftNode[] = [

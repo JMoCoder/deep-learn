@@ -1,6 +1,6 @@
 import { Agent, type AgentEvent, type AgentMessage } from "@mariozechner/pi-agent-core";
 import { streamSimple } from "@mariozechner/pi-ai";
-import type { SessionEvent, SessionMessage, TopicSummary } from "@quantum/shared";
+import type { SessionCitation, SessionEvent, SessionMessage, TopicSummary, TutorStrategy } from "@quantum/shared";
 import { createQuantumTools } from "../tools/factory.js";
 import type { Store } from "../store/repos.js";
 import { bus } from "./bus.js";
@@ -176,6 +176,9 @@ export class AgentHost {
               setTurnStrategy(topicId, packed.L0.strategyHint);
             }
             const meta = peekTurnMeta(topicId);
+            if (role === "assistant") {
+              stampLearnProjection(msg, { strategy: meta.strategy, citations: meta.citations });
+            }
             bus.emit({
               type: "message",
               role,
@@ -241,7 +244,28 @@ function isToolError(event: AgentEvent): boolean {
   return Boolean((event as { isError?: boolean }).isError);
 }
 
-function toClientMessages(raw: AgentMessage[]): SessionMessage[] {
+type LearnProjection = {
+  strategy?: TutorStrategy;
+  citations?: SessionCitation[];
+};
+
+function stampLearnProjection(msg: AgentMessage, projection: LearnProjection): void {
+  const target = msg as AgentMessage & LearnProjection;
+  if (projection.strategy) target.strategy = projection.strategy;
+  if (projection.citations && projection.citations.length > 0) {
+    target.citations = projection.citations;
+  }
+}
+
+function learnProjectionFromRaw(msg: AgentMessage): LearnProjection {
+  const raw = msg as AgentMessage & LearnProjection;
+  return {
+    ...(raw.strategy ? { strategy: raw.strategy } : {}),
+    ...(raw.citations?.length ? { citations: raw.citations } : {}),
+  };
+}
+
+export function toClientMessages(raw: AgentMessage[]): SessionMessage[] {
   const out: SessionMessage[] = [];
   for (const [index, msg] of raw.entries()) {
     const role = (msg as { role?: string }).role;
@@ -249,7 +273,13 @@ function toClientMessages(raw: AgentMessage[]): SessionMessage[] {
     if (role === "user" || role === "assistant") {
       const text = messageText(msg);
       if (text) {
-        out.push({ id: `m${index}`, role, text, createdAt: ts });
+        out.push({
+          id: `m${index}`,
+          role,
+          text,
+          createdAt: ts,
+          ...(role === "assistant" ? learnProjectionFromRaw(msg) : {}),
+        });
       }
     } else if (role === "toolResult") {
       const toolName = String((msg as { toolName?: string }).toolName ?? "tool");

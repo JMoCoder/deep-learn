@@ -1,5 +1,12 @@
 import type { AgentTool } from "@mariozechner/pi-agent-core";
-import { FINALIZE_GATE_SENTENCE, type ExportFormat, type OutlineDraftNode } from "@quantum/shared";
+import {
+  FINALIZE_GATE_SENTENCE,
+  OUTLINE_ACTION_CARD_ONLY,
+  evaluateOutlineLeafBudget,
+  shouldDeferOutlineActionToCard,
+  type ExportFormat,
+  type OutlineDraftNode,
+} from "@quantum/shared";
 import { Type } from "typebox";
 import { exportTopic } from "../export/index.js";
 import { questionFor } from "../learning/boundary-interview.js";
@@ -23,6 +30,15 @@ function refuseTurnLocked(runtime: SessionRuntime, extraText?: string): boolean 
   if (meta.strategy === "REFUSE_OFFSCOPE") return true;
   const texts = [meta.userText, extraText].filter((t): t is string => Boolean(t?.trim()));
   return texts.some((text) => topicHitsScopeOut(runtime.store, topic.id, text));
+}
+
+/** Live and stub share this: chat「可以 / 减叶」cannot drive outline tools. HTTP card path has no turn text. */
+function deferOutlineChatAction(runtime: SessionRuntime, pendingOutline: boolean) {
+  const meta = peekTurnMeta(runtime.topicId);
+  if (!shouldDeferOutlineActionToCard({ text: meta.userText ?? "", pendingOutline })) {
+    return null;
+  }
+  return textResult(OUTLINE_ACTION_CARD_ONLY, { ok: false, deferredToCard: true });
 }
 
 const Kind = Type.Union([
@@ -171,6 +187,8 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       if (topic.phase !== "outline_draft" && topic.phase !== "learning") {
         throw new Error("只有大纲阶段或学习阶段可以起草大纲");
       }
+      const deferred = deferOutlineChatAction(runtime, runtime.store.getOutline(topic.id).length > 0);
+      if (deferred) return deferred;
       const args = params as {
         title: string;
         nodes: OutlineDraftNode[];
@@ -205,7 +223,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
   const finalizeOutline: AgentTool = {
     name: "finalize_outline",
     label: "锁定大纲",
-    description: "锁定大纲并进入 learning。之后用 generate_section 投影正文。",
+    description: `锁定大纲并进入 learning。${OUTLINE_ACTION_CARD_ONLY} 之后用 generate_section 投影正文。`,
     parameters: Type.Object({
       title: Type.Optional(Type.String()),
     }),
@@ -213,7 +231,18 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       const topic = runtime.requireTopic();
       const draft = runtime.store.getOutline(topic.id);
       if (draft.length === 0) throw new Error("还没有大纲，先 draft_outline");
+      const deferred = deferOutlineChatAction(runtime, draft.length > 0);
+      if (deferred) return deferred;
       const snapshot = snapshotFromRecords(runtime.store.listBoundaries(topic.id));
+      const budget = evaluateOutlineLeafBudget(draft, snapshot.chunk_budget);
+      if (!budget.canConfirm) {
+        return textResult(`大纲未通过约束：叶子 ${budget.leafCount} 超过 chunk_budget 上限 ${budget.leafCap}`, {
+          ok: false,
+          errors: [`叶子 ${budget.leafCount} 超过 chunk_budget 上限 ${budget.leafCap}`],
+          leafCount: budget.leafCount,
+          leafCap: budget.leafCap,
+        });
+      }
       const check = evaluateOutlineDraft(storedOutlineToDraft(draft), snapshot);
       if (!check.ok) {
         return textResult(`大纲未通过约束：${check.errors.join("；")}`, {

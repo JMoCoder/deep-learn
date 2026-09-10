@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import type { BoundaryKind } from "@quantum/shared";
-import { leafBudget } from "@quantum/shared";
+import { leafCapFromChunkBudget } from "@quantum/shared";
 import { planCoachTurn } from "../agent/coach.js";
+import { beginTurn, endTurn } from "../agent/turn-meta.js";
 import { createQuantumTools } from "../tools/factory.js";
 import { openMemoryDb } from "../store/db.js";
 import { flattenOutline, Store } from "../store/repos.js";
@@ -89,7 +90,7 @@ describe("1.4 / 五步2 outline leaf budget", () => {
         createdAt: 0,
       })),
     );
-    const cap = leafBudget(minutes);
+    const cap = leafCapFromChunkBudget("每次 20 分钟");
     assert.equal(minutes, 20);
     assert.equal(cap, 6);
 
@@ -151,6 +152,30 @@ describe("1.4 / 五步2 outline leaf budget", () => {
     const ok = await exec(finalize, {});
     assert.notEqual(ok.details.ok, false);
     assert.equal(store.requireTopic(topic.id).phase, "learning");
+  });
+
+  it("live/stub tool path defers chat 可以 / 减叶 to the Learn card", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("双脑同闸");
+    store.finalizeBoundaries(topic.id, WALK_20);
+    store.replaceOutline(topic.id, FAT_SEVEN.title, FAT_SEVEN.nodes as never, "draft");
+    const tools = toolsFor(store, topic.id);
+    const finalize = tools.find((t) => t.name === "finalize_outline")!;
+    const draft = tools.find((t) => t.name === "draft_outline")!;
+
+    beginTurn(topic.id, undefined, "可以");
+    const confirm = await exec(finalize, {});
+    endTurn(topic.id);
+    assert.equal(confirm.details.ok, false);
+    assert.equal(confirm.details.deferredToCard, true);
+    assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
+
+    beginTurn(topic.id, undefined, "减叶");
+    const reduce = await exec(draft, outlineFromBoundaries(store.listBoundaries(topic.id)));
+    endTurn(topic.id);
+    assert.equal(reduce.details.ok, false);
+    assert.equal(reduce.details.deferredToCard, true);
+    assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
   });
 
   it("trimOutlineToLeafCap does not raise the cap", () => {
