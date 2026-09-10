@@ -79,7 +79,7 @@ pnpm --filter @quantum/web build
 packages/shared   tool names, events, DTOs
 packages/server   Pi agent, tools, SQLite, SSE, export
 packages/web      PWA (Learn / Books / Me)
-docs/             IA, backend baseline, core1/core2, acceptance
+docs/             IA, backend-baseline-v0.5, two-cores acceptance, hand-click
 ```
 
 ```
@@ -94,7 +94,7 @@ browser  :43127  →  nginx / vite (PWA)
 
 ### Learn
 
-Interview chips → **boundary card** (user confirms) → **outline confirm** (leaf count must fit the load budget) → talk + GROUND notes. A `scope_out` hit is **REFUSE**: no note card and no CiteRow on that turn.
+Interview chips → **boundary card** (user confirms) → **outline card** (leaf count must fit the load budget) → talk + grounded notes. A `scope_out` hit is **refuse + reflow**: no note card and no citation row on that turn.
 
 Header: topic · section. Left drawer = outline. Right drawer = session. No composer in the article body.
 
@@ -128,17 +128,17 @@ Keys stay in SQLite (`/data/quantum.db`). They are never written to chat, SSE, l
 
 - Local-only. The runtime never phones home.
 - `scope_in` / `scope_out` stay as the user wrote them.
-- Notes belong to the current topic. Refuse beats GROUND when the turn is out of scope.
+- Notes belong to the current topic. Refuse + reflow beats grounding when the turn is out of scope.
 
 ## Verify two cores (brief)
 
 1. PWA → **Books** → right drawer → **New topic**. Stub walks eight dimensions (motivation → outcome → success evidence → prior → prereqs → scope_in → exclude → depth → load).
 2. After `boundary_finalized`, confirm the independent boundary card on Learn, then the outline, then enter `learning`.
-3. Follow-ups in the session should show `message.strategy` + `citations[]`. Notes come only from `append_note`.
-4. Export `md | html | epub` from Books; expect `export_ready`.
-5. In learning, hit `scope_out` (for example exclude “string theory”, then ask to cover it) → `REFUSE_OFFSCOPE`, no note.
+3. Follow-ups in the session should show a citation row when the section has body. Notes come only from `append_note`.
+4. Export `md | html | epub` from Books; expect a real download (`export_ready`).
+5. In learning, hit `scope_out` (for example exclude “string theory”, then ask to cover it) → short refuse + pull back to the current leaf, no note.
 
-Hand-click path: `docs/hand-click-five-steps.md`. IA: `docs/IA-agent-v1.md`. Cores: `docs/cores.md`.
+Hand-click path: `docs/hand-click-five-steps.md`. Contract: `docs/backend-baseline-v0.5.md`. Cores: `docs/cores.md`.
 
 ## License
 

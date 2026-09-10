@@ -1,9 +1,10 @@
 # Quantum 核心① — 新建主题引导：专业调研草稿 v0
 
+> **Historical.** 调研底稿，不再当契约或 L0/L1 真源。现行过线：[`backend-baseline-v0.5.md`](./backend-baseline-v0.5.md) · [`two-cores-acceptance-v0.md`](./two-cores-acceptance-v0.md)。用户可见名：**Deep Learn**（Quantum = 内部包名）。  
 > 作者：结野主税（产品）  
 > 日期：2026-09-06  
-> 状态：调研草稿（首迭代输入；非正式定稿）  
-> 依据：用户锁定两核之①；对齐 IA v1.3.1 / 基线工具面  
+> 状态：historical（首迭代输入；非正式定稿）  
+> 依据：用户锁定两核之①；对齐当时 IA / 基线工具面  
 > 非目标：本文不写业务代码；不替代核心②（侧栏 AI 交互）完整方案（文末只给衔接点）
 
 ---

@@ -8,6 +8,11 @@ release dates that were never tagged.
 
 ### Changed
 
+- Docs v0.5 alignment (red 5): `backend-baseline-v0.5` follows `@quantum/shared`
+  + factory (tool args, five-required gate, strategy closed set, `reason_code`).
+  Two-cores L0/L1 mapped to the packer. Hand-click covers reject+reflow /
+  citations / outline card and does not teach strategy enum names. Old
+  `backend-baseline.md` superseded; core1/core2 research marked historical.
 - Red-4 freeze: coach no longer confirms or leaf-reduces from chat; outline
   confirm / 重拟 go through Learn card gates + tools. Export POST only
   returns `ok:true` after a real file. Root `pnpm test` runs shared + server + web.
