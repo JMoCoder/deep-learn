@@ -6,6 +6,16 @@ release dates that were never tagged.
 
 ## [Unreleased]
 
+### Security
+
+- Local preview lockdown: compose publishes `127.0.0.1:43127` and `127.0.0.1:43128`
+  only; server default host is loopback. `QUANTUM_API_TOKEN` (compose default
+  `local-preview`, a weak loopback-only secret) gates every `/api/*` except
+  `GET /api/health`. Nginx and the Vite dev proxy inject `X-Quantum-Token`;
+  the browser never holds the token (no `VITE_*`). CORS allowlists
+  `http://127.0.0.1:43127` and `http://localhost:43127`. Export paths must
+  stay under the exports root after resolve/realpath.
+
 ### Added
 
 - English primary `README.md` and a matching Chinese translation in `README.zh-CN.md`.

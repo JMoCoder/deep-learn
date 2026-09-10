@@ -1,21 +1,27 @@
 # v1 preview: docker compose up --build
-#   PWA  http://127.0.0.1:43127  (nginx :80, published on server)
-#   API  http://127.0.0.1:43128/api/health
+#   PWA  http://127.0.0.1:43127  (nginx :80, published on loopback only)
+#   API  http://127.0.0.1:43128/api/health  (loopback only; other /api needs token)
 # web shares server netns so /api is same-origin. Volume quantum-data → /data.
+#
+# QUANTUM_API_TOKEN default `local-preview` is a weak loopback-only secret.
+# Nginx injects X-Quantum-Token on /api — the browser never holds it.
+# Change the token and bind explicitly before any LAN/public publish.
+# Intentional non-loopback bind must set QUANTUM_HOST and rewrite `ports:`.
 services:
   server:
     build:
       context: .
       target: server
     environment:
-      QUANTUM_HOST: "0.0.0.0"
+      QUANTUM_HOST: "127.0.0.1"
       QUANTUM_PORT: "43128"
       QUANTUM_DATA_DIR: /data
+      QUANTUM_API_TOKEN: "${QUANTUM_API_TOKEN:-local-preview}"
     volumes:
       - quantum-data:/data
     ports:
-      - "43128:43128"
-      - "43127:80"
+      - "127.0.0.1:43128:43128"
+      - "127.0.0.1:43127:80"
     healthcheck:
       test:
         [
@@ -32,6 +38,8 @@ services:
     build:
       context: .
       target: web
+    environment:
+      QUANTUM_API_TOKEN: "${QUANTUM_API_TOKEN:-local-preview}"
     # Share the server netns so /api works even when the Docker
     # bridge drops inter-container packets (common on nested VMs).
     network_mode: service:server

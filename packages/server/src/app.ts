@@ -1,5 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
@@ -8,12 +8,48 @@ import { snapshotFromAnswers } from "@quantum/shared";
 import { AgentHost } from "./agent/runtime.js";
 import { bus } from "./agent/bus.js";
 import { config } from "./config.js";
+import { isSafeExportSegment, resolveExportFile } from "./export/safe-path.js";
 import { collectPrereqEdges } from "./learning/prereq-edges.js";
 import { Store } from "./store/repos.js";
 
-export function createApp(store = new Store(), host = new AgentHost(store)) {
+export const LOCAL_PREVIEW_ORIGINS = [
+  "http://127.0.0.1:43127",
+  "http://localhost:43127",
+] as const;
+
+export type CreateAppOptions = {
+  /** Override process env. Empty/omit with no env token = ungated (unit tests). */
+  apiToken?: string;
+};
+
+export function createApp(
+  store = new Store(),
+  host = new AgentHost(store),
+  options: CreateAppOptions = {},
+) {
   const app = new Hono();
-  app.use("/api/*", cors());
+  const apiToken = (options.apiToken ?? config.apiToken).trim();
+
+  app.use(
+    "/api/*",
+    cors({
+      origin: [...LOCAL_PREVIEW_ORIGINS],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowHeaders: ["Authorization", "Content-Type", "X-Quantum-Token"],
+      maxAge: 600,
+    }),
+  );
+
+  app.use("/api/*", async (c, next) => {
+    if (c.req.method === "OPTIONS") return next();
+    if (c.req.path === "/api/health" && c.req.method === "GET") return next();
+    if (!apiToken) return next();
+    const presented = presentedToken(c.req.header("authorization"), c.req.header("x-quantum-token"));
+    if (!tokenMatches(presented, apiToken)) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    return next();
+  });
 
   app.get("/api/health", (c) =>
     c.json({ ok: true, name: "quantum", coachMode: store.hasLiveModel() ? "live" : "stub" }),
@@ -192,10 +228,18 @@ export function createApp(store = new Store(), host = new AgentHost(store)) {
   app.get("/api/exports/:topicId/:filename", (c) => {
     const topicId = c.req.param("topicId");
     const filename = c.req.param("filename");
-    if (filename.includes("..") || filename.includes("/")) {
-      return c.json({ error: "bad filename" }, 400);
+    if (!isSafeExportSegment(topicId) || !isSafeExportSegment(filename)) {
+      return c.json({ error: "bad path" }, 400);
     }
-    const abs = resolve(config.dataDir, "exports", topicId, filename);
+    try {
+      store.requireTopic(topicId);
+    } catch {
+      return c.json({ error: "not found" }, 404);
+    }
+    const abs = resolveExportFile(topicId, filename);
+    if (!abs) {
+      return c.json({ error: "bad path" }, 400);
+    }
     try {
       const buf = readFileSync(abs);
       return new Response(buf, {
@@ -221,6 +265,19 @@ export function createApp(store = new Store(), host = new AgentHost(store)) {
   });
 
   return { app, store, host };
+}
+
+function presentedToken(authorization: string | undefined, xToken: string | undefined): string {
+  const header = authorization ?? "";
+  if (/^bearer\s+/i.test(header)) return header.replace(/^bearer\s+/i, "").trim();
+  return (xToken ?? "").trim();
+}
+
+function tokenMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 function sleep(ms: number): Promise<void> {
