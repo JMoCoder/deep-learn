@@ -16,6 +16,7 @@
 :root {
   --sidebar-width: min(22rem, 92vw);
   --outline-rail-width: 18rem;
+  --session-rail-width: 22rem;
   /* py-2 + icon button h-9 — Learn top bar and drawer title share this so their border-b is one rule. */
   --top-region-height: 3.25rem;
 }
@@ -24,6 +25,7 @@
   :root {
     --sidebar-width: min(26rem, 92vw);
     --outline-rail-width: 20rem;
+    --session-rail-width: 26rem;
   }
 }
 

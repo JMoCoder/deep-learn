@@ -10,7 +10,12 @@ import { LearnTab } from "./LearnTab.tsx";
 
 function mountLearn(
   frame = true,
-  open: { outlineOpen?: boolean; sessionOpen?: boolean; outlinePersistent?: boolean } = {},
+  open: {
+    outlineOpen?: boolean;
+    sessionOpen?: boolean;
+    outlinePersistent?: boolean;
+    sessionPersistent?: boolean;
+  } = {},
 ): Root {
   const host = document.createElement("div");
   if (frame) host.setAttribute("data-app-frame", "");
@@ -55,6 +60,7 @@ function mountLearn(
           outlineOpen: open.outlineOpen ?? false,
           outlinePersistent: open.outlinePersistent ?? false,
           sessionOpen: open.sessionOpen ?? true,
+          sessionPersistent: open.sessionPersistent ?? false,
           onOutlineOpen: () => {},
           onSessionOpen: () => {},
           onSelectSection: () => {},
@@ -168,6 +174,155 @@ describe("Learn outline rail + full-width stage", () => {
     assert.match(rail.className, /\bw-0\b/);
     assert.equal(drawer.getAttribute("data-state"), "open");
     assert.equal(drawer.hasAttribute("inert"), false);
+    root.unmount();
+  });
+});
+
+describe("Learn session rail + full-width stage", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it("keeps a persistent session rail in flow, not an overlay drawer", () => {
+    const root = mountLearn(true, {
+      outlineOpen: false,
+      sessionOpen: true,
+      sessionPersistent: true,
+    });
+    const rail = document.querySelector("[data-testid=session-rail]");
+    const drawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=right]");
+    const article = document.querySelector("[data-testid=learn-article]");
+    const header = document.querySelector("[data-testid=session-rail-header]");
+    assert.ok(rail);
+    assert.ok(drawer);
+    assert.ok(article);
+    assert.ok(header);
+    assert.equal(rail.getAttribute("data-state"), "open");
+    assert.match(rail.className, /w-\[var\(--session-rail-width\)\]/);
+    assert.match(rail.className, /transition-\[width\]/);
+    assert.equal(/\babsolute\b/.test(rail.className), false);
+    assert.equal(drawer.getAttribute("data-state"), "closed");
+    assert.equal(drawer.hasAttribute("inert"), true);
+    assert.match(article.className, /\bw-full\b/);
+    assert.match(header.className, /h-\[var\(--top-region-height\)\]/);
+    root.unmount();
+  });
+
+  it("collapses the persistent session rail with a width transition", () => {
+    const root = mountLearn(true, {
+      sessionOpen: false,
+      sessionPersistent: true,
+    });
+    const rail = document.querySelector("[data-testid=session-rail]");
+    const drawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=right]");
+    const toggle = document.querySelector("[data-testid=learn-session-toggle]");
+    assert.ok(rail);
+    assert.ok(drawer);
+    assert.ok(toggle);
+    assert.equal(rail.getAttribute("data-state"), "closed");
+    assert.match(rail.className, /\bw-0\b/);
+    assert.match(rail.className, /transition-\[width\]/);
+    assert.equal(drawer.getAttribute("data-state"), "closed");
+    assert.equal(toggle.getAttribute("aria-expanded"), "false");
+    root.unmount();
+  });
+
+  it("toggles the persistent session rail from the top-bar button", () => {
+    let sessionOpen = true;
+    const host = document.createElement("div");
+    host.setAttribute("data-app-frame", "");
+    host.className = "relative flex h-dvh flex-col";
+    document.body.appendChild(host);
+    const root = createRoot(host);
+
+    function render() {
+      act(() => {
+        root.render(
+          createElement(
+            LocaleProvider,
+            null,
+            createElement(LearnTab, {
+              topic: {
+                id: "t1",
+                title: "量子力学",
+                phase: "learning",
+                exportState: "idle",
+                createdAt: 1,
+                updatedAt: 1,
+              },
+              section: {
+                id: "s1",
+                topicId: "t1",
+                outlineNodeId: "n1",
+                title: "测量",
+                bodyMd: "正文",
+                generatedAt: 1,
+              },
+              outline: [],
+              prereqEdges: [],
+              currentSectionId: "s1",
+              outlineOpen: false,
+              outlinePersistent: true,
+              sessionOpen,
+              sessionPersistent: true,
+              onOutlineOpen: () => {},
+              onSessionOpen: (open: boolean) => {
+                sessionOpen = open;
+                render();
+              },
+              onSelectSection: () => {},
+              messages: [],
+              liveRows: [],
+              streaming: "",
+              busy: false,
+              coachMode: "stub",
+              error: null,
+              onSend: () => {},
+              snapshot: emptyBoundarySnapshot(),
+              askedKinds: [],
+              pendingBoundary: false,
+              pendingOutline: false,
+              onConfirmBoundary: () => {},
+            }),
+          ),
+        );
+      });
+    }
+
+    render();
+    const toggle = document.querySelector<HTMLButtonElement>("[data-testid=learn-session-toggle]");
+    const rail = () => document.querySelector("[data-testid=session-rail]");
+    assert.ok(toggle);
+    assert.equal(rail()?.getAttribute("data-state"), "open");
+    act(() => {
+      toggle.click();
+    });
+    assert.equal(sessionOpen, false);
+    assert.equal(rail()?.getAttribute("data-state"), "closed");
+    assert.match(rail()?.className ?? "", /\bw-0\b/);
+    assert.match(rail()?.className ?? "", /transition-\[width\]/);
+    act(() => {
+      toggle.click();
+    });
+    assert.equal(sessionOpen, true);
+    assert.equal(rail()?.getAttribute("data-state"), "open");
+    root.unmount();
+  });
+
+  it("collapses the session rail on a narrow viewport and uses the overlay drawer instead", () => {
+    const root = mountLearn(true, {
+      sessionOpen: true,
+      sessionPersistent: false,
+    });
+    const rail = document.querySelector("[data-testid=session-rail]");
+    const drawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=right]");
+    assert.ok(rail);
+    assert.ok(drawer);
+    assert.equal(rail.getAttribute("data-state"), "closed");
+    assert.match(rail.className, /\bw-0\b/);
+    assert.equal(drawer.getAttribute("data-state"), "open");
+    assert.equal(drawer.hasAttribute("inert"), false);
+    assert.match(drawer.className, /\babsolute\b/);
     root.unmount();
   });
 });
