@@ -11,14 +11,14 @@ import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { booksNoteMetaLine, countProjectedLeaves } from "@/lib/session-display";
-import { useOutlineRail } from "@/lib/use-outline-rail";
+import { useWideLayout } from "@/lib/use-outline-rail";
 import { phaseText, useLocale, useT, type Locale } from "@/i18n";
 import { cn, formatTime } from "@/lib/utils";
 
 export const BOOKS_PANE_KEY = "quantum.booksContentPane";
 export type BooksPane = "body" | "notes";
 
-/** Selected chip fill per pane. The content surface reuses the same token. */
+/** Selected chip fill per pane. Wide content reuses the same token. */
 export const BOOKS_PANE_SURFACE = {
   body: "bg-paper",
   notes: "bg-paper-deep/70",
@@ -29,6 +29,15 @@ export const BOOKS_PANE_INACTIVE = "bg-paper-ink/30";
 
 export function booksActiveSurface(pane: BooksPane): string {
   return BOOKS_PANE_SURFACE[pane];
+}
+
+/** Phone main area always matches Body/正文. Notes chip color stays on the tab. */
+export function booksNarrowMainSurface(): string {
+  return BOOKS_PANE_SURFACE.body;
+}
+
+export function booksMainSurface(pane: BooksPane, wide: boolean): string {
+  return wide ? booksActiveSurface(pane) : booksNarrowMainSurface();
 }
 
 export function booksSpreadPaneSurface(own: BooksPane, active: BooksPane): string {
@@ -78,7 +87,7 @@ export function BooksTab({
 }) {
   const t = useT();
   const locale = useLocale();
-  const wide = useOutlineRail();
+  const wide = useWideLayout();
   const [exportId, setExportId] = useState<string | null>(null);
   const [pane, setPane] = useState<BooksPane>(readBooksPane);
   const goal =
@@ -114,7 +123,7 @@ export function BooksTab({
           className={cn(
             "h-full min-h-0 px-5",
             wide ? "flex flex-col overflow-hidden py-4" : "quantum-scroll overflow-y-auto py-6",
-            topic && booksActiveSurface(pane),
+            topic && booksMainSurface(pane, wide),
           )}
         >
           {!topic ? (
@@ -181,7 +190,7 @@ export function BooksTab({
                 <section
                   role="tabpanel"
                   data-testid="books-pane-body"
-                  className={booksActiveSurface("body")}
+                  className={booksNarrowMainSurface()}
                 >
                   <BodyCopy section={section} />
                 </section>
@@ -189,7 +198,7 @@ export function BooksTab({
                 <section
                   role="tabpanel"
                   data-testid="books-pane-notes"
-                  className={booksActiveSurface("notes")}
+                  className={booksNarrowMainSurface()}
                 >
                   <NotesCopy notes={notes} locale={locale} />
                 </section>
@@ -424,11 +433,6 @@ function TopicHero({
               <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
               {goal ? (
                 <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
-              ) : (
-                <p className="mt-2 text-sm text-paper-muted">{t("books.noGoal")}</p>
-              )}
-              {topic.phase === "outline_draft" ? (
-                <p className="mt-2 text-xs text-paper-muted">{t("books.outlineOnLearn")}</p>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-1.5">{chips}</div>
             </>
@@ -437,7 +441,6 @@ function TopicHero({
               <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">
                 {t("books.noCurrentTitle")}
               </h1>
-              <p className="mt-2 text-sm text-paper-muted">{t("books.noCurrentBody")}</p>
               <div className="mt-3 flex flex-wrap gap-1.5">{chips}</div>
             </>
           )}
