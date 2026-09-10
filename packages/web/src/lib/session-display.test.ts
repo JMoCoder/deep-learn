@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SessionMessage } from "@quantum/shared";
 import {
+  booksNoteMetaLine,
   citationLabel,
   citationsFromTool,
   citationsFromWire,
@@ -9,6 +10,7 @@ import {
   lastStrategy,
   strategyChipView,
   strategyLabel,
+  uiNoteType,
   visibleCitations,
   visibleLiveRows,
   type LiveSessionRow,
@@ -166,5 +168,22 @@ describe("2.7 refuse chip never paints GROUND", () => {
     assert.equal(visible.some((r) => r.kind === "cite"), false);
     assert.equal(visible.some((r) => r.kind === "note"), false);
     assert.equal(visible.some((r) => r.kind === "refuse"), true);
+  });
+});
+
+describe("books note meta (reason_code copy)", () => {
+  it("maps 1→思考, 2/4→疑问, 3→拓展 and never prints a bare digit", () => {
+    const cases = [
+      [1, "思考"],
+      [2, "疑问"],
+      [3, "拓展"],
+      [4, "疑问"],
+    ] as const;
+    for (const [code, label] of cases) {
+      assert.equal(uiNoteType(code), label);
+      const line = booksNoteMetaLine(code, undefined, "9/10 15:44");
+      assert.equal(line, `${label} · 9/10 15:44`);
+      assert.equal(/(^| · )[1-4]( · |$)/.test(line), false);
+    }
   });
 });
