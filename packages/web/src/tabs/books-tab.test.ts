@@ -270,7 +270,7 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     root.unmount();
   });
 
-  it("packs the wide hero into two lines and uses the trailing space for chips", () => {
+  it("keeps the wide hero to one primary row without collapsing the short card", () => {
     stubOutlineRail(true);
     const root = mountBooks(
       () => {},
@@ -279,14 +279,62 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     );
     const hero = document.querySelector("[data-testid=books-hero]");
     const meta = document.querySelector("[data-testid=books-hero-meta]");
+    const accent = hero?.querySelector(".hero-accent");
     assert.ok(hero);
     assert.ok(meta);
+    assert.ok(accent);
     assert.equal(hero.getAttribute("data-layout"), "wide");
     assert.match(hero.className, /\bpy-2\b/);
     assert.equal(/\bpy-4\b/.test(hero.className), false);
+    assert.match(hero.className, /\bmin-h-16\b/);
     assert.match(hero.className, /items-center/);
     assert.equal(hero.contains(meta), true);
     assert.match(meta.className, /justify-end/);
+    assert.match(accent.className, /hero-accent--wide/);
+    const heroText = hero.textContent ?? "";
+    assert.match(heroText, /量子力学/);
+    assert.match(heroText, /当前主题|Current topic/);
+    assert.equal(/边界未齐/.test(heroText), false);
+    assert.equal(/先打开学习页/.test(heroText), false);
+    assert.equal(/If the boundary is incomplete/.test(heroText), false);
+    assert.equal(/完整边界卡在学习页/.test(heroText), false);
+    assert.equal(/this line does not advance/.test(heroText), false);
+    root.unmount();
+  });
+
+  it("omits empty-state second-line prompts from the wide hero when there is no topic", () => {
+    stubOutlineRail(true);
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic: null },
+    );
+    const hero = document.querySelector("[data-testid=books-hero]");
+    assert.ok(hero);
+    assert.equal(hero.getAttribute("data-layout"), "wide");
+    const heroText = hero.textContent ?? "";
+    assert.match(heroText, /还没有当前主题|No current topic/);
+    assert.equal(/点右侧打开主题抽屉/.test(heroText), false);
+    assert.equal(/Open the topic drawer on the right/.test(heroText), false);
+    assert.equal(/边界未齐/.test(heroText), false);
+    root.unmount();
+  });
+
+  it("keeps empty/no-goal second-line copy on the narrow Books hero", () => {
+    stubOutlineRail(false);
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    const hero = document.querySelector("[data-testid=books-hero]");
+    assert.ok(hero);
+    assert.equal(hero.getAttribute("data-layout"), "narrow");
+    assert.equal(/\bmin-h-16\b/.test(hero.className), false);
+    const accent = hero.querySelector(".hero-accent");
+    assert.ok(accent);
+    assert.equal(/hero-accent--wide/.test(accent.className), false);
+    assert.match(hero.textContent ?? "", /边界未齐时，先打开学习页右上角会话|If the boundary is incomplete/);
     root.unmount();
   });
 

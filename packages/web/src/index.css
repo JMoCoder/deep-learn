@@ -96,6 +96,15 @@ body {
   background: linear-gradient(180deg, var(--color-cinnabar), var(--color-cinnabar-soft));
 }
 
+.hero-topic[data-layout="wide"] {
+  border-left-width: 0.38rem;
+  border-left-color: var(--color-cinnabar);
+}
+
+.hero-accent--wide {
+  display: none;
+}
+
 .meta-chip {
   backdrop-filter: blur(6px);
 }
