@@ -256,7 +256,10 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.ok(hero);
     assert.equal(hero.getAttribute("data-layout"), "narrow");
     assert.equal(document.querySelector("[data-testid=books-spread]"), null);
-    assert.ok(document.querySelector('[data-testid="books-pane-body"]'));
+    const narrowBody = document.querySelector('[data-testid="books-pane-body"]');
+    assert.ok(narrowBody);
+    assert.equal(/\bbg-paper\b/.test(narrowBody.className), false);
+    assert.equal(/shadow-\[inset/.test(narrowBody.className), false);
     assert.equal(document.querySelector('[data-testid="books-pane-notes"]'), null);
 
     const notesTab = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
@@ -290,6 +293,17 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.match(hero.className, /items-center/);
     assert.equal(hero.contains(meta), true);
     assert.match(meta.className, /justify-end/);
+    assert.match(meta.className, /items-center/);
+    assert.match(meta.className, /self-center/);
+    const primary = document.querySelector("[data-testid=books-hero-primary]");
+    assert.ok(primary);
+    assert.equal(hero.contains(primary), true);
+    assert.match(primary.className, /items-center/);
+    assert.equal(/items-baseline/.test(primary.className), false);
+    const primaryRow = primary.parentElement;
+    assert.ok(primaryRow);
+    assert.match(primaryRow.className, /items-center/);
+    assert.match(primaryRow.className, /self-center/);
     assert.match(accent.className, /hero-accent--wide/);
     const heroText = hero.textContent ?? "";
     assert.match(heroText, /量子力学/);
@@ -352,8 +366,18 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.ok(body);
     assert.ok(notes);
     assert.match(spread.className, /grid-cols-2/);
+    assert.equal(/bg-paper-deep\/40/.test(spread.className), false);
+    assert.match(spread.className, /rounded-lg/);
     assert.equal(spread.firstElementChild, body);
     assert.equal(spread.lastElementChild, notes);
+    assert.equal(/shadow-\[inset/.test(body.className), false);
+    assert.equal(/shadow-\[inset/.test(notes.className), false);
+    assert.equal(/#fffaf2/.test(body.className), false);
+    assert.equal(/#f6efe3/.test(notes.className), false);
+    assert.match(body.className, /\bbg-paper\b/);
+    assert.match(notes.className, /bg-paper-deep/);
+    assert.match(notes.className, /border-l/);
+    assert.notEqual(body.className, notes.className);
     assert.equal(body.getAttribute("data-active"), "true");
     assert.equal(notes.getAttribute("data-active"), "false");
     assert.match(document.body.textContent ?? "", /投影正文在这一段/);
