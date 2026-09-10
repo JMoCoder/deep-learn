@@ -213,7 +213,7 @@ export function SessionPane({
         ) : null}
         {error ? <p className="text-sm text-cinnabar">{error}</p> : null}
       </div>
-      <form onSubmit={submit} className="border-t border-paper-line p-3">
+      <form onSubmit={submit} className="shrink-0 border-t border-paper-line p-3">
         <div
           data-testid="session-composer-shell"
           className="flex flex-col rounded-md border border-paper-line bg-paper focus-within:border-cinnabar"
