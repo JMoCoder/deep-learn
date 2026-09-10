@@ -24,6 +24,9 @@ import { addTurnCitation, peekTurnMeta } from "../agent/turn-meta.js";
 import { topicHitsScopeOut } from "../learning/scope-out.js";
 import type { SessionRuntime } from "../agent/types.js";
 
+/** True when this turn is already refused, or user/extra text hits scope_out.
+ * extraText is for learner-authored text (notes). Do not pass generate_section
+ * scaffold body — it echoes goal/prior and false-positives on-topic leaves. */
 function refuseTurnLocked(runtime: SessionRuntime, extraText?: string): boolean {
   const topic = runtime.requireTopic();
   const meta = peekTurnMeta(topic.id);
@@ -282,16 +285,16 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       const topic = runtime.requireTopic();
       if (topic.phase !== "learning") throw new Error("先 finalize_outline 再写正文");
       const args = params as { outline_node_id: string; title: string; body_md: string };
-      if (refuseTurnLocked(runtime, `${args.title} ${args.body_md}`)) {
+      const node = flattenOutline(runtime.store.getOutline(topic.id)).find(
+        (n) => n.id === args.outline_node_id,
+      );
+      if (!node) throw new Error(`找不到大纲节点 ${args.outline_node_id}`);
+      if (refuseTurnLocked(runtime, node.title)) {
         return textResult("REFUSE_OFFSCOPE：踩了排除区，不生成无关节。", {
           ok: false,
           strategy: "REFUSE_OFFSCOPE",
         });
       }
-      const node = flattenOutline(runtime.store.getOutline(topic.id)).find(
-        (n) => n.id === args.outline_node_id,
-      );
-      if (!node) throw new Error(`找不到大纲节点 ${args.outline_node_id}`);
       const cap = node.targetChars > 0 ? node.targetChars : 0;
       const body = cap > 0 && args.body_md.length > cap ? args.body_md.slice(0, cap) : args.body_md;
       runtime.emit({

@@ -6,6 +6,13 @@ release dates that were never tagged.
 
 ## [Unreleased]
 
+### Fixed
+
+- Learning `generate_section` no longer treats scaffold/boundary echo (goal / prior /
+  topic title) as a user offscope turn. On-topic first-leaf and advance writes succeed
+  when `scope_out` only appears in those echoes; chat like「顺便把弦论也讲一遍」still
+  REFUSE_OFFSCOPE with no `append_note`.
+
 ## [0.1.0] - 2026-09-10
 
 Stable release on `main` tip `512acc9`. First public slice was tip
