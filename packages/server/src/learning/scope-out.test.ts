@@ -8,6 +8,8 @@ import { openMemoryDb } from "../store/db.js";
 import { Store } from "../store/repos.js";
 import { createQuantumTools } from "../tools/factory.js";
 import { hitsScopeOut, scopeOutNeedles, topicHitsScopeOut } from "./scope-out.js";
+import { scaffoldSectionBody } from "./section-scaffold.js";
+import { flattenOutline } from "../store/repos.js";
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import { snapshotFromAnswers, type SessionEvent } from "@quantum/shared";
 
@@ -36,6 +38,30 @@ function seedLearning(store: Store, scopeOut = "弦论") {
 
 async function exec(tool: AgentTool, args: Record<string, unknown>) {
   return tool.execute("call", args as never);
+}
+
+/** Learning topic whose prior answer echoes scope_out — first leaf not yet projected. */
+function seedLearningPriorEchoesScopeOut(store: Store) {
+  const topic = store.createTopic("测量入门");
+  store.finalizeBoundaries(topic.id, [
+    { kind: "goal", question: "g", answer: "我能独立画一遍测量" },
+    { kind: "prior", question: "p", answer: "只碰过弦论科普" },
+    { kind: "scope_out", question: "s", answer: "弦论" },
+    { kind: "depth", question: "d", answer: "能讲清" },
+    { kind: "chunk_budget", question: "c", answer: "每周 2 小时" },
+    { kind: "scope_in", question: "i", answer: "测量公设与自旋" },
+  ]);
+  store.replaceOutline(
+    topic.id,
+    "独立画一遍测量",
+    [
+      { title: "定向：地图", intent: "地图", objective: "能指出接入点" },
+      { title: "核心：投影公设", intent: "公设", objective: "能写出投影" },
+    ],
+    "finalized",
+  );
+  store.finalizeOutline(topic.id);
+  return topic;
 }
 
 function seedConstraintWalk(store: Store) {
@@ -237,6 +263,119 @@ describe("2.7 scope_out refuse", () => {
       events.some((e) => e.type === "note_appended"),
       false,
     );
+  });
+
+  it("on-topic first-leaf generate_section is not refused when only scaffold echoes scope_out", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = seedLearningPriorEchoesScopeOut(store);
+    const outline = flattenOutline(store.getOutline(topic.id));
+    const first = outline[0]!;
+    const body = scaffoldSectionBody(first, topic.title, store.listBoundaries(topic.id), outline);
+    assert.match(body, /只碰过弦论科普/);
+    assert.equal(hitsScopeOut(body, "弦论"), true);
+    assert.equal(topicHitsScopeOut(store, topic.id, "请开始"), false);
+    assert.equal(topicHitsScopeOut(store, topic.id, "下一节"), false);
+
+    const tools = createQuantumTools({
+      store,
+      topicId: topic.id,
+      requireTopic: () => store.requireTopic(topic.id),
+      emit: () => undefined,
+    });
+    const generate = tools.find((t) => t.name === "generate_section")!;
+
+    beginTurn(topic.id, "SCAFFOLD", "请开始");
+    const firstLeaf = await exec(generate, {
+      outline_node_id: first.id,
+      title: first.title,
+      body_md: body,
+    });
+    assert.notEqual(firstLeaf.details.ok, false);
+    assert.notEqual(firstLeaf.details.strategy, "REFUSE_OFFSCOPE");
+    const written = store.getSectionByOutline(first.id);
+    assert.ok(written);
+    assert.match(written.bodyMd, /只碰过弦论科普/);
+    endTurn(topic.id);
+
+    const next = outline[1]!;
+    const advanceBody = scaffoldSectionBody(next, topic.title, store.listBoundaries(topic.id), outline);
+    beginTurn(topic.id, "ADVANCE", "下一节");
+    const advanced = await exec(generate, {
+      outline_node_id: next.id,
+      title: next.title,
+      body_md: advanceBody,
+    });
+    assert.notEqual(advanced.details.ok, false);
+    assert.ok(store.getSectionByOutline(next.id));
+    endTurn(topic.id);
+
+    beginTurn(topic.id, "SCAFFOLD", "顺便把弦论也讲一遍");
+    const userHit = await exec(generate, {
+      outline_node_id: first.id,
+      title: first.title,
+      body_md: "测量正文，无脚手架回声。",
+    });
+    assert.equal(userHit.details.ok, false);
+    assert.equal(userHit.details.strategy, "REFUSE_OFFSCOPE");
+    endTurn(topic.id);
+
+    const refuse = planCoachTurn(store, topic.id, "顺便把弦论也讲一遍");
+    assert.equal(refuse.strategy, "REFUSE_OFFSCOPE");
+    assert.equal(refuse.tool, undefined);
+    assert.equal(store.listNotes(topic.id).length, 0);
+
+    const { host } = createApp(store);
+    const events: SessionEvent[] = [];
+    const unsub = bus.subscribe((event) => events.push(event));
+    try {
+      await host.prompt(topic.id, "顺便把弦论也讲一遍");
+    } finally {
+      unsub();
+    }
+    assert.equal(store.listNotes(topic.id).length, 0);
+    const message = events.find(
+      (e): e is Extract<SessionEvent, { type: "message" }> =>
+        e.type === "message" && e.role === "assistant",
+    );
+    assert.ok(message);
+    assert.equal(message.strategy, "REFUSE_OFFSCOPE");
+    assert.equal(
+      events.some((e) => e.type === "note_appended"),
+      false,
+    );
+  });
+
+  it("host.prompt projects the first on-topic leaf when prior echoes scope_out", async () => {
+    const store = new Store(openMemoryDb());
+    const topic = seedLearningPriorEchoesScopeOut(store);
+    const first = store.getOutline(topic.id)[0]!;
+    assert.equal(store.getSectionByOutline(first.id), null);
+
+    const { host } = createApp(store);
+    const events: SessionEvent[] = [];
+    const unsub = bus.subscribe((event) => events.push(event));
+    try {
+      await host.prompt(topic.id, "请开始");
+    } finally {
+      unsub();
+    }
+    const section = store.getSectionByOutline(first.id);
+    assert.ok(section);
+    assert.match(section.bodyMd, /只碰过弦论科普/);
+    assert.equal(
+      events.some((e) => e.type === "section_ready"),
+      true,
+    );
+    assert.equal(store.listNotes(topic.id).length, 0);
+    assert.equal(
+      events.some((e) => e.type === "note_appended"),
+      false,
+    );
+    const assistant = events.find(
+      (e): e is Extract<SessionEvent, { type: "message" }> =>
+        e.type === "message" && e.role === "assistant",
+    );
+    assert.notEqual(assistant?.strategy, "REFUSE_OFFSCOPE");
   });
 
   it("constraint-walk 排除弦论: host.prompt stays REFUSE and writes no note", async () => {
