@@ -11,10 +11,10 @@ export const zh = {
   "app.error.send": "发送失败",
   "app.error.createTopic": "新建主题失败",
   "app.pointer.noCurrentId":
-    "接口 /api/state 未带回 currentTopicId。学习页已用本地记录打开主题。指针若持久化丢失，交后端 app_state。",
+    "接口 /api/state 未带回 currentTopicId。本地缓存不会冒充当前主题。",
   "app.pointer.switchFailed":
-    "接口未带回当前主题，切换指针也失败。学习页按本地记录显示。current_topic_id 交后端。",
-  "app.pointer.cacheMismatch": "本地主题记录对不上已有主题。current_topic_id 丢在后端，交全藏查 app_state。",
+    "接口未带回当前主题。本地缓存不会单独决定当前主题。current_topic_id 以 /api/state 为准。",
+  "app.pointer.cacheMismatch": "本地主题记录对不上已有主题。当前主题只认 /api/state.currentTopicId。",
   "app.pointer.topicDetail":
     "主题详情拉取失败。若刷新后回到「还没有当前主题」，先看这条；指针本身以 /api/state.currentTopicId 为准。",
   "app.pointer.projection": "当前投影 /api/topics/current/projection 拉取失败，先修边改用大纲 depends_on。",
@@ -269,11 +269,11 @@ export const en: Record<MessageKey, string> = {
   "app.error.send": "Send failed",
   "app.error.createTopic": "Could not create a topic",
   "app.pointer.noCurrentId":
-    "/api/state did not return currentTopicId. Learn opened the locally cached topic. If the pointer is not persisted, that is a server app_state issue.",
+    "/api/state did not return currentTopicId. The local cache does not stand in as the current topic.",
   "app.pointer.switchFailed":
-    "No current topic from the API, and switching the pointer failed. Learn is showing the local cache. current_topic_id is a server concern.",
+    "No current topic from the API. The local cache does not decide the current topic; /api/state.currentTopicId does.",
   "app.pointer.cacheMismatch":
-    "The local topic cache does not match listed topics. current_topic_id was lost on the server.",
+    "The local topic cache does not match listed topics. Current topic is only /api/state.currentTopicId.",
   "app.pointer.topicDetail":
     "Topic detail failed to load. If refresh shows “no current topic”, start here; the pointer itself is /api/state.currentTopicId.",
   "app.pointer.projection":

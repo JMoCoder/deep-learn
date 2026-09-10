@@ -8,7 +8,33 @@ export function matchesOutlineRail(
   return media.matchMedia(OUTLINE_RAIL_QUERY).matches;
 }
 
-/** Collapse on a narrow viewport; restore the persistent rail when wide again. */
+/** Default open for a fresh persistent rail. Not a command to copy onto the other rail. */
 export function outlineOpenForViewport(wide: boolean): boolean {
   return wide;
+}
+
+/** Persistent layout vs drawer: each rail keeps its own open pref. */
+export function railOpenForLayout(
+  persistent: boolean,
+  widePref: boolean,
+  drawerOpen: boolean,
+): boolean {
+  return persistent ? widePref : drawerOpen;
+}
+
+/**
+ * matchMedia only switches persistent vs drawer layout.
+ * It must not force outlineOpen === sessionOpen.
+ */
+export function independentRailOpens(input: {
+  persistent: boolean;
+  outlineWidePref: boolean;
+  sessionWidePref: boolean;
+  outlineDrawerOpen: boolean;
+  sessionDrawerOpen: boolean;
+}): { outlineOpen: boolean; sessionOpen: boolean } {
+  return {
+    outlineOpen: railOpenForLayout(input.persistent, input.outlineWidePref, input.outlineDrawerOpen),
+    sessionOpen: railOpenForLayout(input.persistent, input.sessionWidePref, input.sessionDrawerOpen),
+  };
 }

@@ -93,6 +93,10 @@ export type AppSnapshot = {
   currentSectionId: string | null;
   coachMode: "stub" | "live";
   settings: PublicSettings;
+  /** Persisted Learn gate: learner confirmed the boundary card. */
+  boundaryConfirmed: boolean;
+  /** Persisted Learn gate: finalize_boundary succeeded (also implied by phase). */
+  boundaryFinalized: boolean;
 };
 
 export type PublicSettings = {
@@ -114,6 +118,8 @@ export type TopicDetail = {
   topic: TopicSummary;
   boundaries: BoundaryRecord[];
   boundary_snapshot: BoundarySnapshot;
+  boundary_confirmed: boolean;
+  boundary_finalized: boolean;
   outline: OutlineNode[];
   currentSection: SectionRecord | null;
   notes: NoteRecord[];

@@ -1,63 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type {
-  AppSnapshot,
-  BoundaryRecord,
-  BoundarySnapshot,
-  ExportFormat,
-  NoteRecord,
-  OutlineNode,
-  PrereqEdge,
-  PublicSettings,
-  SectionRecord,
-  SessionCitation,
-  SessionEvent,
-  SessionMessage,
-  TopicSummary,
-  TutorStrategy,
-} from "@quantum/shared";
-import {
-  draftToolLooksOverBudget,
-  emptyBoundarySnapshot,
-  evaluateOutlineLeafBudget,
-  isRefuseOffscopeSignal,
-  looksLikeOutlineConfirm,
-  shouldBlockOverBudgetConfirm,
-  shouldShowBoundaryCard,
-  shouldShowOutlineConfirm,
-  snapshotFromAnswers,
-} from "@quantum/shared";
-import { localizedRefuseCopy, useLocale, useT } from "@/i18n";
+import { type ReactNode, useState } from "react";
+import type { ExportFormat, PublicSettings } from "@quantum/shared";
+import { useLocale, useT } from "@/i18n";
 import { BookOpen, GraduationCap, User } from "lucide-react";
 import { BooksTab } from "@/tabs/BooksTab";
 import { LearnTab } from "@/tabs/LearnTab";
 import { MeTab } from "@/tabs/MeTab";
-import { api, connectEvents } from "@/lib/api";
-import {
-  readBoundaryConfirmed,
-  readBoundaryFinalized,
-  readCachedTopicId,
-  readTopicAnchor,
-  writeBoundaryConfirmed,
-  writeBoundaryFinalized,
-  writeCachedTopicId,
-  writeTopicAnchor,
-} from "@/lib/boundary-session";
-import {
-  currentUnansweredKind,
-  needsTopicAnchor,
-  shouldBlockComposerConfirm,
-  topicTitleFromUtterance,
-} from "@/lib/interview-ui";
-import { mergePrereqEdges, outlineTitleMap } from "@/lib/prereq-display";
-import type { LiveSessionRow } from "@/lib/session-display";
-import {
-  citationsFromWire,
-  decorateAssistantMessage,
-  looksLikeRefuseCopy,
-  uiNoteType,
-} from "@/lib/session-display";
-import { outlineOpenForViewport } from "@/lib/outline-rail";
-import { useOutlineRail } from "@/lib/use-outline-rail";
+import { api } from "@/lib/api";
+import { currentUnansweredKind, needsTopicAnchor } from "@/lib/interview-ui";
+import { useLearnActions } from "@/lib/use-learn-actions";
+import { useLearnGates } from "@/lib/use-learn-gates";
+import { useLearnRails } from "@/lib/use-learn-rails";
+import { useSessionEvents } from "@/lib/use-session-events";
+import { useTopicPointer } from "@/lib/use-topic-pointer";
 import { cn } from "@/lib/utils";
 
 type Tab = "learn" | "books" | "me";
@@ -69,500 +23,102 @@ const emptySettings: PublicSettings = {
   hasApiKey: false,
 };
 
-type PointerKey =
-  | "app.pointer.noCurrentId"
-  | "app.pointer.switchFailed"
-  | "app.pointer.cacheMismatch"
-  | "app.pointer.topicDetail"
-  | "app.pointer.projection";
-
 export default function App() {
   const t = useT();
   const locale = useLocale();
   const [tab, setTab] = useState<Tab>("learn");
-  const [snapshot, setSnapshot] = useState<AppSnapshot | null>(null);
-  const [topics, setTopics] = useState<TopicSummary[]>([]);
-  const [outline, setOutline] = useState<OutlineNode[]>([]);
-  const [section, setSection] = useState<SectionRecord | null>(null);
-  const [notes, setNotes] = useState<NoteRecord[]>([]);
-  const [boundaries, setBoundaries] = useState<BoundaryRecord[]>([]);
-  const [boundarySnapshot, setBoundarySnapshot] = useState<BoundarySnapshot>(emptyBoundarySnapshot());
-  const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
-  const [boundaryFinalized, setBoundaryFinalized] = useState(false);
-  const [topicPointerNote, setTopicPointerNote] = useState<PointerKey | null>(null);
-  const [draftRejected, setDraftRejected] = useState(false);
-  const [topicAnchor, setTopicAnchor] = useState<string | null>(null);
-  const [messages, setMessages] = useState<SessionMessage[]>([]);
-  const refuseTurnRef = useRef(false);
-  const [streaming, setStreaming] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const outlineRail = useOutlineRail();
-  const [outlineOpen, setOutlineOpen] = useState(() => outlineOpenForViewport(outlineRail));
-  const [sessionOpen, setSessionOpen] = useState(() => outlineOpenForViewport(outlineRail));
   const [booksDrawer, setBooksDrawer] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [liveRows, setLiveRows] = useState<LiveSessionRow[]>([]);
-  const [prereqEdges, setPrereqEdges] = useState<PrereqEdge[]>([]);
-  const [overlays, setOverlays] = useState<
-    Array<{ text: string; strategy?: TutorStrategy; citations?: SessionCitation[] }>
-  >([]);
-  const outlineRef = useRef<OutlineNode[]>([]);
-  const creatingTopic = useRef(false);
-
-  const refresh = useCallback(async () => {
-    try {
-      let state = await api.state();
-      const listed = await api.topics();
-      setTopics(listed);
-      setMessages(await api.messages());
-
-      let topicId = state.currentTopicId;
-      let topic = state.topic;
-      let pointerNote: PointerKey | null = null;
-
-      if (!topicId) {
-        const cached = readCachedTopicId();
-        if (cached && listed.some((item) => item.id === cached)) {
-          try {
-            await api.switchTopic(cached);
-            state = await api.state();
-            topicId = state.currentTopicId ?? cached;
-            topic = state.topic ?? listed.find((item) => item.id === cached) ?? null;
-            if (!state.currentTopicId) {
-              pointerNote = "app.pointer.noCurrentId";
-            }
-          } catch {
-            topicId = cached;
-            topic = listed.find((item) => item.id === cached) ?? null;
-            pointerNote = "app.pointer.switchFailed";
-          }
-        } else if (cached && listed.length > 0) {
-          pointerNote = "app.pointer.cacheMismatch";
-        }
-      }
-
-      if (topicId) {
-        writeCachedTopicId(topicId);
-        let detail;
-        try {
-          detail = await api.topic(topicId);
-        } catch (err) {
-          setLoadError(err instanceof Error ? err.message : t("app.error.topicDetail"));
-          setSnapshot({
-            ...state,
-            currentTopicId: topicId,
-            topic: topic ?? listed.find((item) => item.id === topicId) ?? null,
-          });
-          setTopicPointerNote(pointerNote ?? "app.pointer.topicDetail");
-          return;
-        }
-        const resolved = topic ?? detail.topic;
-        setSnapshot({
-          ...state,
-          currentTopicId: topicId,
-          topic: resolved,
-        });
-        setOutline(detail.outline);
-        outlineRef.current = detail.outline;
-        setSection(detail.currentSection);
-        try {
-          const proj = await api.projection();
-          setPrereqEdges(mergePrereqEdges(proj.prereq_edges, detail.outline));
-        } catch {
-          setPrereqEdges(mergePrereqEdges(undefined, detail.outline));
-          if (!pointerNote) {
-            pointerNote = "app.pointer.projection";
-          }
-        }
-        setNotes(detail.notes);
-        setBoundaries(detail.boundaries);
-        const packed = detail.boundary_snapshot ?? snapshotFromAnswers(detail.boundaries);
-        setBoundarySnapshot(packed);
-        if (evaluateOutlineLeafBudget(detail.outline, packed.chunk_budget).canConfirm) {
-          setDraftRejected(false);
-        }
-        const phase = resolved?.phase ?? "";
-        const pastGate = phase === "learning";
-        setBoundaryConfirmed(pastGate || readBoundaryConfirmed(topicId));
-        setBoundaryFinalized(
-          phase === "outline_draft" || phase === "learning" || readBoundaryFinalized(topicId),
-        );
-        setTopicPointerNote(pointerNote);
-      } else {
-        const cached = readCachedTopicId();
-        if (cached && !listed.some((item) => item.id === cached)) writeCachedTopicId(null);
-        setSnapshot(state);
-        setOutline([]);
-        outlineRef.current = [];
-        setPrereqEdges([]);
-        setSection(null);
-        setNotes([]);
-        setBoundaries([]);
-        setBoundarySnapshot(emptyBoundarySnapshot());
-        setBoundaryConfirmed(false);
-        setBoundaryFinalized(false);
-        setTopicPointerNote(pointerNote);
-      }
-      setLoadError(null);
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : t("app.error.connect"));
-    }
-  }, [t]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    const open = outlineOpenForViewport(outlineRail);
-    setOutlineOpen(open);
-    setSessionOpen(open);
-  }, [outlineRail]);
-
-  useEffect(() => {
-    const id = snapshot?.currentTopicId;
-    setTopicAnchor(id ? readTopicAnchor(id) : null);
-  }, [snapshot?.currentTopicId]);
-
-  useEffect(() => {
-    return connectEvents((event: SessionEvent) => {
-      switch (event.type) {
-        case "session_start":
-          setBusy(true);
-          setStreaming("");
-          setError(null);
-          setLiveRows([]);
-          refuseTurnRef.current = false;
-          break;
-        case "session_end":
-          setBusy(false);
-          setStreaming("");
-          void refresh();
-          break;
-        case "text_delta":
-          setStreaming((s) => s + event.text);
-          break;
-        case "error":
-          setError(event.message);
-          setBusy(false);
-          break;
-        case "export_ready":
-          window.open(event.downloadPath, "_blank");
-          void refresh();
-          break;
-        case "message": {
-          if (event.role !== "assistant") break;
-          const cites = event.citations ?? [];
-          const strategy = event.strategy;
-          const refuse =
-            isRefuseOffscopeSignal({ strategy, text: event.text }) || looksLikeRefuseCopy(event.text);
-          if (refuse) {
-            refuseTurnRef.current = true;
-            const copy = localizedRefuseCopy(locale, {
-              text: event.text,
-            });
-            setOverlays((prev) => {
-              const next = prev.filter((o) => o.text !== event.text);
-              next.push({ text: event.text, strategy: "REFUSE_OFFSCOPE", citations: [] });
-              return next.slice(-40);
-            });
-            setLiveRows((rows) => [
-              ...rows.filter(
-                (r) => r.kind !== "cite" && r.kind !== "note" && r.id !== "tutor-refuse" && r.id !== "tutor-meta",
-              ),
-              {
-                id: "tutor-refuse",
-                kind: "refuse",
-                title: copy.title,
-                summary: event.text,
-                status: "done",
-                strategy: "REFUSE_OFFSCOPE",
-                createdAt: Date.now(),
-              },
-            ]);
-            break;
-          }
-          if (!strategy && cites.length === 0) break;
-          const titles = outlineTitleMap(outlineRef.current);
-          const labeled = citationsFromWire(cites, titles);
-          setOverlays((prev) => {
-            const next = prev.filter((o) => o.text !== event.text);
-            next.push({ text: event.text, strategy, citations: cites });
-            return next.slice(-40);
-          });
-          setLiveRows((rows) => {
-            const next = rows.filter((r) => r.id !== "tutor-meta" && r.id !== "tutor-cites");
-            if (strategy) {
-              next.push({
-                id: "tutor-meta",
-                kind: "tool",
-                title: strategy,
-                summary: "",
-                status: "done",
-                strategy,
-                createdAt: Date.now(),
-              });
-            }
-            if (labeled.length) {
-              next.push({
-                id: "tutor-cites",
-                kind: "cite",
-                title: t("live.cite"),
-                summary: labeled.map((c) => c.title).join(" · "),
-                status: "done",
-                strategy,
-                citations: labeled,
-                createdAt: Date.now(),
-              });
-            }
-            return next;
-          });
-          break;
-        }
-        case "note_appended": {
-          if (refuseTurnRef.current) break;
-          const mapped = uiNoteType(event.reason_code, event.note_type);
-          setLiveRows((rows) => {
-            if (rows.some((r) => r.kind === "refuse")) return rows;
-            if (rows.some((r) => r.kind === "note" && r.id === `note-${event.note_id}`)) return rows;
-            return [
-              ...rows,
-              {
-                id: `note-${event.note_id}`,
-                kind: "note",
-                toolName: "append_note",
-                title: mapped,
-                summary: mapped,
-                status: "done",
-                createdAt: Date.now(),
-              },
-            ];
-          });
-          void refresh();
-          break;
-        }
-        case "boundary_finalized": {
-          if (event.boundary_snapshot) setBoundarySnapshot(event.boundary_snapshot);
-          writeCachedTopicId(event.topic_id);
-          writeBoundaryFinalized(event.topic_id, true);
-          writeBoundaryConfirmed(event.topic_id, false);
-          setBoundaryFinalized(true);
-          setBoundaryConfirmed(false);
-          setTab("learn");
-          setSessionOpen(false);
-          void refresh();
-          break;
-        }
-        case "tool_end": {
-          if (event.toolName === "draft_outline") {
-            setDraftRejected(draftToolLooksOverBudget(event));
-            void refresh();
-          }
-          break;
-        }
-        case "phase_changed":
-        case "outline_finalized":
-        case "section_status":
-        case "section_ready":
-          void refresh();
-          break;
-        default:
-          break;
-      }
-    });
-  }, [refresh, locale, t]);
-
-  async function send(text: string) {
-    setError(null);
-    const topicId = snapshot?.currentTopicId;
-    const awaitingAnchor = needsTopicAnchor({
-      phase: snapshot?.topic?.phase ?? "",
-      title: snapshot?.topic?.title,
-      anchored: Boolean(topicAnchor),
-    });
-    if (topicId && awaitingAnchor) {
-      const title = topicTitleFromUtterance(text);
-      if (!title) return;
-      writeTopicAnchor(topicId, title);
-      setTopicAnchor(title);
-      try {
-        await api.renameTopic(topicId, title);
-      } catch {
-        /* stub prompt still locks the title if PATCH is missing */
-      }
-    }
-    const unanswered = currentUnansweredKind(boundaries);
-    const interviewing =
-      snapshot?.topic?.phase === "boundary_interview" || Boolean(unanswered);
-    const pendingCard = shouldShowBoundaryCard({
-      phase: snapshot?.topic?.phase ?? "",
-      snapshot: boundarySnapshot,
-      confirmed: boundaryConfirmed,
-      finalized: boundaryFinalized,
-    });
-    if (
-      topicId &&
-      shouldBlockComposerConfirm({ text, pendingCard, interviewing })
-    ) {
-      setError(t("app.error.confirmBoundaryFirst"));
-      setTab("learn");
-      setSessionOpen(false);
-      return;
-    }
-    const outlineBudget = evaluateOutlineLeafBudget(outline, boundarySnapshot.chunk_budget);
-    const overBudget = outlineBudget.overBudget || (outlineBudget.leafCount === 0 && draftRejected);
-    if (
-      topicId &&
-      shouldBlockOverBudgetConfirm({
-        text,
-        overBudget,
-        pendingOutline: shouldShowOutlineConfirm({
-          phase: snapshot?.topic?.phase ?? "",
-          boundaryConfirmed,
-          hasOutline: outline.length > 0,
-        }),
-        isConfirm: looksLikeOutlineConfirm(text),
-      })
-    ) {
-      setError(t("app.error.overBudget"));
-      setTab("learn");
-      return;
-    }
-    try {
-      await api.prompt(text);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("app.error.send"));
-    }
-  }
-
-  function confirmBoundaryCard() {
-    const topicId = snapshot?.currentTopicId;
-    if (!topicId) return;
-    writeBoundaryConfirmed(topicId, true);
-    setBoundaryConfirmed(true);
-    setSessionOpen(true);
-  }
-
-  async function createTopic() {
-    if (creatingTopic.current) return;
-    creatingTopic.current = true;
-    setLiveRows([]);
-    setLoadError(null);
-    try {
-      const created = await api.createTopic();
-      writeCachedTopicId(created.id);
-      writeBoundaryConfirmed(created.id, false);
-      writeBoundaryFinalized(created.id, false);
-      setBoundaryConfirmed(false);
-      setBoundaryFinalized(false);
-      setTopicPointerNote(null);
-      setDraftRejected(false);
-      setTopicAnchor(null);
-      setBooksDrawer(false);
-      setTab("learn");
-      setSessionOpen(true);
-      await refresh();
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : t("app.error.createTopic"));
-      setTab("books");
-      setBooksDrawer(true);
-    } finally {
-      creatingTopic.current = false;
-    }
-  }
-
-  async function switchTopic(id: string) {
-    setLiveRows([]);
-    writeCachedTopicId(id);
-    await api.switchTopic(id);
-    setTab("learn");
-    await refresh();
-  }
-
-  async function selectSection(id: string) {
-    const topicId = snapshot?.currentTopicId;
-    if (!topicId) return;
-    await api.selectSection(topicId, id);
-    await refresh();
-  }
-
-  async function requestExport(id: string, format: ExportFormat) {
-    await api.requestExport(id, format);
-    setTab("learn");
-    setSessionOpen(true);
-  }
-
-  const displayMessages = messages.map((m) => {
-    if (m.role !== "assistant") return m;
-    const hit = overlays.find((o) => o.text === m.text);
-    return decorateAssistantMessage(m, hit);
+  const rails = useLearnRails();
+  const pointer = useTopicPointer(t);
+  const gates = useLearnGates(pointer.snapshot);
+  const session = useSessionEvents({
+    refresh: pointer.refresh,
+    locale,
+    t,
+    outlineRef: pointer.outlineRef,
+    applyBoundaryFinalizedEvent: gates.applyBoundaryFinalizedEvent,
+    setBoundarySnapshot: pointer.setBoundarySnapshot,
+    setDraftRejected: pointer.setDraftRejected,
+    setTab,
+    setSessionOpen: rails.setSessionOpen,
+  });
+  const actions = useLearnActions({
+    t,
+    snapshot: pointer.snapshot,
+    outline: pointer.outline,
+    boundaries: pointer.boundaries,
+    boundarySnapshot: pointer.boundarySnapshot,
+    boundaryConfirmed: gates.boundaryConfirmed,
+    boundaryFinalized: gates.boundaryFinalized,
+    topicAnchor: gates.topicAnchor,
+    setTopicAnchor: gates.setTopicAnchor,
+    writeTopicAnchor: gates.writeTopicAnchor,
+    draftRejected: pointer.draftRejected,
+    setDraftRejected: pointer.setDraftRejected,
+    refresh: pointer.refresh,
+    confirmBoundary: gates.confirmBoundary,
+    resetGatesForNewTopic: gates.resetGatesForNewTopic,
+    setLiveRows: session.setLiveRows,
+    setError: session.setError,
+    setLoadError: pointer.setLoadError,
+    setTab,
+    setSessionOpen: rails.setSessionOpen,
+    setBooksDrawer,
   });
 
   const awaitingTopicAnchor = needsTopicAnchor({
-    phase: snapshot?.topic?.phase ?? "",
-    title: snapshot?.topic?.title,
-    anchored: Boolean(topicAnchor),
+    phase: pointer.snapshot?.topic?.phase ?? "",
+    title: pointer.snapshot?.topic?.title,
+    anchored: Boolean(gates.topicAnchor),
   });
-  const topic = snapshot?.topic
-    ? { ...snapshot.topic, title: topicAnchor || snapshot.topic.title }
+  const topic = pointer.snapshot?.topic
+    ? { ...pointer.snapshot.topic, title: gates.topicAnchor || pointer.snapshot.topic.title }
     : null;
-  const coachMode = snapshot?.coachMode ?? "stub";
-  const settings = snapshot?.settings ?? emptySettings;
-  const askedKinds = boundaries.map((b) => b.kind);
-  const currentKind = currentUnansweredKind(boundaries);
-  const pendingBoundary = shouldShowBoundaryCard({
-    phase: topic?.phase ?? "",
-    snapshot: boundarySnapshot,
-    confirmed: boundaryConfirmed,
-    finalized: boundaryFinalized,
-  });
-  const pendingOutline = shouldShowOutlineConfirm({
-    phase: topic?.phase ?? "",
-    boundaryConfirmed,
-    hasOutline: outline.length > 0,
-  });
+  const coachMode = pointer.snapshot?.coachMode ?? "stub";
+  const settings = pointer.snapshot?.settings ?? emptySettings;
+  const askedKinds = pointer.boundaries.map((b) => b.kind);
+  const currentKind = currentUnansweredKind(pointer.boundaries);
 
   return (
     <div
       data-app-frame
       className="relative flex h-dvh w-full min-w-0 flex-col bg-paper"
     >
-      {loadError ? (
+      {pointer.loadError ? (
         <p className="border-b border-cinnabar/30 bg-cinnabar/10 px-4 py-2 text-xs text-cinnabar">
-          {loadError} · {t("app.loadErrorSuffix")}
+          {pointer.loadError} · {t("app.loadErrorSuffix")}
         </p>
       ) : null}
 
       {tab === "learn" ? (
         <LearnTab
           topic={topic}
-          section={section}
-          outline={outline}
-          prereqEdges={prereqEdges}
-          currentSectionId={snapshot?.currentSectionId ?? null}
-          outlineOpen={outlineOpen}
-          outlinePersistent={outlineRail}
-          sessionOpen={sessionOpen}
-          sessionPersistent={outlineRail}
-          onOutlineOpen={setOutlineOpen}
-          onSessionOpen={setSessionOpen}
-          onSelectSection={(id) => void selectSection(id)}
-          messages={displayMessages}
-          liveRows={liveRows}
-          streaming={streaming}
-          busy={busy}
+          section={pointer.section}
+          outline={pointer.outline}
+          prereqEdges={pointer.prereqEdges}
+          currentSectionId={pointer.snapshot?.currentSectionId ?? null}
+          outlineOpen={rails.outlineOpen}
+          outlinePersistent={rails.persistent}
+          sessionOpen={rails.sessionOpen}
+          sessionPersistent={rails.persistent}
+          onOutlineOpen={rails.setOutlineOpen}
+          onSessionOpen={rails.setSessionOpen}
+          onSelectSection={(id) => void actions.selectSection(id)}
+          messages={session.displayMessages(pointer.messages)}
+          liveRows={session.liveRows}
+          streaming={session.streaming}
+          busy={session.busy}
           coachMode={coachMode}
-          error={error}
-          onSend={(text) => void send(text)}
-          snapshot={boundarySnapshot}
+          error={session.error}
+          onSend={(text) => void actions.send(text)}
+          snapshot={pointer.boundarySnapshot}
           askedKinds={askedKinds}
           currentKind={currentKind}
-          pendingBoundary={pendingBoundary}
-          pendingOutline={pendingOutline}
-          onConfirmBoundary={confirmBoundaryCard}
-          topicPointerNote={topicPointerNote ? t(topicPointerNote) : null}
-          draftRejected={draftRejected}
+          pendingBoundary={actions.pendingBoundary}
+          pendingOutline={actions.pendingOutline}
+          onConfirmBoundary={() => void actions.confirmBoundaryCard()}
+          topicPointerNote={pointer.topicPointerNote ? t(pointer.topicPointerNote) : null}
+          draftRejected={pointer.draftRejected}
           awaitingTopicAnchor={awaitingTopicAnchor}
         />
       ) : null}
@@ -570,16 +126,16 @@ export default function App() {
       {tab === "books" ? (
         <BooksTab
           topic={topic}
-          section={section}
-          notes={notes}
-          outline={outline}
-          boundaries={boundaries}
-          topics={topics}
+          section={pointer.section}
+          notes={pointer.notes}
+          outline={pointer.outline}
+          boundaries={pointer.boundaries}
+          topics={pointer.topics}
           drawerOpen={booksDrawer}
           onDrawerOpen={setBooksDrawer}
-          onCreate={() => void createTopic()}
-          onSwitch={(id) => void switchTopic(id)}
-          onExport={(id, format) => void requestExport(id, format)}
+          onCreate={() => void actions.createTopic()}
+          onSwitch={(id) => void actions.switchTopic(id)}
+          onExport={(id, format: ExportFormat) => void actions.requestExport(id, format)}
         />
       ) : null}
 
@@ -588,7 +144,7 @@ export default function App() {
           settings={settings}
           onSave={async (next) => {
             await api.saveSettings(next);
-            await refresh();
+            await pointer.refresh();
           }}
         />
       ) : null}

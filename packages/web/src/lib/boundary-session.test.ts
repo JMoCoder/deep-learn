@@ -33,8 +33,8 @@ class MemoryStore implements Storage {
   }
 }
 
-describe("1.3 topic + finalize persistence", () => {
-  it("remembers current topic and finalize flag across a fake refresh", () => {
+describe("1.3 topic + finalize cache (not UI truth)", () => {
+  it("stores a cold-start hint that adoptServerLearnState can overwrite", () => {
     const session = new MemoryStore();
     const local = new MemoryStore();
     (globalThis as { sessionStorage: Storage }).sessionStorage = session;
