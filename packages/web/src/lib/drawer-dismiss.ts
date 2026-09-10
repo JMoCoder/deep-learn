@@ -28,6 +28,14 @@ export function lockDrawerSwipeAxis(
   return Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
 }
 
+/**
+ * preventDefault only after the 8px lock is horizontal. Doing it earlier
+ * (jitter with |dx| > |dy|) makes iOS drop vertical scroll for that gesture.
+ */
+export function shouldCancelDrawerNativeScroll(axis: DrawerSwipeAxis | null): boolean {
+  return axis === "h";
+}
+
 export function shouldDismissDrawer(input: {
   side: DrawerSide;
   dx: number;

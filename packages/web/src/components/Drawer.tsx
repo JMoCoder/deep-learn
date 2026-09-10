@@ -12,6 +12,7 @@ import {
   clampDrawerDrag,
   drawerDragOverlayOpacity,
   lockDrawerSwipeAxis,
+  shouldCancelDrawerNativeScroll,
   shouldDismissDrawer,
   type DrawerSide,
 } from "@/lib/drawer-dismiss";
@@ -46,8 +47,12 @@ export function Drawer({
   const panelRef = useRef<HTMLElement | null>(null);
   const widthRef = useRef(0);
   const suppressClickRef = useRef(false);
+  const detachSwipeRef = useRef<(() => void) | null>(null);
+  const liveRef = useRef({ open, side, swipeDismiss, onClose });
+  liveRef.current = { open, side, swipeDismiss, onClose };
   const dragRef = useRef<{
     pointerId: number;
+    touchId: number | null;
     startX: number;
     startY: number;
     dx: number;
@@ -57,16 +62,120 @@ export function Drawer({
 
   const dragging = dragX !== null;
 
-  useEffect(() => {
-    if (open) return;
-    dragRef.current = null;
-    setDragX((prev) => (prev === null ? prev : null));
-  }, [open]);
+  function detachSwipeListeners() {
+    detachSwipeRef.current?.();
+    detachSwipeRef.current = null;
+  }
 
   function resetDrag() {
+    detachSwipeListeners();
     dragRef.current = null;
     setDragX((prev) => (prev === null ? prev : null));
   }
+
+  function applySwipeMove(dx: number, dy: number, event: Event) {
+    const drag = dragRef.current;
+    const live = liveRef.current;
+    if (!drag || !live.open || !live.swipeDismiss) return;
+    if (!drag.axis) {
+      const axis = lockDrawerSwipeAxis(dx, dy);
+      if (!axis) return;
+      drag.axis = axis;
+    }
+    if (shouldCancelDrawerNativeScroll(drag.axis) && event.cancelable) {
+      event.preventDefault();
+    }
+    if (drag.axis !== "h") return;
+    drag.dx = dx;
+    setDragX(clampDrawerDrag(live.side, dx));
+  }
+
+  function finishDrag(pointerId: number) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== pointerId) return;
+    const live = liveRef.current;
+    const dismiss =
+      drag.axis === "h" &&
+      shouldDismissDrawer({
+        side: live.side,
+        dx: drag.dx,
+        dy: 0,
+        width: widthRef.current,
+        enabled: live.swipeDismiss && live.open,
+      });
+    if (drag.axis === "h") suppressClickRef.current = true;
+    resetDrag();
+    if (dismiss) live.onClose();
+  }
+
+  function attachSwipeListeners() {
+    detachSwipeListeners();
+    // Do not setPointerCapture after axis lock: iOS loses capture to the
+    // overflow-y child and lostpointercapture used to abort the swipe.
+
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      applySwipeMove(event.clientX - drag.startX, event.clientY - drag.startY, event);
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const touch =
+        drag.touchId != null
+          ? Array.from(event.touches).find((item) => item.identifier === drag.touchId)
+          : event.touches[0];
+      if (!touch) return;
+      drag.touchId = touch.identifier;
+      applySwipeMove(touch.clientX - drag.startX, touch.clientY - drag.startY, event);
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      finishDrag(event.pointerId);
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      if (event.touches.length > 0) return;
+      finishDrag(drag.pointerId);
+    };
+    const onTouchCancel = () => {
+      resetDrag();
+    };
+    const onPageHide = () => {
+      resetDrag();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "hidden") return;
+      resetDrag();
+    };
+
+    // Ignore pointercancel / lostpointercapture: iOS fires them when the
+    // overflow-y child starts a native pan, but touchmove/touchend continue.
+    document.addEventListener("pointermove", onPointerMove, { capture: true, passive: false });
+    document.addEventListener("pointerup", onPointerUp, { capture: true });
+    document.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+    document.addEventListener("touchend", onTouchEnd, { capture: true });
+    document.addEventListener("touchcancel", onTouchCancel, { capture: true });
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    detachSwipeRef.current = () => {
+      document.removeEventListener("pointermove", onPointerMove, { capture: true });
+      document.removeEventListener("pointerup", onPointerUp, { capture: true });
+      document.removeEventListener("touchmove", onTouchMove, { capture: true });
+      document.removeEventListener("touchend", onTouchEnd, { capture: true });
+      document.removeEventListener("touchcancel", onTouchCancel, { capture: true });
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }
+
+  useEffect(() => {
+    if (open) return;
+    resetDrag();
+  }, [open]);
+
+  useEffect(() => () => detachSwipeListeners(), []);
 
   function onPanelPointerDown(event: ReactPointerEvent<HTMLElement>) {
     event.stopPropagation();
@@ -76,53 +185,23 @@ export function Drawer({
     widthRef.current = panelRef.current?.getBoundingClientRect().width ?? 0;
     dragRef.current = {
       pointerId: event.pointerId,
+      touchId: null,
       startX: event.clientX,
       startY: event.clientY,
       dx: 0,
       axis: null,
     };
+    attachSwipeListeners();
   }
 
   function onPanelPointerMove(event: ReactPointerEvent<HTMLElement>) {
     const drag = dragRef.current;
     if (!open || !swipeDismiss || !drag || event.pointerId !== drag.pointerId) return;
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-    if (!drag.axis) {
-      const axis = lockDrawerSwipeAxis(dx, dy);
-      if (!axis) return;
-      drag.axis = axis;
-      if (axis === "h") {
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-      }
-    }
-    if (drag.axis !== "h") return;
-    event.preventDefault();
-    drag.dx = dx;
-    setDragX(clampDrawerDrag(side, dx));
+    applySwipeMove(event.clientX - drag.startX, event.clientY - drag.startY, event.nativeEvent);
   }
 
-  function finishDrag(event: ReactPointerEvent<HTMLElement>) {
-    const drag = dragRef.current;
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    const dismiss =
-      drag.axis === "h" &&
-      shouldDismissDrawer({
-        side,
-        dx: drag.dx,
-        dy: 0,
-        width: widthRef.current,
-        enabled: swipeDismiss && open,
-      });
-    if (drag.axis === "h") suppressClickRef.current = true;
-    resetDrag();
-    if (dismiss) onClose();
-  }
-
-  function onLostCapture(event: ReactPointerEvent<HTMLElement>) {
-    const drag = dragRef.current;
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    resetDrag();
+  function onPanelPointerUp(event: ReactPointerEvent<HTMLElement>) {
+    finishDrag(event.pointerId);
   }
 
   function onPanelClickCapture(event: ReactMouseEvent<HTMLElement>) {
@@ -175,7 +254,7 @@ export function Drawer({
         className={cn(
           "absolute inset-y-0 z-10 flex w-[var(--sidebar-width)] flex-col border-paper-line bg-paper shadow-2xl",
           "transition-transform duration-200 ease-out",
-          swipeDismiss ? (dragging ? "touch-none" : "touch-pan-y") : null,
+          swipeDismiss && "touch-pan-y",
           side === "left" ? "left-0 border-r" : "right-0 border-l",
           open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full",
           dragging && "duration-0",
@@ -183,9 +262,7 @@ export function Drawer({
         style={dragX !== null ? { transform: `translateX(${dragX}px)` } : undefined}
         onPointerDown={onPanelPointerDown}
         onPointerMove={onPanelPointerMove}
-        onPointerUp={finishDrag}
-        onPointerCancel={onLostCapture}
-        onLostPointerCapture={onLostCapture}
+        onPointerUp={onPanelPointerUp}
         onClickCapture={onPanelClickCapture}
         onClick={(event) => event.stopPropagation()}
       >
@@ -198,7 +275,7 @@ export function Drawer({
             {t("drawer.close")}
           </button>
         </header>
-        <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto">{children}</div>
+        <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto touch-pan-y">{children}</div>
       </aside>
     </div>
   );

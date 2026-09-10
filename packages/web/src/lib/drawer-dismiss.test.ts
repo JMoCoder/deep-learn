@@ -6,6 +6,7 @@ import {
   drawerCloseTravel,
   drawerDragOverlayOpacity,
   lockDrawerSwipeAxis,
+  shouldCancelDrawerNativeScroll,
   shouldDismissDrawer,
 } from "./drawer-dismiss.ts";
 
@@ -28,6 +29,12 @@ describe("drawer swipe dismiss (reverse of open)", () => {
     assert.equal(lockDrawerSwipeAxis(3, 2), null);
     assert.equal(lockDrawerSwipeAxis(-30, 4), "h");
     assert.equal(lockDrawerSwipeAxis(4, 30), "v");
+  });
+
+  it("cancels native scroll only after the gesture locks horizontal", () => {
+    assert.equal(shouldCancelDrawerNativeScroll(null), false);
+    assert.equal(shouldCancelDrawerNativeScroll("h"), true);
+    assert.equal(shouldCancelDrawerNativeScroll("v"), false);
   });
 
   it("closes only when enabled and travel is reverse + far enough", () => {

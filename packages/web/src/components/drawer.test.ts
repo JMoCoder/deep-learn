@@ -130,6 +130,54 @@ describe("Drawer overlay + reverse swipe dismiss", () => {
     root.unmount();
   });
 
+  it("keeps a reverse swipe after lostpointercapture and pointercancel (iOS scroll child)", async () => {
+    const { root, closes } = mountDrawer({ side: "left" });
+    const panel = document.querySelector("[data-testid=drawer-panel]");
+    assert.ok(panel);
+    await act(async () => {
+      pointer(panel, "pointerdown", 160, 48);
+      pointer(panel, "pointermove", 140, 48);
+      panel.dispatchEvent(
+        new PointerEvent("lostpointercapture", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 140,
+          clientY: 48,
+        }),
+      );
+      panel.dispatchEvent(
+        new PointerEvent("pointercancel", {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: "touch",
+          clientX: 140,
+          clientY: 48,
+        }),
+      );
+      pointer(panel, "pointermove", 40, 48);
+      pointer(panel, "pointerup", 40, 48);
+    });
+    assert.deepEqual(closes, ["close"]);
+    root.unmount();
+  });
+
+  it("tracks a reverse swipe from the overflow body via document listeners", async () => {
+    const { root, closes } = mountDrawer({ side: "left" });
+    const panel = document.querySelector("[data-testid=drawer-panel]");
+    const body = panel?.querySelector(".overflow-y-auto");
+    assert.ok(panel);
+    assert.ok(body);
+    assert.match(panel.className, /touch-pan-y/);
+    assert.match(body.className, /touch-pan-y/);
+    assert.equal(/\btouch-none\b/.test(panel.className), false);
+    await swipe(body, 160, 40);
+    assert.deepEqual(closes, ["close"]);
+    root.unmount();
+  });
+
   it("does not treat a vertical scroll as a dismiss", async () => {
     const { root, closes } = mountDrawer({ side: "left" });
     const panel = document.querySelector("[data-testid=drawer-panel]");
