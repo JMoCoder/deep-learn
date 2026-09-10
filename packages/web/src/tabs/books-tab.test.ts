@@ -38,8 +38,7 @@ function assertChipMatchesContent(pane: "body" | "notes"): void {
   assert.equal(hasClassToken(tab.className, other), false);
   assert.equal(hasClassToken(surface.className, other), false);
   assert.equal(hasClassToken(panel.className, other), false);
-  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE.bg), false);
-  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE.fade), false);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE), false);
 }
 
 function assertWideInactiveDimmed(inactive: "body" | "notes"): void {
@@ -47,8 +46,8 @@ function assertWideInactiveDimmed(inactive: "body" | "notes"): void {
   assert.ok(panel);
   assert.equal(hasClassToken(panel.className, BOOKS_PANE_SURFACE.body), false);
   assert.equal(hasClassToken(panel.className, BOOKS_PANE_SURFACE.notes), false);
-  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE.bg), true);
-  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE.fade), true);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE), true);
+  assert.equal(/\bopacity-/.test(panel.className), false);
 }
 
 function stubOutlineRail(wide: boolean): void {
@@ -291,16 +290,10 @@ describe("books hero switch + 正文/笔记 tabs", () => {
   it("maps wide-pane surfaces to the active chip fill and a dimmed inactive fill", () => {
     assert.equal(booksSpreadPaneSurface("body", "body"), BOOKS_PANE_SURFACE.body);
     assert.equal(booksSpreadPaneSurface("notes", "notes"), BOOKS_PANE_SURFACE.notes);
-    assert.equal(
-      booksSpreadPaneSurface("notes", "body"),
-      `${BOOKS_PANE_INACTIVE.bg} ${BOOKS_PANE_INACTIVE.fade}`,
-    );
-    assert.equal(
-      booksSpreadPaneSurface("body", "notes"),
-      `${BOOKS_PANE_INACTIVE.bg} ${BOOKS_PANE_INACTIVE.fade}`,
-    );
-    assert.notEqual(BOOKS_PANE_SURFACE.body, BOOKS_PANE_INACTIVE.bg);
-    assert.notEqual(BOOKS_PANE_SURFACE.notes, BOOKS_PANE_INACTIVE.bg);
+    assert.equal(booksSpreadPaneSurface("notes", "body"), BOOKS_PANE_INACTIVE);
+    assert.equal(booksSpreadPaneSurface("body", "notes"), BOOKS_PANE_INACTIVE);
+    assert.notEqual(BOOKS_PANE_SURFACE.body, BOOKS_PANE_INACTIVE);
+    assert.notEqual(BOOKS_PANE_SURFACE.notes, BOOKS_PANE_INACTIVE);
   });
 
   it("paints the content surface with the active tab chip background", async () => {
