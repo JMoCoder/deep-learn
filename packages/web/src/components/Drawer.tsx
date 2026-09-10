@@ -20,32 +20,41 @@ export function Drawer({
   contained?: boolean;
 }) {
   const t = useT();
-  if (!open) return null;
 
   const node = (
     <div
       data-testid="drawer-root"
-      className={contained ? "absolute inset-0 z-40" : "fixed inset-0 z-50"}
+      data-drawer-side={side}
+      data-state={open ? "open" : "closed"}
+      inert={!open}
+      aria-hidden={!open}
+      className={cn(
+        contained ? "absolute inset-0 z-40" : "fixed inset-0 z-50",
+        "transition-opacity duration-200 ease-out",
+        open ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
     >
-      {/* Dim only the page, never the panel — a full-screen overlay steals the 新建主题 hit. */}
+      {/* Overlay sits behind the panel so 新建主题 and other hits stay on the aside. */}
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={open ? 0 : -1}
         data-testid="drawer-dismiss"
         aria-label={t("drawer.closeAria")}
         className={cn(
-          "absolute inset-y-0 bg-black/25",
-          side === "right" ? "left-0" : "right-0",
+          "absolute inset-0 bg-black/25 transition-opacity duration-200 ease-out",
+          open ? "opacity-100" : "opacity-0",
         )}
-        style={side === "right" ? { right: "var(--sidebar-width)" } : { left: "var(--sidebar-width)" }}
         onClick={onClose}
       />
       <aside
         role="dialog"
         aria-label={title}
+        aria-hidden={!open}
         className={cn(
           "absolute inset-y-0 z-10 flex w-[var(--sidebar-width)] flex-col border-paper-line bg-paper shadow-2xl",
+          "transition-transform duration-200 ease-out",
           side === "left" ? "left-0 border-r" : "right-0 border-l",
+          open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full",
         )}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}

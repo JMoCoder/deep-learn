@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocale, useSetLocale, useT } from "@/i18n";
+import { padContributionCells } from "@/lib/contribution-graph";
 import { cn } from "@/lib/utils";
 
 export function MeTab({
@@ -116,27 +117,36 @@ export function MeTab({
 
 function HeatmapBlock({ heatmap }: { heatmap: HeatmapDay[] }) {
   const t = useT();
+  const cells = padContributionCells(heatmap);
   return (
     <section data-testid="me-heatmap">
       <h2 className="font-serif text-lg">{t("me.heatmap")}</h2>
       <p className="mt-1 text-xs text-paper-muted">{t("me.heatmapHint")}</p>
-      <div
-        className="mt-3 grid w-max gap-[3px]"
-        style={{ gridTemplateColumns: "repeat(20, 11px)" }}
-      >
-        {heatmap.map((d) => (
-          <div
-            key={d.date}
-            title={`${d.date} · ${d.count}`}
-            className={cn(
-              "h-[11px] w-[11px] shrink-0 rounded-[2px]",
-              d.count === 0 && "bg-paper-line",
-              d.count === 1 && "bg-cinnabar-soft/50",
-              d.count >= 2 && d.count < 5 && "bg-cinnabar-soft",
-              d.count >= 5 && "bg-cinnabar",
-            )}
-          />
-        ))}
+      <div className="mt-3 overflow-x-auto">
+        <div
+          data-testid="me-heatmap-grid"
+          className="grid w-max gap-[3px]"
+          style={{
+            gridAutoFlow: "column",
+            gridTemplateRows: "repeat(7, 11px)",
+            gridAutoColumns: "11px",
+          }}
+        >
+          {cells.map((d, i) => (
+            <div
+              key={d?.date ?? `pad-${i}`}
+              title={d ? `${d.date} · ${d.count}` : undefined}
+              className={cn(
+                "h-[11px] w-[11px] shrink-0 rounded-[2px]",
+                !d && "bg-transparent",
+                d && d.count === 0 && "bg-paper-line",
+                d && d.count === 1 && "bg-cinnabar-soft/50",
+                d && d.count >= 2 && d.count < 5 && "bg-cinnabar-soft",
+                d && d.count >= 5 && "bg-cinnabar",
+              )}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

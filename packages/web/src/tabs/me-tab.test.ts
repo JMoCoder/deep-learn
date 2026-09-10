@@ -61,10 +61,12 @@ describe("Me page width + heatmap top region", () => {
     assert.equal(/\bflex-1\b/.test(heat.className), false);
     assert.equal(/\bgrow\b/.test(heat.className), false);
     assert.equal(/\bh-full\b/.test(heat.className), false);
-    const grid = heat.querySelector(".grid");
+    const grid = heat.querySelector("[data-testid=me-heatmap-grid]");
     assert.ok(grid);
     assert.match(grid.className, /\bw-max\b/);
     assert.equal(/\bw-full\b/.test(grid.className), false);
+    assert.match(grid.getAttribute("style") ?? "", /repeat\(7/);
+    assert.match(grid.getAttribute("style") ?? "", /grid-auto-flow:\s*column/);
     const cell = heat.querySelector("[title]");
     assert.ok(cell);
     assert.equal(/\bw-full\b/.test(cell.className), false);

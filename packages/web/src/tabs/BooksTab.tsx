@@ -76,7 +76,7 @@ export function BooksTab({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="z-20 border-b border-paper-line px-3 py-3">
         <TopicHero
           topic={topic}
@@ -94,7 +94,7 @@ export function BooksTab({
               {t("books.emptyBody")}
             </p>
           ) : (
-            <div className="mx-auto max-w-2xl space-y-6">
+            <div data-testid="books-body" className="w-full space-y-6">
               <div
                 role="tablist"
                 aria-label={t("books.contentTabs")}

@@ -171,6 +171,38 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     again.unmount();
   });
 
+  it("stretches the books body across the main region instead of a narrow centered column", () => {
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    const body = document.querySelector("[data-testid=books-body]");
+    assert.ok(body);
+    assert.match(body.className, /\bw-full\b/);
+    assert.equal(/\bmax-w-2xl\b/.test(body.className), false);
+    assert.equal(/\bmx-auto\b/.test(body.className), false);
+    root.unmount();
+  });
+
+  it("keeps a closed topic drawer mounted for exit animation without blocking the page", () => {
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic },
+    );
+    const drawer = document.querySelector("[data-testid=drawer-root][data-drawer-side=right]");
+    assert.ok(drawer);
+    assert.equal(drawer.getAttribute("data-state"), "closed");
+    assert.equal(drawer.hasAttribute("inert"), true);
+    assert.match(drawer.className, /pointer-events-none/);
+    assert.match(drawer.className, /transition-opacity/);
+    const panel = drawer.querySelector("aside");
+    assert.ok(panel);
+    assert.match(panel.className, /transition-transform/);
+    root.unmount();
+  });
+
   it("keeps the topic drawer out of the page stage so it stays full height", () => {
     const root = mountBooks(
       () => {},

@@ -41,6 +41,34 @@ if (!(globalThis as { __quantumDom?: boolean }).__quantumDom) {
     value: win.sessionStorage,
     configurable: true,
   });
+  if (typeof win.matchMedia !== "function") {
+    Object.defineProperty(win, "matchMedia", {
+      configurable: true,
+      value: (query: string) => {
+        const widthMatch = /min-width:\s*([\d.]+)(px|rem)/.exec(query);
+        let matches = false;
+        if (widthMatch) {
+          const n = Number(widthMatch[1]);
+          const px = widthMatch[2] === "rem" ? n * 16 : n;
+          matches = (win.innerWidth ?? 1024) >= px;
+        }
+        return {
+          matches,
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          dispatchEvent: () => false,
+          onchange: null,
+        };
+      },
+    });
+  }
+  Object.defineProperty(globalThis, "matchMedia", {
+    configurable: true,
+    value: win.matchMedia.bind(win),
+  });
   (globalThis as { __quantumDom?: boolean }).__quantumDom = true;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 }
