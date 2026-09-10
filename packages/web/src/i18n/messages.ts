@@ -51,7 +51,6 @@ export const zh = {
   "books.exportTitle": "导出主题",
   "books.exportHint": "由工具 export_topic 生成，格式 md / html / epub。完成后可从会话或下载链接取回。",
   "books.currentTopic": "当前主题",
-  "books.noGoal": "边界未齐时，先打开学习页右上角会话。",
   "books.outlineOnLearn": "完整边界卡在学习页确认，不靠这一行进大纲。",
   "books.sections": "章节 {ready}/{total}",
   "books.notesCount": "笔记 {count}",
@@ -316,7 +315,6 @@ export const en: Record<MessageKey, string> = {
   "books.exportHint":
     "Produced by export_topic as md / html / epub. Pick it up from the session or the download link.",
   "books.currentTopic": "Current topic",
-  "books.noGoal": "If the boundary is incomplete, open the session from the Learn header.",
   "books.outlineOnLearn": "Confirm the full boundary card on Learn — this line does not advance the outline.",
   "books.sections": "Sections {ready}/{total}",
   "books.notesCount": "Notes {count}",
