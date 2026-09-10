@@ -6,6 +6,30 @@ release dates that were never tagged.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-10
+
+Stable release on `main` tip `512acc9`. First public slice was tip
+`97baa0fc7256415a822f148be344fab102ecb3f3`.
+
+### Added
+
+- Two cores: **Pi agent runtime** (`packages/server`) and **PWA** (`packages/web`).
+- Shared contracts in `packages/shared` (`SessionRow`, `BoundaryCard`, outline, tools).
+- Docker Compose acceptance path: PWA `localhost:43127`, API `localhost:43128`,
+  volume `quantum-data`.
+- Books: current topic, history, **create topic** (`POST /topics`).
+- Learn: interview chips, boundary card, outline confirm with leaf-budget gate.
+- Settings: model / proxy, heatmap placeholder.
+- Scope-out refuse (slice 2.7): `scope_out` stored as the raw phrase; matching uses
+  topic-word needles; coach and runtime refuse before GROUND / `append_note`; PWA
+  shows a REFUSE chip and hides CiteRow / note cards on that turn.
+- English primary `README.md` and a matching Chinese translation in `README.zh-CN.md`.
+- MIT `LICENSE`.
+- PWA Settings language switch (`zh` / `en`) for UI chrome. First visit follows the
+  browser language (`en*` / `zh*`, else zh-CN); the choice is persisted in
+  `localStorage` (`quantum.locale`). Agent replies still follow the user's input
+  language; there is no model-locale override.
+
 ### Changed
 
 - Yellow pack (product freeze): live and stub share one gate/tool path
@@ -21,6 +45,17 @@ release dates that were never tagged.
 - Red-4 freeze: coach no longer confirms or leaf-reduces from chat; outline
   confirm / 重拟 go through Learn card gates + tools. Export POST only
   returns `ok:true` after a real file. Root `pnpm test` runs shared + server + web.
+- Books note meta shows type copy and time only (hides `reason_code` digits).
+- Phone drawers swipe-dismiss; Books notes use the Body pane background;
+  favicon letter R→L; phone Books hero drops no-goal / status second line.
+- Remove unused `books.noGoal` i18n keys.
+
+### Fixed
+
+- Dockerfile web stage: `chmod -R a+rX` on nginx html so copied static assets
+  stay readable.
+- Phone drawer swipe: iOS `touch-action: pan-y` and `pointercancel` harden so
+  reverse-swipe dismiss is not dropped.
 
 ### Security
 
@@ -32,40 +67,14 @@ release dates that were never tagged.
   `http://127.0.0.1:43127` and `http://localhost:43127`. Export paths must
   stay under the exports root after resolve/realpath.
 
-### Added
+### Security / product rules (unchanged)
 
-- English primary `README.md` and a matching Chinese translation in `README.zh-CN.md`.
-- MIT `LICENSE`.
-- PWA Settings language switch (`zh` / `en`) for UI chrome. First visit follows the
-  browser language (`en*` / `zh*`, else zh-CN); the choice is persisted in
-  `localStorage` (`quantum.locale`). Agent replies still follow the user's input
-  language; there is no model-locale override.
+- Local-only. No cloud. No telemetry.
+- `scope_in` / `scope_out` never silently rewritten.
+- Notes stay on the current topic.
 
 ### Notes
 
 - No server locale needed. Settings have no `locale` field. Health/persist errors and
   default topic titles are data or machine strings, not PWA chrome. Stub/coach copy
   follows the user's input language.
-
-## [0.1.0]
-
-First public slice on `main` (tip `97baa0fc7256415a822f148be344fab102ecb3f3`).
-
-### Added
-
-- Two cores: **Pi agent runtime** (`packages/server`) and **PWA** (`packages/web`).
-- Shared contracts in `packages/shared` (`SessionRow`, `BoundaryCard`, outline, tools).
-- Docker Compose acceptance path: PWA `localhost:43127`, API `localhost:43128`,
-  volume `quantum-data`.
-- Books: current topic, history, **create topic** (`POST /topics`).
-- Learn: interview chips, boundary card, outline confirm with leaf-budget gate.
-- Settings: model / proxy, heatmap placeholder.
-- Scope-out refuse (slice 2.7): `scope_out` stored as the raw phrase; matching uses
-  topic-word needles; coach and runtime refuse before GROUND / `append_note`; PWA
-  shows a REFUSE chip and hides CiteRow / note cards on that turn.
-
-### Security / product rules (unchanged)
-
-- Local-only. No cloud. No telemetry.
-- `scope_in` / `scope_out` never silently rewritten.
-- Notes stay on the current topic.
