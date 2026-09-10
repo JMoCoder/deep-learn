@@ -24,8 +24,15 @@ export const BOOKS_PANE_SURFACE = {
   notes: "bg-paper-deep/70",
 } as const;
 
+/** Wide-layout inactive pane: gray fill, full-opacity text. Not ring/border alone. */
+export const BOOKS_PANE_INACTIVE = "bg-paper-ink/30";
+
 export function booksActiveSurface(pane: BooksPane): string {
   return BOOKS_PANE_SURFACE[pane];
+}
+
+export function booksSpreadPaneSurface(own: BooksPane, active: BooksPane): string {
+  return own === active ? booksActiveSurface(own) : BOOKS_PANE_INACTIVE;
 }
 
 export function readBooksPane(): BooksPane {
@@ -150,8 +157,8 @@ export function BooksTab({
                     data-testid="books-pane-body"
                     data-active={pane === "body" ? "true" : "false"}
                     className={cn(
-                      "quantum-scroll min-h-0 overflow-y-auto px-5 py-5",
-                      booksActiveSurface(pane),
+                      "quantum-scroll min-h-0 overflow-y-auto px-5 py-5 transition-colors",
+                      booksSpreadPaneSurface("body", pane),
                       pane === "body" && "ring-1 ring-inset ring-cinnabar/25",
                     )}
                   >
@@ -162,8 +169,8 @@ export function BooksTab({
                     data-testid="books-pane-notes"
                     data-active={pane === "notes" ? "true" : "false"}
                     className={cn(
-                      "quantum-scroll min-h-0 overflow-y-auto border-l border-paper-line px-5 py-5",
-                      booksActiveSurface(pane),
+                      "quantum-scroll min-h-0 overflow-y-auto border-l border-paper-line px-5 py-5 transition-colors",
+                      booksSpreadPaneSurface("notes", pane),
                       pane === "notes" && "ring-1 ring-inset ring-cinnabar/25",
                     )}
                   >

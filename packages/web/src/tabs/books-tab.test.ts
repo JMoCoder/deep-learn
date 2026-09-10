@@ -8,8 +8,10 @@ import type { NoteRecord, SectionRecord, TopicSummary } from "@quantum/shared";
 import { OUTLINE_RAIL_QUERY } from "@/lib/outline-rail";
 import {
   BooksTab,
+  BOOKS_PANE_INACTIVE,
   BOOKS_PANE_KEY,
   BOOKS_PANE_SURFACE,
+  booksSpreadPaneSurface,
   readBooksPane,
 } from "./BooksTab.tsx";
 
@@ -36,6 +38,16 @@ function assertChipMatchesContent(pane: "body" | "notes"): void {
   assert.equal(hasClassToken(tab.className, other), false);
   assert.equal(hasClassToken(surface.className, other), false);
   assert.equal(hasClassToken(panel.className, other), false);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE), false);
+}
+
+function assertWideInactiveDimmed(inactive: "body" | "notes"): void {
+  const panel = document.querySelector(`[data-testid=books-pane-${inactive}]`);
+  assert.ok(panel);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_SURFACE.body), false);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_SURFACE.notes), false);
+  assert.equal(hasClassToken(panel.className, BOOKS_PANE_INACTIVE), true);
+  assert.equal(/\bopacity-/.test(panel.className), false);
 }
 
 function stubOutlineRail(wide: boolean): void {
@@ -275,6 +287,15 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     root.unmount();
   });
 
+  it("maps wide-pane surfaces to the active chip fill and a dimmed inactive fill", () => {
+    assert.equal(booksSpreadPaneSurface("body", "body"), BOOKS_PANE_SURFACE.body);
+    assert.equal(booksSpreadPaneSurface("notes", "notes"), BOOKS_PANE_SURFACE.notes);
+    assert.equal(booksSpreadPaneSurface("notes", "body"), BOOKS_PANE_INACTIVE);
+    assert.equal(booksSpreadPaneSurface("body", "notes"), BOOKS_PANE_INACTIVE);
+    assert.notEqual(BOOKS_PANE_SURFACE.body, BOOKS_PANE_INACTIVE);
+    assert.notEqual(BOOKS_PANE_SURFACE.notes, BOOKS_PANE_INACTIVE);
+  });
+
   it("paints the content surface with the active tab chip background", async () => {
     assert.notEqual(BOOKS_PANE_SURFACE.body, BOOKS_PANE_SURFACE.notes);
 
@@ -301,12 +322,14 @@ describe("books hero switch + 正文/笔记 tabs", () => {
       { drawerOpen: false, topic },
     );
     assertChipMatchesContent("body");
+    assertWideInactiveDimmed("notes");
     const wideNotes = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
     assert.ok(wideNotes);
     await act(async () => {
       wideNotes.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
     assertChipMatchesContent("notes");
+    assertWideInactiveDimmed("body");
     wide.unmount();
   });
 
@@ -448,8 +471,7 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.equal(/#fffaf2/.test(body.className), false);
     assert.equal(/#f6efe3/.test(notes.className), false);
     assertChipMatchesContent("body");
-    assert.equal(hasClassToken(notes.className, BOOKS_PANE_SURFACE.body), true);
-    assert.equal(hasClassToken(notes.className, BOOKS_PANE_SURFACE.notes), false);
+    assertWideInactiveDimmed("notes");
     assert.equal(hasClassToken(notes.className, "border-l"), true);
     assert.notEqual(body.className, notes.className);
     assert.equal(body.getAttribute("data-active"), "true");
@@ -469,8 +491,7 @@ describe("books hero switch + 正文/笔记 tabs", () => {
     assert.equal(notes.getAttribute("data-active"), "true");
     assert.equal(body.getAttribute("data-active"), "false");
     assertChipMatchesContent("notes");
-    assert.equal(hasClassToken(body.className, BOOKS_PANE_SURFACE.notes), true);
-    assert.equal(hasClassToken(body.className, BOOKS_PANE_SURFACE.body), false);
+    assertWideInactiveDimmed("body");
     assert.ok(document.querySelector("[data-testid=books-pane-body]"));
     assert.ok(document.querySelector("[data-testid=books-pane-notes]"));
     assert.equal(readBooksPane(), "notes");
