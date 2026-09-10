@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { describe, it } from "node:test";
-import { createApp, LOCAL_PREVIEW_ORIGINS } from "./app.js";
-import { config } from "./config.js";
-import { isSafeExportSegment, resolveExportFile } from "./export/safe-path.js";
-import { openMemoryDb } from "./store/db.js";
-import { Store } from "./store/repos.js";
+import { createApp, LOCAL_PREVIEW_ORIGINS } from "../app.js";
+import { config } from "../config.js";
+import { isSafeExportSegment, resolveExportFile } from "./safe-path.js";
+import { openMemoryDb } from "../store/db.js";
+import { Store } from "../store/repos.js";
 
 const TOKEN = "test-preview-token";
 
@@ -15,18 +15,11 @@ function gatedApp(store = new Store(openMemoryDb())) {
 }
 
 function auth(init: RequestInit = {}, header: "bearer" | "x" = "bearer"): RequestInit {
-  const extra =
-    header === "bearer"
-      ? { authorization: `Bearer ${TOKEN}` }
-      : { "x-quantum-token": TOKEN };
-  return {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...extra,
-      ...(init.headers ?? {}),
-    },
-  };
+  const headers = new Headers(init.headers);
+  headers.set("content-type", "application/json");
+  if (header === "bearer") headers.set("authorization", `Bearer ${TOKEN}`);
+  else headers.set("x-quantum-token", TOKEN);
+  return { ...init, headers };
 }
 
 describe("local preview publish lockdown", () => {
@@ -84,7 +77,10 @@ describe("local preview publish lockdown", () => {
     const viaHeader = await app.request("/api/topics", auth({}, "x"));
     assert.equal(viaHeader.status, 200);
 
-    const created = await app.request("/api/topics", auth({ method: "POST", body: JSON.stringify({ title: "有令" }) }));
+    const created = await app.request(
+      "/api/topics",
+      auth({ method: "POST", body: JSON.stringify({ title: "有令" }) }),
+    );
     assert.equal(created.status, 201);
 
     const settings = await app.request(
@@ -148,17 +144,15 @@ describe("local preview publish lockdown", () => {
       `/api/exports/${topic.id}/${encodeURIComponent("..")}`,
       `/api/exports/${topic.id}/${encodeURIComponent("../outside-secret.txt")}`,
       `/api/exports/${topic.id}/${encodeURIComponent("..\\outside-secret.txt")}`,
-      `/api/exports/${encodeURIComponent(topic.id + "/../" + topic.id)}/${okName}`,
+      `/api/exports/${encodeURIComponent(`${topic.id}/../${topic.id}`)}/${okName}`,
       `/api/exports/${encodeURIComponent("/etc")}/${encodeURIComponent("passwd")}`,
     ];
 
     for (const path of attacks) {
       const res = await app.request(path, auth());
       assert.ok(res.status === 400 || res.status === 404, `${path} → ${res.status}`);
-      if (res.status === 200) {
-        const text = await res.text();
-        assert.ok(!text.includes("nope"), `leaked file via ${path}`);
-      }
+      const text = await res.text();
+      assert.ok(!text.includes("nope"), `leaked file via ${path}`);
     }
 
     const missingTopic = await app.request(`/api/exports/top_doesnotexist000/${okName}`, auth());
