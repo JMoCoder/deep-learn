@@ -11,7 +11,8 @@ import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { countOutlineLeaves, uiNoteType } from "@/lib/session-display";
-import { phaseText, useLocale, useT } from "@/i18n";
+import { useOutlineRail } from "@/lib/use-outline-rail";
+import { phaseText, useLocale, useT, type Locale } from "@/i18n";
 import { cn, formatTime } from "@/lib/utils";
 
 export const BOOKS_PANE_KEY = "quantum.booksContentPane";
@@ -60,6 +61,7 @@ export function BooksTab({
 }) {
   const t = useT();
   const locale = useLocale();
+  const wide = useOutlineRail();
   const [exportId, setExportId] = useState<string | null>(null);
   const [pane, setPane] = useState<BooksPane>(readBooksPane);
   const goal =
@@ -77,28 +79,37 @@ export function BooksTab({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="z-20 border-b border-paper-line px-3 py-3">
+      <header className={cn("z-20 border-b border-paper-line px-3", wide ? "py-2" : "py-3")}>
         <TopicHero
           topic={topic}
           goal={goal}
           noteCount={notes.length}
           leaves={leaves}
+          wide={wide}
           onOpenDrawer={() => onDrawerOpen(true)}
         />
       </header>
 
       <div className="relative min-h-0 flex-1 overflow-hidden" data-testid="books-stage">
-        <div className="quantum-scroll h-full min-h-0 overflow-y-auto px-5 py-6">
+        <div
+          className={cn(
+            "h-full min-h-0 px-5",
+            wide ? "flex flex-col overflow-hidden py-4" : "quantum-scroll overflow-y-auto py-6",
+          )}
+        >
           {!topic ? (
             <p className="mx-auto max-w-md py-10 text-center text-sm text-paper-muted">
               {t("books.emptyBody")}
             </p>
           ) : (
-            <div data-testid="books-body" className="w-full space-y-6">
+            <div
+              data-testid="books-body"
+              className={cn("w-full", wide ? "flex min-h-0 flex-1 flex-col gap-4" : "space-y-6")}
+            >
               <div
                 role="tablist"
                 aria-label={t("books.contentTabs")}
-                className="relative z-10 flex gap-1 rounded-full border border-paper-line bg-paper-deep/70 p-1"
+                className="relative z-10 flex shrink-0 gap-1 rounded-full border border-paper-line bg-paper-deep/70 p-1"
               >
                 <PaneTab
                   testId="books-tab-body"
@@ -114,38 +125,43 @@ export function BooksTab({
                 />
               </div>
 
-              {pane === "body" ? (
+              {wide ? (
+                <div
+                  data-testid="books-spread"
+                  className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden rounded-xl border border-paper-line bg-paper-deep/40"
+                >
+                  <section
+                    role="tabpanel"
+                    data-testid="books-pane-body"
+                    data-active={pane === "body" ? "true" : "false"}
+                    className={cn(
+                      "quantum-scroll min-h-0 overflow-y-auto bg-[#fffaf2] px-5 py-5",
+                      "shadow-[inset_-14px_0_18px_-16px_rgba(43,42,38,0.28)]",
+                      pane === "body" && "ring-1 ring-inset ring-cinnabar/25",
+                    )}
+                  >
+                    <BodyCopy section={section} />
+                  </section>
+                  <section
+                    role="tabpanel"
+                    data-testid="books-pane-notes"
+                    data-active={pane === "notes" ? "true" : "false"}
+                    className={cn(
+                      "quantum-scroll min-h-0 overflow-y-auto bg-[#f6efe3] px-5 py-5",
+                      "shadow-[inset_14px_0_18px_-16px_rgba(43,42,38,0.28)]",
+                      pane === "notes" && "ring-1 ring-inset ring-cinnabar/25",
+                    )}
+                  >
+                    <NotesCopy notes={notes} locale={locale} />
+                  </section>
+                </div>
+              ) : pane === "body" ? (
                 <section role="tabpanel" data-testid="books-pane-body">
-                  {section ? (
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink/90">
-                      {section.bodyMd.slice(0, 800)}
-                      {section.bodyMd.length > 800 ? "…" : ""}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-paper-muted">{t("books.noProjection")}</p>
-                  )}
+                  <BodyCopy section={section} />
                 </section>
               ) : (
                 <section role="tabpanel" data-testid="books-pane-notes">
-                  <p className="text-xs text-paper-muted">{t("books.notesHint")}</p>
-                  {notes.length === 0 ? (
-                    <p className="mt-3 text-sm text-paper-muted">{t("books.noNotes")}</p>
-                  ) : (
-                    <ul className="mt-3 space-y-3">
-                      {notes.map((n) => (
-                        <li
-                          key={n.id}
-                          className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm"
-                        >
-                          <p>{n.body}</p>
-                          <p className="mt-1 text-[11px] text-paper-muted">
-                            {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} ·{" "}
-                            {formatTime(n.createdAt, locale)}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <NotesCopy notes={notes} locale={locale} />
                 </section>
               )}
             </div>
@@ -260,65 +276,149 @@ function PaneTab({
   );
 }
 
+function BodyCopy({ section }: { section: SectionRecord | null }) {
+  const t = useT();
+  if (!section) {
+    return <p className="text-sm text-paper-muted">{t("books.noProjection")}</p>;
+  }
+  return (
+    <p className="whitespace-pre-wrap text-sm leading-relaxed text-paper-ink/90">
+      {section.bodyMd.slice(0, 800)}
+      {section.bodyMd.length > 800 ? "…" : ""}
+    </p>
+  );
+}
+
+function NotesCopy({ notes, locale }: { notes: NoteRecord[]; locale: Locale }) {
+  const t = useT();
+  return (
+    <>
+      <p className="text-xs text-paper-muted">{t("books.notesHint")}</p>
+      {notes.length === 0 ? (
+        <p className="mt-3 text-sm text-paper-muted">{t("books.noNotes")}</p>
+      ) : (
+        <ul className="mt-3 space-y-3">
+          {notes.map((n) => (
+            <li
+              key={n.id}
+              className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm"
+            >
+              <p>{n.body}</p>
+              <p className="mt-1 text-[11px] text-paper-muted">
+                {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} ·{" "}
+                {formatTime(n.createdAt, locale)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 function TopicHero({
   topic,
   goal,
   noteCount,
   leaves,
+  wide,
   onOpenDrawer,
 }: {
   topic: TopicSummary | null;
   goal: string;
   noteCount: number;
   leaves: { ready: number; total: number };
+  wide: boolean;
   onOpenDrawer: () => void;
 }) {
   const t = useT();
+  const chips = topic ? (
+    <>
+      <MetaChip>
+        {t("books.sections", { ready: leaves.ready, total: leaves.total || "—" })}
+      </MetaChip>
+      <MetaChip>{t("books.notesCount", { count: noteCount })}</MetaChip>
+      <MetaChip>
+        {phaseText(topic.phase, t)}
+        {topic.exportState !== "idle"
+          ? ` · ${t("books.exportState", { state: topic.exportState })}`
+          : ""}
+      </MetaChip>
+    </>
+  ) : (
+    <>
+      <MetaChip>{t("books.sectionsDash")}</MetaChip>
+      <MetaChip>{t("books.notesZero")}</MetaChip>
+      <MetaChip>{t("books.notStarted")}</MetaChip>
+    </>
+  );
+
   return (
-    <section className="hero-topic relative flex min-w-0 items-center gap-3 overflow-hidden rounded-[1.35rem] border border-paper-line/90 px-4 py-4 pl-5">
+    <section
+      data-testid="books-hero"
+      data-layout={wide ? "wide" : "narrow"}
+      className={cn(
+        "hero-topic relative flex min-w-0 items-center gap-3 overflow-hidden rounded-[1.35rem] border border-paper-line/90 pl-5",
+        wide ? "px-4 py-2" : "px-4 py-4",
+      )}
+    >
       <span aria-hidden className="hero-accent" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">
-          {t("books.currentTopic")}
-        </p>
-        {topic ? (
-          <>
-            <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
-            {goal ? (
-              <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
-            ) : (
-              <p className="mt-2 text-sm text-paper-muted">{t("books.noGoal")}</p>
-            )}
-            {topic.phase === "outline_draft" ? (
-              <p className="mt-2 text-xs text-paper-muted">{t("books.outlineOnLearn")}</p>
-            ) : null}
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <MetaChip>
-                {t("books.sections", { ready: leaves.ready, total: leaves.total || "—" })}
-              </MetaChip>
-              <MetaChip>{t("books.notesCount", { count: noteCount })}</MetaChip>
-              <MetaChip>
-                {phaseText(topic.phase, t)}
-                {topic.exportState !== "idle"
-                  ? ` · ${t("books.exportState", { state: topic.exportState })}`
-                  : ""}
-              </MetaChip>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">
-              {t("books.noCurrentTitle")}
+      {wide ? (
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <p className="shrink-0 text-[11px] font-semibold tracking-[0.18em] text-cinnabar">
+              {t("books.currentTopic")}
+            </p>
+            <h1 className="min-w-0 truncate font-serif text-[1.15rem] leading-tight">
+              {topic ? topic.title : t("books.noCurrentTitle")}
             </h1>
-            <p className="mt-2 text-sm text-paper-muted">{t("books.noCurrentBody")}</p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <MetaChip>{t("books.sectionsDash")}</MetaChip>
-              <MetaChip>{t("books.notesZero")}</MetaChip>
-              <MetaChip>{t("books.notStarted")}</MetaChip>
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+          <div
+            data-testid="books-hero-meta"
+            className="flex flex-wrap items-center justify-end gap-1.5"
+          >
+            {chips}
+          </div>
+          <p className="col-span-2 line-clamp-1 text-sm text-paper-ink/80">
+            {topic
+              ? [
+                  goal || t("books.noGoal"),
+                  topic.phase === "outline_draft" ? t("books.outlineOnLearn") : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : t("books.noCurrentBody")}
+          </p>
+        </div>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">
+            {t("books.currentTopic")}
+          </p>
+          {topic ? (
+            <>
+              <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">{topic.title}</h1>
+              {goal ? (
+                <p className="mt-2 line-clamp-2 text-sm text-paper-ink/80">{goal}</p>
+              ) : (
+                <p className="mt-2 text-sm text-paper-muted">{t("books.noGoal")}</p>
+              )}
+              {topic.phase === "outline_draft" ? (
+                <p className="mt-2 text-xs text-paper-muted">{t("books.outlineOnLearn")}</p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-1.5">{chips}</div>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-1.5 font-serif text-[1.65rem] leading-tight">
+                {t("books.noCurrentTitle")}
+              </h1>
+              <p className="mt-2 text-sm text-paper-muted">{t("books.noCurrentBody")}</p>
+              <div className="mt-3 flex flex-wrap gap-1.5">{chips}</div>
+            </>
+          )}
+        </div>
+      )}
       <Button
         variant="outline"
         size="sm"
