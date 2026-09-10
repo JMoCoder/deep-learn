@@ -9,6 +9,7 @@ import type {
   TopicPhase,
   TopicSummary,
 } from "@quantum/shared";
+import { evaluateOutlineLeafBudget } from "@quantum/shared";
 import { AcceptHint } from "@/components/AcceptHint";
 import { BoundaryCard } from "@/components/BoundaryCard";
 import { Drawer } from "@/components/Drawer";
@@ -24,7 +25,6 @@ import {
   prereqsPointingAt,
   sectionHasProjectedBody,
 } from "@/lib/prereq-display";
-import { evaluateOutlineLeafBudget } from "@/lib/outline-budget";
 import type { LiveSessionRow } from "@/lib/session-display";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n";

@@ -2,6 +2,7 @@ import type { BoundaryKind, TutorStrategy } from "@quantum/shared";
 import {
   TOPIC_ANCHOR_QUESTION,
   isDefaultTopicTitle,
+  looksLikeLeafRedraft,
   looksLikeOutlineConfirm,
   topicTitleFromUtterance,
 } from "@quantum/shared";
@@ -221,7 +222,7 @@ function planOutline(store: Store, topicId: string, last: string): CoachPlan {
       ? evaluateOutlineDraft(storedOutlineToDraft(stored), snapshot)
       : { ok: false, errors: ["还没有落盘大纲"], leafCount: 0, leafCap: 0 };
 
-  if (stored.length === 0 || !check.ok || looksLikeLeafCut(last)) {
+  if (stored.length === 0 || !check.ok || looksLikeLeafRedraft(last)) {
     return {
       text: check.ok
         ? "按负荷预算砍叶重拟。"
@@ -356,10 +357,6 @@ function nextKindAfter(kind: BoundaryKind): BoundaryKind | null {
 
 function looksLikeKickoff(text: string): boolean {
   return /开始边界|新建主题|继续引导|请开始/.test(text);
-}
-
-function looksLikeLeafCut(text: string): boolean {
-  return /减叶|重拟|砍叶|减到|少几叶|收一叶/.test(text.trim());
 }
 
 function looksLikeAdvance(text: string): boolean {

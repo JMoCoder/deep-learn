@@ -1,17 +1,22 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { OutlineNode } from "./index.js";
 import {
   BOUNDARY_OPTIONAL_ROWS,
   BOUNDARY_REQUIRED_ROWS,
   FINALIZE_GATE_SENTENCE,
   FINALIZE_REQUIRED_FIELDS,
   INTERVIEW_WALK_FIELDS,
+  OVER_BUDGET_COPY,
   canConfirmBoundaryCard,
+  evaluateOutlineLeafBudget,
   leafBudget,
   looksLikeOutlineConfirm,
   missingFinalizeFields,
   missingInterviewWalk,
   parseChunkBudgetMinutes,
+  shouldBlockOverBudgetConfirm,
+  shouldShowBoundaryCard,
   snapshotFromAnswers,
 } from "./index.js";
 
@@ -64,5 +69,60 @@ describe("Red-2 shared rule single-source", () => {
     assert.equal(leafBudget(20), 6);
     assert.equal(leafBudget(parseChunkBudgetMinutes("每周 3 小时")), 12);
     assert.ok(leafBudget(10_000) <= 12);
+  });
+
+  it("evaluateOutlineLeafBudget and over-budget confirm copy live in shared", () => {
+    const leaf = (id: string): OutlineNode => ({
+      id,
+      topicId: "t",
+      parentId: null,
+      title: id,
+      intent: "",
+      objective: "",
+      dependsOn: [],
+      targetChars: 0,
+      sortOrder: 0,
+      status: "draft",
+      children: [],
+    });
+    const over = evaluateOutlineLeafBudget(
+      Array.from({ length: 7 }, (_, i) => leaf(`n${i}`)),
+      "每次 20 分钟",
+    );
+    assert.equal(over.leafCap, 6);
+    assert.equal(over.overBudget, true);
+    assert.equal(over.canConfirm, false);
+    assert.equal(OVER_BUDGET_COPY, "超负荷预算，请重拟");
+    assert.equal(
+      shouldBlockOverBudgetConfirm({
+        text: "可以",
+        overBudget: true,
+        pendingOutline: true,
+        isConfirm: looksLikeOutlineConfirm("可以"),
+      }),
+      true,
+    );
+  });
+
+  it("shouldShowBoundaryCard uses finalized, not an 8-dim gate", () => {
+    const fiveOnly = snapshotFromAnswers(FIVE);
+    assert.equal(
+      shouldShowBoundaryCard({
+        phase: "boundary_interview",
+        snapshot: fiveOnly,
+        confirmed: false,
+        finalized: true,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldShowBoundaryCard({
+        phase: "outline_draft",
+        snapshot: fiveOnly,
+        confirmed: true,
+        finalized: true,
+      }),
+      false,
+    );
   });
 });

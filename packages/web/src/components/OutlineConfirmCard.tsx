@@ -1,7 +1,7 @@
 import type { OutlineNode, PrereqEdge } from "@quantum/shared";
+import { evaluateOutlineLeafBudget } from "@quantum/shared";
 import { PrereqEdgeList } from "@/components/PrereqEdgeList";
 import { Button } from "@/components/ui/button";
-import { evaluateOutlineLeafBudget } from "@/lib/outline-budget";
 import { mergePrereqEdges, outlineTitleMap, resolveDependsOnTitles } from "@/lib/prereq-display";
 import { useT } from "@/i18n";
 

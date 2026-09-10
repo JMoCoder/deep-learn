@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { OutlineNode } from "@quantum/shared";
-import { looksLikeOutlineConfirm } from "@quantum/shared";
 import {
   OVER_BUDGET_COPY,
   draftToolLooksOverBudget,
   evaluateOutlineLeafBudget,
   leafBudget,
+  looksLikeOutlineConfirm,
   outlineComposerPlaceholder,
   parseChunkBudgetMinutes,
   shouldBlockOverBudgetConfirm,
-} from "./outline-budget.ts";
+} from "@quantum/shared";
 
 function leaf(id: string, title: string): OutlineNode {
   return {

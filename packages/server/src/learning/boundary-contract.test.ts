@@ -94,6 +94,15 @@ describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
       true,
     );
     assert.equal(
+      shouldShowBoundaryCard({
+        phase: "boundary_interview",
+        snapshot: snap,
+        confirmed: false,
+        finalized: true,
+      }),
+      true,
+    );
+    assert.equal(
       shouldShowOutlineConfirm({ phase: "outline_draft", boundaryConfirmed: false, hasOutline: true }),
       false,
     );

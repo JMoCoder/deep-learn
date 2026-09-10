@@ -5,7 +5,7 @@ import {
   isDefaultTopicTitle,
   kindsToDimensionIds,
   looksLikeOutlineConfirm,
-  shouldShowBoundaryCard,
+  outlineComposerPlaceholder,
 } from "@quantum/shared";
 
 export {
@@ -123,29 +123,10 @@ export function composerPlaceholder(input: {
     return askingId ? map[askingId] : "直接回答当前这一问";
   }
   if (input.pendingBoundary) return "先确认学习页边界卡；缺维在这里补一句，不要直接说「可以」";
-  if (input.pendingOutline) {
-    return input.overBudget
-      ? "超负荷预算，请说「减叶」或「重拟」，不要回「可以」"
-      : "大纲可以的话回复「可以」；要改结构直接说";
-  }
+  if (input.pendingOutline) return outlineComposerPlaceholder(Boolean(input.overBudget));
   if (input.phase === "learning") {
     return "问这一节，或说「下一节」推进；踩排除区会被拒回流";
   }
   return "直接回答，或说卡住了哪里";
 }
 
-export function shouldShowLearnBoundaryCard(input: {
-  phase: string;
-  snapshot: BoundarySnapshot | null;
-  confirmed: boolean;
-  finalized?: boolean;
-}): boolean {
-  if (input.confirmed) return false;
-  if (input.phase === "learning" || input.phase === "done") return false;
-  if (input.finalized) return true;
-  return shouldShowBoundaryCard({
-    phase: input.phase,
-    snapshot: input.snapshot,
-    confirmed: input.confirmed,
-  });
-}

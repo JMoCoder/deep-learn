@@ -351,9 +351,12 @@ export function shouldShowBoundaryCard(input: {
   phase: string;
   snapshot: BoundarySnapshot | null;
   confirmed: boolean;
+  /** True after finalize_boundary even if phase still lags. */
+  finalized?: boolean;
 }): boolean {
   if (input.confirmed) return false;
   if (input.phase === "learning" || input.phase === "done") return false;
+  if (input.finalized) return true;
   if (input.phase === "outline_draft") return true;
   return Boolean(input.snapshot && hasAnySnapshotValue(input.snapshot) && input.phase !== "boundary_interview");
 }

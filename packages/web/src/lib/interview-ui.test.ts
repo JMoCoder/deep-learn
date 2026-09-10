@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { emptyBoundarySnapshot, looksLikeOutlineConfirm, snapshotFromAnswers } from "@quantum/shared";
+import {
+  emptyBoundarySnapshot,
+  looksLikeOutlineConfirm,
+  shouldShowBoundaryCard,
+  snapshotFromAnswers,
+} from "@quantum/shared";
 import {
   ALL_ASKED_COPY,
   allInterviewChipsFilled,
@@ -10,7 +15,6 @@ import {
   interviewGuideCopy,
   needsTopicAnchor,
   shouldBlockComposerConfirm,
-  shouldShowLearnBoundaryCard,
   topicTitleFromUtterance,
   visibleInterviewChips,
 } from "./interview-ui.ts";
@@ -144,7 +148,7 @@ describe("1.3 boundary card visibility", () => {
   it("shows the card after finalize even if phase still lags", () => {
     const snap = snapshotFromAnswers(EIGHT);
     assert.equal(
-      shouldShowLearnBoundaryCard({
+      shouldShowBoundaryCard({
         phase: "boundary_interview",
         snapshot: snap,
         confirmed: false,
@@ -153,7 +157,7 @@ describe("1.3 boundary card visibility", () => {
       true,
     );
     assert.equal(
-      shouldShowLearnBoundaryCard({
+      shouldShowBoundaryCard({
         phase: "outline_draft",
         snapshot: snap,
         confirmed: false,
@@ -161,7 +165,7 @@ describe("1.3 boundary card visibility", () => {
       true,
     );
     assert.equal(
-      shouldShowLearnBoundaryCard({
+      shouldShowBoundaryCard({
         phase: "outline_draft",
         snapshot: snap,
         confirmed: true,
