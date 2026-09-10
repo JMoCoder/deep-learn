@@ -99,7 +99,7 @@ const notes: NoteRecord[] = [
 function mountBooks(
   onCreate: () => void,
   onDrawerOpen: (open: boolean) => void,
-  extras?: { drawerOpen?: boolean; topic?: TopicSummary | null },
+  extras?: { drawerOpen?: boolean; topic?: TopicSummary | null; notes?: NoteRecord[] },
 ): Root {
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -109,7 +109,7 @@ function mountBooks(
       createElement(BooksTab, {
         topic: extras?.topic === undefined ? null : extras.topic,
         section: extras?.topic ? section : null,
-        notes: extras?.topic ? notes : [],
+        notes: extras?.topic ? (extras.notes ?? notes) : [],
         outline: [],
         boundaries: [],
         topics: extras?.topic ? [topic] : [],
@@ -525,5 +525,39 @@ describe("books hero switch + 正文/笔记 tabs", () => {
       "wide",
     );
     wide.unmount();
+  });
+
+  it("shows books note meta as 思考/疑问/拓展 + time, never a bare reason_code digit", async () => {
+    const typedNotes: NoteRecord[] = [
+      { ...notes[0]!, id: "n-think", reasonCode: 1, type: "思考", body: "心得" },
+      { ...notes[0]!, id: "n-q2", reasonCode: 2, type: "疑问", body: "未解" },
+      { ...notes[0]!, id: "n-ext", reasonCode: 3, type: "拓展", body: "旁支" },
+      { ...notes[0]!, id: "n-q4", reasonCode: 4, type: "疑问", body: "往返" },
+    ];
+    stubOutlineRail(false);
+    const root = mountBooks(
+      () => {},
+      () => {},
+      { drawerOpen: false, topic, notes: typedNotes },
+    );
+    const notesTab = document.querySelector<HTMLButtonElement>('[data-testid="books-tab-notes"]');
+    assert.ok(notesTab);
+    await act(async () => {
+      notesTab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+
+    const metas = [...document.querySelectorAll("[data-testid=books-note-meta]")].map(
+      (el) => el.textContent ?? "",
+    );
+    assert.equal(metas.length, 4);
+    assert.match(metas[0] ?? "", /^思考 · /);
+    assert.match(metas[1] ?? "", /^疑问 · /);
+    assert.match(metas[2] ?? "", /^拓展 · /);
+    assert.match(metas[3] ?? "", /^疑问 · /);
+    for (const line of metas) {
+      assert.equal(/\b[1-4]\b/.test(line.split(" · ")[0] ?? ""), false);
+      assert.equal(/(^| · )[1-4]( · |$)/.test(line), false);
+    }
+    root.unmount();
   });
 });

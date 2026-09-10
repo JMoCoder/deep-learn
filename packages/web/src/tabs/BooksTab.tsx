@@ -10,7 +10,7 @@ import type {
 import { Drawer } from "@/components/Drawer";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { countProjectedLeaves, uiNoteType } from "@/lib/session-display";
+import { booksNoteMetaLine, countProjectedLeaves } from "@/lib/session-display";
 import { useOutlineRail } from "@/lib/use-outline-rail";
 import { phaseText, useLocale, useT, type Locale } from "@/i18n";
 import { cn, formatTime } from "@/lib/utils";
@@ -336,9 +336,8 @@ function NotesCopy({ notes, locale }: { notes: NoteRecord[]; locale: Locale }) {
               className="rounded-lg border border-paper-line bg-paper-deep/50 px-3 py-2 text-sm"
             >
               <p>{n.body}</p>
-              <p className="mt-1 text-[11px] text-paper-muted">
-                {uiNoteType(n.reasonCode, n.type)} · {n.reasonCode} ·{" "}
-                {formatTime(n.createdAt, locale)}
+              <p className="mt-1 text-[11px] text-paper-muted" data-testid="books-note-meta">
+                {booksNoteMetaLine(n.reasonCode, n.type, formatTime(n.createdAt, locale))}
               </p>
             </li>
           ))}

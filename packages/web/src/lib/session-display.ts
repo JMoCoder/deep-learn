@@ -99,6 +99,11 @@ export function uiNoteType(reason: unknown, fallback?: string): NoteType {
   return "思考";
 }
 
+/** Books note meta: label + time only. Never a bare reason_code digit. */
+export function booksNoteMetaLine(reason: unknown, fallback: string | undefined, time: string): string {
+  return `${uiNoteType(reason, fallback)} · ${time}`;
+}
+
 export function citationLabel(
   cite: { section_id: string; note_id?: string },
   titles?: Map<string, string>,
