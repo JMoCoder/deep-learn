@@ -102,6 +102,9 @@ describe("boundary card + interview contract (1.2 / 1.3 / 2.7)", () => {
     );
     assert.equal(looksLikeOutlineConfirm("可以"), true);
     assert.equal(looksLikeOutlineConfirm("卡在符号"), false);
+    assert.equal(looksLikeOutlineConfirm("行"), false);
+    assert.equal(looksLikeOutlineConfirm("就行"), false);
+    assert.equal(looksLikeOutlineConfirm("每周 3 小时就行"), false);
   });
 
   it("lists stub interview kinds in core1 §3.1 order", () => {

@@ -18,6 +18,7 @@ import type {
 import {
   emptyBoundarySnapshot,
   isRefuseOffscopeSignal,
+  looksLikeOutlineConfirm,
   shouldShowOutlineConfirm,
   snapshotFromAnswers,
 } from "@quantum/shared";
@@ -39,7 +40,6 @@ import {
 } from "@/lib/boundary-session";
 import {
   currentUnansweredKind,
-  isChatOutlineConfirm,
   needsTopicAnchor,
   shouldBlockComposerConfirm,
   shouldShowLearnBoundaryCard,
@@ -424,7 +424,7 @@ export default function App() {
           boundaryConfirmed,
           hasOutline: outline.length > 0,
         }),
-        isConfirm: isChatOutlineConfirm(text),
+        isConfirm: looksLikeOutlineConfirm(text),
       })
     ) {
       setError(t("app.error.overBudget"));

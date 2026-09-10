@@ -1,5 +1,7 @@
 import type { BoundarySnapshot, OutlineDraftNode } from "@quantum/shared";
-import { leafBudget } from "./outline-from-boundaries.js";
+import { leafBudget, parseChunkBudgetMinutes } from "@quantum/shared";
+
+export { leafBudget, parseChunkBudgetMinutes };
 
 export type OutlineConstraintResult = {
   ok: boolean;
@@ -53,18 +55,6 @@ export function evaluateOutlineDraft(
   });
 
   return { ok: errors.length === 0, errors, leafCount: leaves.length, leafCap };
-}
-
-export function parseChunkBudgetMinutes(chunk: string): number {
-  const hour = chunk.match(/(\d+(?:\.\d+)?)\s*小时/);
-  if (hour) return Math.round(Number(hour[1]) * 60);
-  const minutes = chunk.match(/(\d+)\s*分钟/);
-  if (minutes) return Number(minutes[1]);
-  const bare = chunk.match(/^(\d+(?:\.\d+)?)$/);
-  if (bare) return Math.round(Number(bare[1]) * 60);
-  if (/每天|每日/.test(chunk)) return 5 * 40;
-  if (/周末/.test(chunk)) return 120;
-  return 90;
 }
 
 export function scopeOutTerms(scopeOut: string): string[] {

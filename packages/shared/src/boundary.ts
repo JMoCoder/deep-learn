@@ -192,8 +192,8 @@ export function missingFinalizeFields(snapshot: BoundarySnapshot): FinalizeRequi
 }
 
 /**
- * Full interview walk (core1 §3.1). The five operational required fields stay
- * FINALIZE_REQUIRED_FIELDS; these extras must also be filled before finalize.
+ * Core1 §3.1 coverage extras (1.2). Guidance for questioning — NOT a finalize gate.
+ * Finalize is FINALIZE_REQUIRED_FIELDS only (1.3 / product freeze).
  */
 export const INTERVIEW_WALK_FIELDS = [
   "motivation",
@@ -213,6 +213,46 @@ export function missingInterviewWalk(snapshot: BoundarySnapshot): InterviewWalkF
   }
   if (!snapshot.scope_in.trim()) missing.push("scope_in");
   return missing;
+}
+
+/** Card / server / live prompt: same sentence, five required fields only. */
+export const FINALIZE_GATE_SENTENCE = `finalize_boundary 必填 ${FINALIZE_REQUIRED_FIELDS.join(" / ")}；缺则 ok:false。`;
+
+export type BoundaryCardRowDef = {
+  key: keyof BoundarySnapshot;
+  hint: string;
+  askedBy: readonly string[];
+};
+
+/** Structured card required rows. Single source for BoundaryCard + snapshot render. */
+export const BOUNDARY_REQUIRED_ROWS: readonly BoundaryCardRowDef[] = [
+  { key: "goal_outcome", hint: "goal_outcome", askedBy: ["goal", "goal_outcome"] },
+  { key: "prior_level", hint: "prior_level", askedBy: ["prior", "prior_level"] },
+  { key: "scope_out", hint: "scope_out", askedBy: ["constraint", "scope_out"] },
+  { key: "depth", hint: "depth", askedBy: ["depth"] },
+  { key: "chunk_budget", hint: "chunk_budget", askedBy: ["time", "chunk_budget"] },
+];
+
+/** Coverage / optional card rows (walk extras + prior_known). Not a finalize gate. */
+export const BOUNDARY_OPTIONAL_ROWS: readonly BoundaryCardRowDef[] = [
+  { key: "motivation", hint: "motivation", askedBy: ["motivation"] },
+  { key: "success_evidence", hint: "success_evidence", askedBy: ["success", "success_evidence"] },
+  { key: "prior_known", hint: "prior_known", askedBy: ["prior_known", "prior_gaps", "gap"] },
+  { key: "prior_gaps", hint: "prior_gaps", askedBy: ["prior_known", "prior_gaps", "gap", "first_gap"] },
+  { key: "scope_in", hint: "scope_in", askedBy: ["scope_in", "constraint", "scope_out"] },
+];
+
+export function snapshotRowValue(snapshot: BoundarySnapshot, key: keyof BoundarySnapshot): string {
+  if (key === "success_evidence") return snapshot.success_evidence.trim() || snapshot.success;
+  if (key === "prior_gaps") return snapshot.prior_gaps.trim() || snapshot.first_gap;
+  return snapshot[key];
+}
+
+export function snapshotCardFieldLines(snapshot: BoundarySnapshot): string[] {
+  return [...BOUNDARY_REQUIRED_ROWS, ...BOUNDARY_OPTIONAL_ROWS].map((row) => {
+    const value = snapshotRowValue(snapshot, row.key).trim();
+    return `- ${row.key}: ${value || "（空）"}`;
+  });
 }
 
 export function canConfirmBoundaryCard(snapshot: BoundarySnapshot): boolean {
@@ -326,10 +366,16 @@ export function shouldShowOutlineConfirm(input: {
   return input.phase === "outline_draft" && input.boundaryConfirmed;
 }
 
-const OUTLINE_CONFIRM_RE = /(可以|锁定|定稿|开始学|行|好的|确认大纲)/;
-
+/**
+ * Whole-utterance outline/card confirm. Must not match load answers
+ * like「每周 3 小时就行」, and must not treat bare「行 / 就行」as confirm.
+ */
 export function looksLikeOutlineConfirm(text: string): boolean {
-  return OUTLINE_CONFIRM_RE.test(text.trim());
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (/^(行|就行)[。.!！]*$/.test(trimmed)) return false;
+  if (/^(可以|锁定|定稿|开始学|好的|好|确认大纲|确认边界)[。.!！]*$/.test(trimmed)) return true;
+  return /确认边界|看大纲|确认大纲|锁定大纲/.test(trimmed) && trimmed.length <= 16;
 }
 
 /**

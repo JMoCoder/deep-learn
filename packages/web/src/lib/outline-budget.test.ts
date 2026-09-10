@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { OutlineNode } from "@quantum/shared";
-import { isChatOutlineConfirm } from "./interview-ui.ts";
+import { looksLikeOutlineConfirm } from "@quantum/shared";
 import {
   OVER_BUDGET_COPY,
   draftToolLooksOverBudget,
@@ -54,7 +54,7 @@ describe("1.4 / 五步2 outline confirm gate", () => {
         text: "可以",
         overBudget: true,
         pendingOutline: true,
-        isConfirm: isChatOutlineConfirm("可以"),
+        isConfirm: looksLikeOutlineConfirm("可以"),
       }),
       true,
     );
@@ -63,7 +63,7 @@ describe("1.4 / 五步2 outline confirm gate", () => {
         text: "减叶",
         overBudget: true,
         pendingOutline: true,
-        isConfirm: isChatOutlineConfirm("减叶"),
+        isConfirm: looksLikeOutlineConfirm("减叶"),
       }),
       false,
     );

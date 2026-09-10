@@ -4,6 +4,7 @@ import {
   interviewDimensionStatus,
   isDefaultTopicTitle,
   kindsToDimensionIds,
+  looksLikeOutlineConfirm,
   shouldShowBoundaryCard,
 } from "@quantum/shared";
 
@@ -75,23 +76,13 @@ export function composerShouldLock(input: {
   return true;
 }
 
-/**
- * Whole-utterance card/outline confirm. Must not match load answers like「每周 3 小时就行」.
- */
-export function isChatOutlineConfirm(text: string): boolean {
-  const trimmed = text.trim();
-  if (!trimmed) return false;
-  if (/^(可以|锁定|定稿|开始学|好的|好|确认大纲|确认边界)[。.!！]*$/.test(trimmed)) return true;
-  return /确认边界|看大纲|确认大纲/.test(trimmed) && trimmed.length <= 16;
-}
-
 export function shouldBlockComposerConfirm(input: {
   text: string;
   pendingCard: boolean;
   interviewing: boolean;
 }): boolean {
   if (!input.pendingCard || input.interviewing) return false;
-  return isChatOutlineConfirm(input.text);
+  return looksLikeOutlineConfirm(input.text);
 }
 
 export function needsTopicAnchor(input: {

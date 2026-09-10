@@ -1,5 +1,5 @@
 import type { AgentTool } from "@mariozechner/pi-agent-core";
-import type { ExportFormat, OutlineDraftNode } from "@quantum/shared";
+import { FINALIZE_GATE_SENTENCE, type ExportFormat, type OutlineDraftNode } from "@quantum/shared";
 import { Type } from "typebox";
 import { exportTopic } from "../export/index.js";
 import { questionFor } from "../learning/boundary-interview.js";
@@ -94,7 +94,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     name: "finalize_boundary",
     label: "锁定边界",
     description:
-      "写入 BoundarySnapshot 并进入 outline_draft。五必填：goal_outcome, prior_level, scope_out, depth, chunk_budget。访谈还须走过动机 / 成功证据 / 先修 / scope_in。缺则 ok:false，不改相位。",
+      `写入 BoundarySnapshot 并进入 outline_draft。${FINALIZE_GATE_SENTENCE} 八维是提问覆盖，不是定稿硬门。缺必填则不改相位。`,
     parameters: Type.Object({
       answers: Type.Array(
         Type.Object({
@@ -114,8 +114,7 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
       runtime.store.upsertBoundaryAnswers(topic.id, merged);
       const check = evaluateFinalize(runtime.store.listBoundaries(topic.id));
       if (!check.ok) {
-        const gaps = [...check.missing, ...check.unasked];
-        return textResult(`还不能定稿，缺少：${gaps.join(", ")}`, {
+        return textResult(`还不能定稿，缺少：${check.missing.join(", ")}`, {
           ok: false,
           missing: check.missing,
           unasked: check.unasked,

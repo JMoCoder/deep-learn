@@ -1,33 +1,15 @@
 import type { BoundarySnapshot } from "@quantum/shared";
-import { canConfirmBoundaryCard, missingFinalizeFields } from "@quantum/shared";
+import {
+  BOUNDARY_OPTIONAL_ROWS,
+  BOUNDARY_REQUIRED_ROWS,
+  canConfirmBoundaryCard,
+  missingFinalizeFields,
+  snapshotRowValue,
+} from "@quantum/shared";
 import { Button } from "@/components/ui/button";
 import { allInterviewChipsFilled, visibleInterviewChips } from "@/lib/interview-ui";
 import { fieldLabel, useLocale, useT } from "@/i18n";
 import { cn } from "@/lib/utils";
-
-const REQUIRED_ROWS: Array<{
-  key: keyof BoundarySnapshot;
-  hint: string;
-  askedBy: string[];
-}> = [
-  { key: "goal_outcome", hint: "goal_outcome", askedBy: ["goal", "goal_outcome"] },
-  { key: "prior_level", hint: "prior_level", askedBy: ["prior", "prior_level"] },
-  { key: "scope_out", hint: "scope_out", askedBy: ["constraint", "scope_out"] },
-  { key: "depth", hint: "depth", askedBy: ["depth"] },
-  { key: "chunk_budget", hint: "chunk_budget", askedBy: ["time", "chunk_budget"] },
-];
-
-const OPTIONAL_ROWS: Array<{
-  key: keyof BoundarySnapshot;
-  hint: string;
-  askedBy: string[];
-}> = [
-  { key: "motivation", hint: "motivation", askedBy: ["motivation"] },
-  { key: "success_evidence", hint: "success_evidence", askedBy: ["success", "success_evidence"] },
-  { key: "prior_known", hint: "prior_known", askedBy: ["prior_known", "prior_gaps", "gap"] },
-  { key: "prior_gaps", hint: "prior_gaps", askedBy: ["prior_known", "prior_gaps", "gap", "first_gap"] },
-  { key: "scope_in", hint: "scope_in", askedBy: ["scope_in", "constraint", "scope_out"] },
-];
 
 export function BoundaryCard({
   snapshot,
@@ -71,12 +53,12 @@ export function BoundaryCard({
         <div>
           <h3 className="text-xs font-semibold tracking-wide text-paper-muted">{t("boundary.required")}</h3>
           <dl className="mt-2 space-y-2">
-            {REQUIRED_ROWS.map((row) => (
+            {BOUNDARY_REQUIRED_ROWS.map((row) => (
               <FieldRow
                 key={row.key}
                 label={fieldLabel(String(row.key), t)}
                 hint={row.hint}
-                value={snapshot[row.key]}
+                value={snapshotRowValue(snapshot, row.key)}
                 required
                 missing={missing.includes(row.key as (typeof missing)[number])}
                 asked={row.askedBy.some((kind) => askedKinds.includes(kind))}
@@ -88,13 +70,8 @@ export function BoundaryCard({
         <div>
           <h3 className="text-xs font-semibold tracking-wide text-paper-muted">{t("boundary.optional")}</h3>
           <dl className="mt-2 space-y-2">
-            {OPTIONAL_ROWS.map((row) => {
-              const value =
-                row.key === "success_evidence"
-                  ? snapshot.success_evidence || snapshot.success
-                  : row.key === "prior_gaps"
-                    ? snapshot.prior_gaps || snapshot.first_gap
-                    : snapshot[row.key];
+            {BOUNDARY_OPTIONAL_ROWS.map((row) => {
+              const value = snapshotRowValue(snapshot, row.key);
               const asked = row.askedBy.some((kind) => askedKinds.includes(kind));
               return (
                 <FieldRow

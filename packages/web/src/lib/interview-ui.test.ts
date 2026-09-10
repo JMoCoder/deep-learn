@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { emptyBoundarySnapshot, snapshotFromAnswers } from "@quantum/shared";
+import { emptyBoundarySnapshot, looksLikeOutlineConfirm, snapshotFromAnswers } from "@quantum/shared";
 import {
   ALL_ASKED_COPY,
   allInterviewChipsFilled,
@@ -8,7 +8,6 @@ import {
   composerShouldLock,
   currentUnansweredKind,
   interviewGuideCopy,
-  isChatOutlineConfirm,
   needsTopicAnchor,
   shouldBlockComposerConfirm,
   shouldShowLearnBoundaryCard,
@@ -70,9 +69,11 @@ describe("1.2 interview UI honesty + send", () => {
   });
 
   it("does not treat load answers as outline confirm", () => {
-    assert.equal(isChatOutlineConfirm("每周 3 小时就行"), false);
-    assert.equal(isChatOutlineConfirm("每次 20 分钟"), false);
-    assert.equal(isChatOutlineConfirm("可以"), true);
+    assert.equal(looksLikeOutlineConfirm("每周 3 小时就行"), false);
+    assert.equal(looksLikeOutlineConfirm("每次 20 分钟"), false);
+    assert.equal(looksLikeOutlineConfirm("可以"), true);
+    assert.equal(looksLikeOutlineConfirm("行"), false);
+    assert.equal(looksLikeOutlineConfirm("就行"), false);
     assert.equal(
       shouldBlockComposerConfirm({
         text: "每周 3 小时就行",
