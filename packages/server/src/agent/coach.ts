@@ -95,19 +95,16 @@ function planAfterTool(store: Store, topicId: string, toolName: string, last: st
     const stored = store.getOutline(topicId);
     if (stored.length === 0) {
       return {
-        text: "这一稿没落盘。说「减叶」或「重拟」我按负荷上限再砍一刀，不要回「可以」。",
+        text: "这一稿没落盘。请在学习页大纲卡点重拟，不要在会话里回「减叶」。",
       };
     }
     const check = evaluateOutlineDraft(storedOutlineToDraft(stored), snapshot);
     if (!check.ok) {
-      const drafted = outlineFromBoundaries(store.listBoundaries(topicId));
       return {
-        text: "上一稿超负荷预算。已按上限砍叶重拟，请再看一眼。",
-        strategy: "SCAFFOLD",
-        tool: { name: "draft_outline", args: drafted },
+        text: "上一稿未过负荷预算。请在学习页大纲卡点重拟，不要回「可以」或「减叶」。",
       };
     }
-    return { text: "大纲已起草。要改结构或减叶直接说；确认就回复「可以」。" };
+    return { text: "大纲已起草。请在学习页大纲卡确认或重拟。" };
   }
   if (toolName === "finalize_outline") {
     return planLearning(store, topicId, "请开始");
@@ -138,9 +135,9 @@ function planInterview(store: Store, topicId: string, last: string): CoachPlan {
   }
 
   if (askedUnanswered && last && !looksLikeKickoff(last)) {
-    // Persist before finalize so a rejected gate does not leave 负荷 stuck on「在问」.
-    store.recordBoundaryAnswer(topicId, askedUnanswered.kind, last);
-    const recorded = store.listBoundaries(topicId);
+    const recorded = existing.map((row) =>
+      row.kind === askedUnanswered.kind ? { ...row, answer: last } : row,
+    );
     const next = nextKindAfter(askedUnanswered.kind) ?? nextBoundaryKind(recorded);
     if (next) {
       return {
@@ -215,33 +212,23 @@ function finalizeInterviewPlan(
 function planOutline(store: Store, topicId: string, last: string): CoachPlan {
   const boundaries = store.listBoundaries(topicId);
   const drafted = outlineFromBoundaries(boundaries);
-  const snapshot = snapshotFromRecords(boundaries);
   const stored = store.getOutline(topicId);
-  const check =
-    stored.length > 0
-      ? evaluateOutlineDraft(storedOutlineToDraft(stored), snapshot)
-      : { ok: false, errors: ["还没有落盘大纲"], leafCount: 0, leafCap: 0 };
 
-  if (stored.length === 0 || !check.ok || looksLikeLeafRedraft(last)) {
+  if (stored.length === 0) {
     return {
-      text: check.ok
-        ? "按负荷预算砍叶重拟。"
-        : stored.length === 0
-          ? "按定向 → 先修 → 核心 → 应用 → 迁移起草。确认后说「可以」我就锁定。"
-          : "超负荷预算，正在按上限砍叶重拟。",
+      text: "按定向 → 先修 → 核心 → 应用 → 迁移起草。落盘后请在学习页大纲卡确认或重拟。",
       strategy: "SCAFFOLD",
       tool: { name: "draft_outline", args: drafted },
     };
   }
 
-  if (last && !looksLikeKickoff(last) && looksLikeOutlineConfirm(last)) {
+  if (last && !looksLikeKickoff(last) && (looksLikeOutlineConfirm(last) || looksLikeLeafRedraft(last))) {
     return {
-      text: "锁定大纲，进入学习。",
-      tool: { name: "finalize_outline", args: { title: store.requireTopic(topicId).title } },
+      text: "大纲确认和减叶只走学习页大纲卡，不在会话里用「可以」或「减叶」旁路。",
     };
   }
   return {
-    text: "大纲已在左侧。超负荷就说「减叶」或「重拟」；约束通过后再回复「可以」。",
+    text: "大纲已在左侧。确认或重拟请用学习页大纲卡，不要在会话里回「可以」或「减叶」。",
   };
 }
 

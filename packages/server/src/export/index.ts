@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import JSZip from "jszip";
 import type { ExportFormat, ExportResult } from "@quantum/shared";
@@ -47,11 +47,14 @@ export async function exportTopic(
 
   if (format === "md") {
     writeFileSync(abs, md, "utf8");
+    assertRealExportFile(abs, "md");
   } else if (format === "html") {
     writeFileSync(abs, wrapHtml(topic.title, md), "utf8");
+    assertRealExportFile(abs, "html");
   } else {
     const zip = await buildEpub(topic.title, md, sections.map((s) => ({ title: s.title, body: s.bodyMd })));
     writeFileSync(abs, zip);
+    assertRealExportFile(abs, "epub");
   }
 
   return {
@@ -59,6 +62,30 @@ export async function exportTopic(
     filename,
     downloadPath: `/api/exports/${topicId}/${filename}`,
   };
+}
+
+/** Non-empty, recognizable artifact. Empty shells fail instead of fake-green. */
+export function assertRealExportFile(abs: string, format: ExportFormat): void {
+  const stat = statSync(abs);
+  if (stat.size <= 0) throw new Error(`${format} export produced an empty file`);
+  if (format === "md") {
+    const text = readFileSync(abs, "utf8");
+    if (!text.trim().startsWith("#")) throw new Error("md export is not usable markdown");
+    return;
+  }
+  if (format === "html") {
+    const html = readFileSync(abs, "utf8");
+    if (!/<!doctype html>/i.test(html) || !/<body[\s>]/i.test(html) || !/<title>/.test(html)) {
+      throw new Error("html export is not a real HTML file");
+    }
+    const visible = html.replace(/<[^>]+>/g, "").replace(/&[a-z]+;/gi, " ").trim();
+    if (visible.length < 8) throw new Error("html export is an empty shell");
+    return;
+  }
+  const buf = readFileSync(abs);
+  if (buf.length < 64 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
+    throw new Error("epub export is not a real zip/epub file");
+  }
 }
 
 function wrapHtml(title: string, md: string): string {

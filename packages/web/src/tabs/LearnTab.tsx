@@ -55,6 +55,8 @@ export function LearnTab({
   pendingBoundary,
   pendingOutline,
   onConfirmBoundary,
+  onConfirmOutline,
+  onReviseOutline,
   topicPointerNote,
   draftRejected,
   awaitingTopicAnchor,
@@ -84,6 +86,8 @@ export function LearnTab({
   pendingBoundary: boolean;
   pendingOutline: boolean;
   onConfirmBoundary: () => void;
+  onConfirmOutline?: () => void;
+  onReviseOutline?: () => void;
   topicPointerNote?: string | null;
   draftRejected?: boolean;
   awaitingTopicAnchor?: boolean;
@@ -226,8 +230,8 @@ export function LearnTab({
                   edges={edges}
                   chunkBudget={snapshot.chunk_budget}
                   draftRejected={draftRejected}
-                  onConfirm={() => onSend("可以")}
-                  onRevise={() => onSessionOpen(true)}
+                  onConfirm={() => (onConfirmOutline ?? (() => {}))()}
+                  onRevise={() => (onReviseOutline ?? (() => {}))()}
                 />
               ) : !section ? (
                 <Empty

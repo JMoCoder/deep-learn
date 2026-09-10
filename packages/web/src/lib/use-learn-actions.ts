@@ -4,11 +4,13 @@ import {
   evaluateOutlineLeafBudget,
   looksLikeOutlineConfirm,
   shouldBlockOverBudgetConfirm,
+  shouldDeferOutlineActionToCard,
   shouldShowBoundaryCard,
   shouldShowOutlineConfirm,
 } from "@quantum/shared";
 import type { TFunction } from "@/i18n";
 import { api } from "@/lib/api";
+import { exportDownloadPath, triggerExportDownload } from "@/lib/export-download";
 import {
   currentUnansweredKind,
   needsTopicAnchor,
@@ -86,6 +88,11 @@ export function useLearnActions(input: {
     }
     const outlineBudget = evaluateOutlineLeafBudget(input.outline, input.boundarySnapshot.chunk_budget);
     const overBudget = outlineBudget.overBudget || (outlineBudget.leafCount === 0 && input.draftRejected);
+    if (topicId && shouldDeferOutlineActionToCard({ text, pendingOutline })) {
+      input.setError(overBudget ? input.t("app.error.overBudget") : input.t("app.error.useOutlineCard"));
+      input.setTab("learn");
+      return;
+    }
     if (
       topicId &&
       shouldBlockOverBudgetConfirm({
@@ -114,6 +121,37 @@ export function useLearnActions(input: {
       input.setSessionOpen(true);
       await input.refresh();
     } catch {
+      await input.refresh();
+    }
+  }
+
+  async function confirmOutlineCard() {
+    const topicId = input.snapshot?.currentTopicId;
+    if (!topicId) return;
+    const budget = evaluateOutlineLeafBudget(input.outline, input.boundarySnapshot.chunk_budget);
+    if (!budget.canConfirm || !pendingOutline) {
+      input.setError(input.t("app.error.overBudget"));
+      return;
+    }
+    try {
+      await api.confirmOutline(topicId);
+      await input.refresh();
+    } catch (err) {
+      input.setError(err instanceof Error ? err.message : input.t("app.error.send"));
+      await input.refresh();
+    }
+  }
+
+  async function reduceOutlineCard() {
+    const topicId = input.snapshot?.currentTopicId;
+    if (!topicId) return;
+    try {
+      await api.reduceOutline(topicId);
+      input.setDraftRejected(false);
+      await input.refresh();
+    } catch (err) {
+      input.setDraftRejected(true);
+      input.setError(err instanceof Error ? err.message : input.t("app.error.overBudget"));
       await input.refresh();
     }
   }
@@ -155,9 +193,19 @@ export function useLearnActions(input: {
   }
 
   async function requestExport(id: string, format: "md" | "html" | "epub") {
-    await api.requestExport(id, format);
-    input.setTab("learn");
-    input.setSessionOpen(true);
+    try {
+      const result = await api.requestExport(id, format);
+      const path = exportDownloadPath(result);
+      if (!path) {
+        input.setError(result.error || input.t("app.error.exportFailed"));
+        return;
+      }
+      triggerExportDownload(path, result.filename);
+      input.setTab("learn");
+      input.setSessionOpen(true);
+    } catch (err) {
+      input.setError(err instanceof Error ? err.message : input.t("app.error.exportFailed"));
+    }
   }
 
   return {
@@ -165,6 +213,8 @@ export function useLearnActions(input: {
     pendingOutline,
     send,
     confirmBoundaryCard,
+    confirmOutlineCard,
+    reduceOutlineCard,
     createTopic,
     switchTopic,
     selectSection,

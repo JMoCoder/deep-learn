@@ -16,6 +16,7 @@ import {
   missingInterviewWalk,
   parseChunkBudgetMinutes,
   shouldBlockOverBudgetConfirm,
+  shouldDeferOutlineActionToCard,
   shouldShowBoundaryCard,
   snapshotFromAnswers,
 } from "./index.js";
@@ -102,6 +103,10 @@ describe("Red-2 shared rule single-source", () => {
       }),
       true,
     );
+    assert.equal(shouldDeferOutlineActionToCard({ text: "可以", pendingOutline: true }), true);
+    assert.equal(shouldDeferOutlineActionToCard({ text: "减叶", pendingOutline: true }), true);
+    assert.equal(shouldDeferOutlineActionToCard({ text: "可以", pendingOutline: false }), false);
+    assert.equal(shouldDeferOutlineActionToCard({ text: "这段在讲什么", pendingOutline: true }), false);
   });
 
   it("shouldShowBoundaryCard uses finalized, not an 8-dim gate", () => {

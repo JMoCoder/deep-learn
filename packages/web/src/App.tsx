@@ -117,6 +117,8 @@ export default function App() {
           pendingBoundary={actions.pendingBoundary}
           pendingOutline={actions.pendingOutline}
           onConfirmBoundary={() => void actions.confirmBoundaryCard()}
+          onConfirmOutline={() => void actions.confirmOutlineCard()}
+          onReviseOutline={() => void actions.reduceOutlineCard()}
           topicPointerNote={pointer.topicPointerNote ? t(pointer.topicPointerNote) : null}
           draftRejected={pointer.draftRejected}
           awaitingTopicAnchor={awaitingTopicAnchor}

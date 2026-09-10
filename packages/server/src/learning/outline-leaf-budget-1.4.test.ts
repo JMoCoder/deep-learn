@@ -115,7 +115,7 @@ describe("1.4 / 五步2 outline leaf budget", () => {
     assert.ok(leaves.length >= 1);
   });
 
-  it("「可以」/「减叶」on an over-budget disk outline redrafts instead of finalize", () => {
+  it("「可以」/「减叶」on an over-budget disk outline do not steal the card gates", () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("卡死循环");
     store.finalizeBoundaries(topic.id, WALK_20);
@@ -125,15 +125,14 @@ describe("1.4 / 五步2 outline leaf budget", () => {
     );
 
     const cut = planCoachTurn(store, topic.id, "减到6");
-    assert.equal(cut.tool?.name, "draft_outline");
-    const cutLeaves = collectDraftLeaves(
-      (cut.tool?.args as { nodes: Parameters<typeof collectDraftLeaves>[0] }).nodes,
-    );
-    assert.ok(cutLeaves.length <= 6);
+    assert.notEqual(cut.tool?.name, "draft_outline");
+    assert.notEqual(cut.tool?.name, "finalize_outline");
+    assert.match(cut.text, /大纲卡/);
 
     const confirm = planCoachTurn(store, topic.id, "可以");
-    assert.equal(confirm.tool?.name, "draft_outline");
+    assert.notEqual(confirm.tool?.name, "draft_outline");
     assert.notEqual(confirm.tool?.name, "finalize_outline");
+    assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
   });
 
   it("finalize_outline stays gated until the stored outline is within budget", async () => {

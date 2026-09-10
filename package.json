@@ -9,6 +9,6 @@
     "dev:web": "pnpm --filter @quantum/web dev",
     "build": "pnpm --filter @quantum/shared build && pnpm --filter @quantum/server build && pnpm --filter @quantum/web build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @quantum/server test"
+    "test": "pnpm --filter @quantum/shared --filter @quantum/server --filter @quantum/web test"
   }
 }
