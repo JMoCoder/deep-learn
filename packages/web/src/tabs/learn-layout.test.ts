@@ -333,3 +333,86 @@ describe("Learn session rail + full-width stage", () => {
     root.unmount();
   });
 });
+
+describe("outline card uses web gates, not chat 可以", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it("confirm / revise call card handlers instead of sending 可以", () => {
+    const sent: string[] = [];
+    const confirmed: string[] = [];
+    const revised: string[] = [];
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    act(() => {
+      root.render(
+        createElement(
+          LocaleProvider,
+          null,
+          createElement(LearnTab, {
+            topic: {
+              id: "t1",
+              title: "量子力学",
+              phase: "outline_draft",
+              exportState: "idle",
+              createdAt: 1,
+              updatedAt: 1,
+            },
+            section: null,
+            outline: [
+              {
+                id: "n1",
+                topicId: "t1",
+                parentId: null,
+                title: "定向",
+                intent: "地图",
+                objective: "能指出路线",
+                dependsOn: [],
+                targetChars: 200,
+                sortOrder: 0,
+                status: "draft",
+                children: [],
+              },
+            ],
+            prereqEdges: [],
+            currentSectionId: null,
+            outlineOpen: false,
+            sessionOpen: false,
+            onOutlineOpen: () => {},
+            onSessionOpen: () => {},
+            onSelectSection: () => {},
+            messages: [],
+            liveRows: [],
+            streaming: "",
+            busy: false,
+            coachMode: "stub",
+            error: null,
+            onSend: (text) => sent.push(text),
+            snapshot: { ...emptyBoundarySnapshot(), chunk_budget: "每周 2 小时" },
+            askedKinds: [],
+            pendingBoundary: false,
+            pendingOutline: true,
+            onConfirmBoundary: () => {},
+            onConfirmOutline: () => confirmed.push("card"),
+            onReviseOutline: () => revised.push("card"),
+          }),
+        ),
+      );
+    });
+    const buttons = [...host.querySelectorAll("button")];
+    const confirm = buttons.find((btn) => (btn.textContent ?? "").includes("确认大纲"));
+    const revise = buttons.find((btn) => (btn.textContent ?? "").includes("要改结构"));
+    assert.ok(confirm);
+    assert.ok(revise);
+    act(() => {
+      confirm.click();
+      revise.click();
+    });
+    assert.deepEqual(sent, []);
+    assert.deepEqual(confirmed, ["card"]);
+    assert.deepEqual(revised, ["card"]);
+    root.unmount();
+  });
+});

@@ -6,6 +6,12 @@ release dates that were never tagged.
 
 ## [Unreleased]
 
+### Changed
+
+- Red-4 freeze: coach no longer confirms or leaf-reduces from chat; outline
+  confirm / 重拟 go through Learn card gates + tools. Export POST only
+  returns `ok:true` after a real file. Root `pnpm test` runs shared + server + web.
+
 ### Security
 
 - Local preview lockdown: compose publishes `127.0.0.1:43127` and `127.0.0.1:43128`

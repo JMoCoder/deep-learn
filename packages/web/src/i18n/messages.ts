@@ -7,7 +7,9 @@ export const zh = {
   "app.error.topicDetail": "主题详情拉取失败",
   "app.error.connect": "无法连接服务器",
   "app.error.confirmBoundaryFirst": "先确认学习页上的边界卡，再进大纲确认。",
-  "app.error.overBudget": "超负荷预算，请重拟。在会话里说「减叶」或「重拟」，不要回「可以」。",
+  "app.error.overBudget": "超负荷预算，请在学习页大纲卡点重拟，不要在会话里回「可以」或「减叶」。",
+  "app.error.useOutlineCard": "大纲确认和减叶只走学习页大纲卡，不要在会话里回「可以」或「减叶」。",
+  "app.error.exportFailed": "导出没有生成可下载文件。",
   "app.error.send": "发送失败",
   "app.error.createTopic": "新建主题失败",
   "app.pointer.noCurrentId":
@@ -113,7 +115,7 @@ export const zh = {
   "outline.lead": "看每叶的 objective、先修与篇幅。确认后进入学习投影，不再另开计划页。",
   "outline.overBudget": "超负荷预算，请重拟",
   "outline.prereqOrder": "先修序",
-  "outline.empty": "大纲还在起草。稍等，或在右侧会话说「减叶」或「重拟」。",
+  "outline.empty": "大纲还在起草。落盘后用这张卡确认或重拟，不要在会话里回「可以」或「减叶」。",
   "outline.noObjective": "（无 objective）",
   "outline.prereqLine": "先修 {titles} · 篇幅 {length}",
   "outline.prereqNone": "无",
@@ -135,7 +137,7 @@ export const zh = {
   "session.guide": "向导",
   "session.send": "发送",
   "session.thinking": "在想…",
-  "session.overBudgetHint": "超负荷预算，请重拟。在会话里说「减叶」或「重拟」，不要回「可以」。",
+  "session.overBudgetHint": "超负荷预算，请在学习页大纲卡点重拟，不要在会话里回「可以」或「减叶」。",
 
   "chip.strategy": "策略",
   "cite": "引用",
@@ -182,8 +184,8 @@ export const zh = {
   "placeholder.load": "回答负荷：单次能啃多少",
   "placeholder.current": "直接回答当前这一问",
   "placeholder.pendingBoundary": "先确认学习页边界卡；缺维在这里补一句，不要直接说「可以」",
-  "placeholder.overBudget": "超负荷预算，请说「减叶」或「重拟」，不要回「可以」",
-  "placeholder.outline": "大纲可以的话回复「可以」；要改结构直接说",
+  "placeholder.overBudget": "超负荷预算，请在学习页大纲卡点重拟，不要回「可以」或「减叶」",
+  "placeholder.outline": "请在学习页大纲卡确认或重拟，不要在会话里回「可以」或「减叶」",
   "placeholder.learning": "问这一节，或说「下一节」推进；踩排除区会被拒回流",
   "placeholder.default": "直接回答，或说卡住了哪里",
 
@@ -196,7 +198,7 @@ export const zh = {
   "hint.boundary.body": "答齐 8 维后等边界卡；点「确认边界，看大纲」。未确认时不要回「可以」。",
   "hint.outline.label": "② 大纲",
   "hint.outline.body": "核对每叶 objective、先修「A → B」、篇幅，再确认进入学习。",
-  "hint.outline.overBudget": "超负荷预算，请重拟。会话里说「减叶」或「重拟」，不要回「可以」。",
+  "hint.outline.overBudget": "超负荷预算，请在学习页大纲卡点重拟，不要在会话里回「可以」或「减叶」。",
   "hint.learn.label": "③–⑤ + 抽测",
   "hint.learn.body":
     "右栏追问应见策略行（SCAFFOLD/ADVANCE/GROUND）与 CiteRow；说「下一节」推进；踩排除词（如弦论）应 REFUSE_OFFSCOPE 且不记笔记。书籍导出 html。",
@@ -265,7 +267,10 @@ export const en: Record<MessageKey, string> = {
   "app.error.connect": "Cannot reach the server",
   "app.error.confirmBoundaryFirst": "Confirm the boundary card on Learn before outline confirm.",
   "app.error.overBudget":
-    "Over the leaf budget — ask to trim or redraft in the session. Do not reply “ok”.",
+    "Over the leaf budget — tap Redraft on the Learn outline card. Do not reply “ok” or “trim leaves” in chat.",
+  "app.error.useOutlineCard":
+    "Outline confirm and leaf-reduce use the Learn outline card, not chat “ok” / “trim leaves”.",
+  "app.error.exportFailed": "Export did not produce a downloadable file.",
   "app.error.send": "Send failed",
   "app.error.createTopic": "Could not create a topic",
   "app.pointer.noCurrentId":
@@ -379,7 +384,7 @@ export const en: Record<MessageKey, string> = {
     "Check each leaf’s objective, prereqs, and length. Confirming starts learning projection — there is no separate plan page.",
   "outline.overBudget": "Over the leaf budget — please redraft",
   "outline.prereqOrder": "Prereq order",
-  "outline.empty": "Outline is still drafting. Wait, or say “trim leaves” / “redraft” in the session.",
+  "outline.empty": "Outline is still drafting. Confirm or redraft on this card — not in chat.",
   "outline.noObjective": "(no objective)",
   "outline.prereqLine": "Prereqs {titles} · length {length}",
   "outline.prereqNone": "none",
@@ -402,7 +407,7 @@ export const en: Record<MessageKey, string> = {
   "session.send": "Send",
   "session.thinking": "Thinking…",
   "session.overBudgetHint":
-    "Over the leaf budget — say “trim leaves” or “redraft” in the session. Do not reply “ok”.",
+    "Over the leaf budget — tap Redraft on the Learn outline card. Do not reply “ok” or “trim leaves” in chat.",
 
   "chip.strategy": "Strategy",
   "cite": "Cite",
@@ -450,8 +455,9 @@ export const en: Record<MessageKey, string> = {
   "placeholder.current": "Answer the current question",
   "placeholder.pendingBoundary":
     "Confirm the Learn boundary card first; fill a missing dim here. Do not just say “ok”.",
-  "placeholder.overBudget": "Over budget — say “trim leaves” or “redraft”, not “ok”",
-  "placeholder.outline": "If the outline is good, reply “ok”; to change structure, say so",
+  "placeholder.overBudget":
+    "Over budget — tap Redraft on the Learn outline card, not “ok” or “trim leaves” in chat",
+  "placeholder.outline": "Confirm or redraft on the Learn outline card — not in chat",
   "placeholder.learning": "Ask about this section, or say “next section”. Exclusion hits are refused.",
   "placeholder.default": "Answer directly, or say where you are stuck",
 
@@ -467,7 +473,7 @@ export const en: Record<MessageKey, string> = {
   "hint.outline.label": "② Outline",
   "hint.outline.body": "Check each leaf objective, prereqs “A → B”, and length, then confirm to start learning.",
   "hint.outline.overBudget":
-    "Over the leaf budget — say “trim leaves” or “redraft” in the session. Do not reply “ok”.",
+    "Over the leaf budget — tap Redraft on the Learn outline card. Do not reply “ok” or “trim leaves” in chat.",
   "hint.learn.label": "③–⑤ + quiz",
   "hint.learn.body":
     "Follow-ups should show a strategy row (SCAFFOLD/ADVANCE/GROUND) and CiteRow; say “next section” to advance; an exclusion word (e.g. string theory) should REFUSE_OFFSCOPE with no note. Export html from Books.",

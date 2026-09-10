@@ -42,6 +42,14 @@ export const api = {
       `/api/topics/${id}/confirm-boundary`,
       { method: "POST" },
     ),
+  confirmOutline: (id: string) =>
+    req<{ ok: boolean; topicId: string; phase?: string }>(`/api/topics/${id}/confirm-outline`, {
+      method: "POST",
+    }),
+  reduceOutline: (id: string) =>
+    req<{ ok: boolean; topicId: string; leafCount?: number }>(`/api/topics/${id}/reduce-outline`, {
+      method: "POST",
+    }),
   selectSection: (topicId: string, sectionId: string) =>
     req(`/api/topics/${topicId}/select-section`, {
       method: "POST",
@@ -58,7 +66,13 @@ export const api = {
     }),
   abort: () => req("/api/session/abort", { method: "POST" }),
   requestExport: (topicId: string, format: "md" | "html" | "epub") =>
-    req(`/api/topics/${topicId}/export`, {
+    req<{
+      ok: boolean;
+      format?: string;
+      filename?: string;
+      downloadPath?: string;
+      error?: string;
+    }>(`/api/topics/${topicId}/export`, {
       method: "POST",
       body: JSON.stringify({ format }),
     }),

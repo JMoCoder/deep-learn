@@ -61,6 +61,8 @@ describe("local preview publish lockdown", () => {
       { path: "/api/topics", method: "POST", body: JSON.stringify({ title: "新" }) },
       { path: `/api/topics/${topic.id}/export`, method: "POST", body: JSON.stringify({ format: "md" }) },
       { path: `/api/topics/${topic.id}/confirm-boundary`, method: "POST" },
+      { path: `/api/topics/${topic.id}/confirm-outline`, method: "POST" },
+      { path: `/api/topics/${topic.id}/reduce-outline`, method: "POST" },
     ];
 
     for (const item of protectedPaths) {

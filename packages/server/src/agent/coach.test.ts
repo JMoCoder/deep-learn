@@ -86,7 +86,7 @@ describe("coach boundary → outline", () => {
     assert.fail(`did not finalize after asking ${kinds.join(",")}`);
   });
 
-  it("drafts then finalizes outline after confirmation", () => {
+  it("drafts outline then refuses chat confirm / leaf-reduce", () => {
     const store = new Store(openMemoryDb());
     const topic = store.createTopic("主题");
     store.finalizeBoundaries(topic.id, [
@@ -100,7 +100,27 @@ describe("coach boundary → outline", () => {
     const args = draft.tool?.args as { title: string; nodes: unknown[] };
     store.replaceOutline(topic.id, args.title, args.nodes as never, "draft");
     const lock = planCoachTurn(store, topic.id, "可以");
-    assert.equal(lock.tool?.name, "finalize_outline");
+    assert.notEqual(lock.tool?.name, "finalize_outline");
+    assert.equal(lock.tool, undefined);
+    assert.match(lock.text, /大纲卡/);
+    const reduce = planCoachTurn(store, topic.id, "减叶");
+    assert.notEqual(reduce.tool?.name, "draft_outline");
+    assert.equal(reduce.tool, undefined);
+    assert.equal(store.requireTopic(topic.id).phase, "outline_draft");
+  });
+
+  it("does not persist interview answers except via tool args", () => {
+    const store = new Store(openMemoryDb());
+    const topic = store.createTopic("不落盘");
+    const first = planCoachTurn(store, topic.id, "学习者刚新建主题。请开始边界访谈。");
+    store.askBoundary(topic.id, "motivation", String((first.tool?.args as { question: string }).question));
+    const next = planCoachTurn(store, topic.id, "因为工作要用");
+    assert.equal(next.tool?.name, "ask_boundary");
+    const prev = (next.tool?.args as { record_previous?: { kind: string; answer: string } }).record_previous;
+    assert.equal(prev?.kind, "motivation");
+    assert.equal(prev?.answer, "因为工作要用");
+    const stored = store.listBoundaries(topic.id).find((row) => row.kind === "motivation");
+    assert.equal(stored?.answer.trim(), "");
   });
 
   it("does not repeat append_note after a tool result", () => {

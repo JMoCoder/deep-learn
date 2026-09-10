@@ -4,13 +4,21 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import type { AppSnapshot, ExportFormat, SettingsInput } from "@quantum/shared";
-import { learnGatesFromServer, snapshotFromAnswers } from "@quantum/shared";
+import {
+  evaluateOutlineLeafBudget,
+  learnGatesFromServer,
+  shouldShowOutlineConfirm,
+  snapshotFromAnswers,
+} from "@quantum/shared";
 import { AgentHost } from "./agent/runtime.js";
 import { bus } from "./agent/bus.js";
 import { config } from "./config.js";
+import { exportTopic } from "./export/index.js";
 import { isSafeExportSegment, resolveExportFile } from "./export/safe-path.js";
+import { outlineFromBoundaries } from "./learning/outline-from-boundaries.js";
 import { collectPrereqEdges } from "./learning/prereq-edges.js";
 import { Store } from "./store/repos.js";
+import { runTopicTool } from "./tools/run-tool.js";
 
 export const LOCAL_PREVIEW_ORIGINS = [
   "http://127.0.0.1:43127",
@@ -190,6 +198,72 @@ export function createApp(
     });
   });
 
+  app.post("/api/topics/:id/confirm-outline", async (c) => {
+    const id = c.req.param("id");
+    let topic;
+    try {
+      topic = store.requireTopic(id);
+    } catch {
+      return c.json({ error: "not found" }, 404);
+    }
+    const outline = store.getOutline(id);
+    const gates = topicGates(store, id, topic.phase);
+    if (
+      !shouldShowOutlineConfirm({
+        phase: topic.phase,
+        boundaryConfirmed: gates.boundaryConfirmed,
+        hasOutline: outline.length > 0,
+      })
+    ) {
+      return c.json({ ok: false, error: "outline confirm not available" }, 400);
+    }
+    const snapshot = snapshotFromAnswers(store.listBoundaries(id));
+    const budget = evaluateOutlineLeafBudget(outline, snapshot.chunk_budget);
+    if (!budget.canConfirm) {
+      return c.json({ ok: false, error: "over budget", ...budget }, 400);
+    }
+    store.setCurrentTopic(id);
+    const result = await runTopicTool(store, id, "finalize_outline", { title: topic.title });
+    const details = (result as { details?: { ok?: boolean; errors?: string[] } }).details;
+    if (details?.ok === false) {
+      return c.json({ ok: false, error: details.errors?.join("；") ?? "finalize_outline rejected" }, 400);
+    }
+    const next = store.requireTopic(id);
+    return c.json({
+      ok: true,
+      topicId: id,
+      phase: next.phase,
+      state: appSnapshot(store),
+    });
+  });
+
+  app.post("/api/topics/:id/reduce-outline", async (c) => {
+    const id = c.req.param("id");
+    let topic;
+    try {
+      topic = store.requireTopic(id);
+    } catch {
+      return c.json({ error: "not found" }, 404);
+    }
+    if (topic.phase !== "outline_draft") {
+      return c.json({ ok: false, error: "not in outline_draft" }, 400);
+    }
+    const drafted = outlineFromBoundaries(store.listBoundaries(id));
+    store.setCurrentTopic(id);
+    const result = await runTopicTool(store, id, "draft_outline", drafted);
+    const details = (result as { details?: { ok?: boolean; errors?: string[]; leafCount?: number; leafCap?: number } }).details;
+    if (details?.ok === false) {
+      return c.json({ ok: false, error: details.errors?.join("；") ?? "draft_outline rejected", ...details }, 400);
+    }
+    return c.json({
+      ok: true,
+      topicId: id,
+      leafCount: details?.leafCount,
+      leafCap: details?.leafCap,
+      state: appSnapshot(store),
+    });
+  });
+
   app.post("/api/topics/:id/select-section", async (c) => {
     const id = c.req.param("id");
     store.requireTopic(id);
@@ -274,15 +348,51 @@ export function createApp(
     }
   });
 
-  // Convenience: export without waiting for the agent (still uses the same exporter).
+  // Same exporter as export_topic. ok:true only after a real, non-empty file exists.
   app.post("/api/topics/:id/export", async (c) => {
     const id = c.req.param("id");
-    store.requireTopic(id);
-    const body = (await c.req.json()) as { format?: ExportFormat };
+    try {
+      store.requireTopic(id);
+    } catch {
+      return c.json({ ok: false, error: "not found" }, 404);
+    }
+    const body = (await c.req.json().catch(() => ({}))) as { format?: ExportFormat };
     const format = body.format ?? "md";
+    if (format !== "md" && format !== "html" && format !== "epub") {
+      return c.json({ ok: false, format, error: "unsupported format" });
+    }
     store.setCurrentTopic(id);
-    void host.prompt(id, `请用工具 export_topic 导出为 ${format}。`);
-    return c.json({ ok: true, format });
+    try {
+      store.updateTopic(id, { exportState: "exporting" });
+      const result = await exportTopic(store, id, format);
+      const abs = resolveExportFile(id, result.filename);
+      if (!abs) {
+        store.updateTopic(id, { exportState: "idle" });
+        return c.json({ ok: false, format, error: "export path escaped exports root" });
+      }
+      store.updateTopic(id, { exportState: "ready" });
+      bus.emit({
+        type: "export_ready",
+        topicId: id,
+        format: result.format,
+        filename: result.filename,
+        downloadPath: result.downloadPath,
+      });
+      bus.emit({
+        type: "phase_changed",
+        topicId: id,
+        phase: store.requireTopic(id).phase,
+        exportState: "ready",
+      });
+      return c.json({ ok: true, ...result });
+    } catch (err) {
+      store.updateTopic(id, { exportState: "idle" });
+      return c.json({
+        ok: false,
+        format,
+        error: err instanceof Error ? err.message : "export failed",
+      });
+    }
   });
 
   return { app, store, host };

@@ -84,12 +84,26 @@ export function shouldBlockOverBudgetConfirm(input: {
   return input.isConfirm;
 }
 
+/**
+ * Red-4: outline confirm / leaf-reduce are web-card gates + @quantum/shared.
+ * Chat「可以 / 减叶」must not be a parallel allow path.
+ */
+export function shouldDeferOutlineActionToCard(input: {
+  text: string;
+  pendingOutline: boolean;
+}): boolean {
+  if (!input.pendingOutline) return false;
+  return looksLikeOutlineConfirm(input.text) || looksLikeLeafRedraft(input.text);
+}
+
 export function outlineComposerPlaceholder(overBudget: boolean): string {
   return overBudget
-    ? "超负荷预算，请说「减叶」或「重拟」，不要回「可以」"
-    : "大纲可以的话回复「可以」；要改结构直接说";
+    ? "超负荷预算，请在学习页大纲卡点重拟，不要在会话里回「可以」或「减叶」"
+    : "请在学习页大纲卡确认或重拟，不要在会话里回「可以」或「减叶」";
 }
 
 export function outlineSessionHint(overBudget: boolean): string | null {
-  return overBudget ? `${OVER_BUDGET_COPY}。在会话里说「减叶」或「重拟」，不要回「可以」。` : null;
+  return overBudget
+    ? `${OVER_BUDGET_COPY}。请在学习页大纲卡点重拟，不要在会话里回「可以」或「减叶」。`
+    : null;
 }

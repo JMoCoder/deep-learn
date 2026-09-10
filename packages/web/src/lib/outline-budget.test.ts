@@ -10,6 +10,7 @@ import {
   outlineComposerPlaceholder,
   parseChunkBudgetMinutes,
   shouldBlockOverBudgetConfirm,
+  shouldDeferOutlineActionToCard,
 } from "@quantum/shared";
 
 function leaf(id: string, title: string): OutlineNode {
@@ -67,8 +68,10 @@ describe("1.4 / 五步2 outline confirm gate", () => {
       }),
       false,
     );
-    assert.match(outlineComposerPlaceholder(true), /减叶|重拟/);
+    assert.match(outlineComposerPlaceholder(true), /大纲卡/);
     assert.equal(outlineComposerPlaceholder(true).includes("可以」我就"), false);
+    assert.equal(shouldDeferOutlineActionToCard({ text: "可以", pendingOutline: true }), true);
+    assert.equal(shouldDeferOutlineActionToCard({ text: "减叶", pendingOutline: true }), true);
   });
 
   it("clears a stale draft failure once the tool reports ok", () => {
