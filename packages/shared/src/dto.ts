@@ -1,6 +1,6 @@
 import type { BoundaryKind, ExportFormat } from "./tools.js";
 import type { ExportSubstate, OutlineNodeStatus, TopicPhase } from "./phases.js";
-import type { BoundarySnapshot, NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
+import type { BoundarySnapshot, NoteKind, NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
 
 export type TopicSummary = {
   id: string;
@@ -53,6 +53,8 @@ export type NoteRecord = {
   body: string;
   reasonCode: NoteReasonCode;
   type: NoteType;
+  /** formal = AI append_note; highlight / thinking reserved for future intake. */
+  kind: NoteKind;
   createdAt: number;
 };
 

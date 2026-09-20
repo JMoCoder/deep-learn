@@ -149,7 +149,23 @@ export default function App() {
           />
         ) : null}
 
-        {readingTabs && tab === "notes" ? <NotesTab topic={topic} notes={pointer.notes} /> : null}
+        {readingTabs && tab === "notes" ? (
+          <NotesTab
+            topic={topic}
+            section={pointer.section}
+            outline={pointer.outline}
+            prereqEdges={pointer.prereqEdges}
+            currentSectionId={pointer.snapshot?.currentSectionId ?? null}
+            notes={pointer.notes}
+            outlineOpen={rails.outlineOpen}
+            outlinePersistent={rails.persistent}
+            notesOpen={rails.sessionOpen}
+            notesPersistent={rails.persistent}
+            onOutlineOpen={rails.setOutlineOpen}
+            onNotesOpen={rails.setSessionOpen}
+            onSelectSection={(id) => void actions.selectSection(id)}
+          />
+        ) : null}
 
         {tab === "me" || !readingTabs ? (
           <MeTab

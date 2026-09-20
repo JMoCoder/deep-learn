@@ -15,7 +15,7 @@ import type {
   TopicPhase,
   TopicSummary,
 } from "@quantum/shared";
-import { noteTypeFromReason, parseNoteReasonCode } from "@quantum/shared";
+import { noteKindFromReason, noteTypeFromReason, parseNoteKind, parseNoteReasonCode } from "@quantum/shared";
 import { id } from "../ids.js";
 import {
   resolveDependsOnIds,
@@ -522,11 +522,12 @@ export class Store {
     const noteId = id("note");
     const ts = this.now();
     const type = noteTypeFromReason(reasonCode);
+    const kind = noteKindFromReason(reasonCode);
     this.db
       .prepare(
-        "INSERT INTO notes (id, topic_id, section_id, body, source, reason_code, note_type, created_at) VALUES (?, ?, ?, ?, 'append_note', ?, ?, ?)",
+        "INSERT INTO notes (id, topic_id, section_id, body, source, reason_code, note_type, note_kind, created_at) VALUES (?, ?, ?, ?, 'append_note', ?, ?, ?, ?)",
       )
-      .run(noteId, topicId, sectionId ?? null, body.trim(), String(reasonCode), type, ts);
+      .run(noteId, topicId, sectionId ?? null, body.trim(), String(reasonCode), type, kind, ts);
     this.touchTopic(topicId);
     this.bumpActivity();
     return this.listNotes(topicId).find((n) => n.id === noteId)!;
@@ -650,6 +651,7 @@ function noteFromRow(row: Row): NoteRecord {
     storedType === "思考" || storedType === "疑问" || storedType === "拓展"
       ? storedType
       : noteTypeFromReason(reasonCode);
+  const kind = parseNoteKind(row.note_kind) ?? noteKindFromReason(reasonCode);
   return {
     id: String(row.id),
     topicId: String(row.topic_id),
@@ -657,6 +659,7 @@ function noteFromRow(row: Row): NoteRecord {
     body: String(row.body),
     reasonCode,
     type,
+    kind,
     createdAt: Number(row.created_at),
   };
 }
