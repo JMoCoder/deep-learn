@@ -41,7 +41,6 @@ export function useLearnActions(input: {
   setLoadError: Dispatch<SetStateAction<string | null>>;
   setTab: Dispatch<SetStateAction<AppTab>>;
   setSessionOpen: (open: boolean) => void;
-  setShelfDrawer: Dispatch<SetStateAction<boolean>>;
 }) {
   const importingRef = useRef(false);
   const [importing, setImporting] = useState(false);
@@ -176,7 +175,6 @@ export function useLearnActions(input: {
       const result = await api.importHtml(html, title);
       input.resetGatesForNewTopic(result.topic.id);
       input.setDraftRejected(false);
-      input.setShelfDrawer(false);
       input.setTab("learn");
       input.setSessionOpen(true);
       await input.refresh();
@@ -188,6 +186,26 @@ export function useLearnActions(input: {
       importingRef.current = false;
       setImporting(false);
     }
+  }
+
+  async function archiveTopic(id: string) {
+    input.setLiveRows([]);
+    const result = await api.archiveTopic(id);
+    await input.refresh();
+    if (!result.hasActiveTopics) {
+      input.setTab("me");
+    }
+  }
+
+  async function unarchiveTopic(id: string) {
+    await api.unarchiveTopic(id);
+    await input.refresh();
+    input.setTab("shelf");
+  }
+
+  async function deleteTopic(id: string) {
+    await api.deleteTopic(id);
+    await input.refresh();
   }
 
   async function switchTopic(id: string) {
@@ -229,6 +247,9 @@ export function useLearnActions(input: {
     reduceOutlineCard,
     importHtml,
     importing,
+    archiveTopic,
+    unarchiveTopic,
+    deleteTopic,
     switchTopic,
     selectSection,
     requestExport,

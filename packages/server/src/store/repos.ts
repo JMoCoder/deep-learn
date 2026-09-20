@@ -114,11 +114,35 @@ export class Store {
       .run(sectionId);
   }
 
-  listTopics(): TopicSummary[] {
+  listTopics(opts: { archived?: boolean } = { archived: false }): TopicSummary[] {
+    const archived = opts.archived ? 1 : 0;
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM topics WHERE COALESCE(archived, 0) = ? ORDER BY updated_at DESC",
+      )
+      .all(archived) as Row[];
+    return rows.map(topicFromRow);
+  }
+
+  listAllTopics(): TopicSummary[] {
     const rows = this.db
       .prepare("SELECT * FROM topics ORDER BY updated_at DESC")
       .all() as Row[];
     return rows.map(topicFromRow);
+  }
+
+  hasActiveTopics(): boolean {
+    const row = this.db
+      .prepare("SELECT 1 AS ok FROM topics WHERE COALESCE(archived, 0) = 0 LIMIT 1")
+      .get() as { ok: number } | undefined;
+    return Boolean(row);
+  }
+
+  hasArchivedTopics(): boolean {
+    const row = this.db
+      .prepare("SELECT 1 AS ok FROM topics WHERE COALESCE(archived, 0) = 1 LIMIT 1")
+      .get() as { ok: number } | undefined;
+    return Boolean(row);
   }
 
   getTopic(idValue: string): TopicSummary | null {
@@ -139,12 +163,51 @@ export class Store {
     const ts = this.now();
     this.db
       .prepare(
-        "INSERT INTO topics (id, title, phase, export_state, created_at, updated_at) VALUES (?, ?, 'boundary_interview', 'idle', ?, ?)",
+        "INSERT INTO topics (id, title, phase, export_state, created_at, updated_at, archived) VALUES (?, ?, 'boundary_interview', 'idle', ?, ?, 0)",
       )
       .run(topicId, title, ts, ts);
     this.setCurrentTopic(topicId);
     this.setCurrentSection(null);
     return this.requireTopic(topicId);
+  }
+
+  setTopicArchived(topicId: string, archived: boolean): TopicSummary {
+    this.requireTopic(topicId);
+    this.db
+      .prepare("UPDATE topics SET archived = ?, updated_at = ? WHERE id = ?")
+      .run(archived ? 1 : 0, this.now(), topicId);
+    if (archived && this.getCurrentTopicId() === topicId) {
+      const next = this.listTopics({ archived: false })[0] ?? null;
+      this.setCurrentTopic(next?.id ?? null);
+      if (next) {
+        const first = this.getOutline(next.id)[0];
+        this.setCurrentSection(first?.id ?? null);
+      } else {
+        this.setCurrentSection(null);
+      }
+    }
+    if (!archived && !this.getCurrentTopicId()) {
+      this.setCurrentTopic(topicId);
+      const first = this.getOutline(topicId)[0];
+      this.setCurrentSection(first?.id ?? null);
+    }
+    return this.requireTopic(topicId);
+  }
+
+  deleteTopic(topicId: string): void {
+    this.requireTopic(topicId);
+    const wasCurrent = this.getCurrentTopicId() === topicId;
+    this.db.prepare("DELETE FROM notes WHERE topic_id = ?").run(topicId);
+    this.db.prepare("DELETE FROM sections WHERE topic_id = ?").run(topicId);
+    this.db.prepare("DELETE FROM outline_nodes WHERE topic_id = ?").run(topicId);
+    this.db.prepare("DELETE FROM boundaries WHERE topic_id = ?").run(topicId);
+    this.db.prepare("DELETE FROM sessions WHERE topic_id = ?").run(topicId);
+    this.db.prepare("DELETE FROM topics WHERE id = ?").run(topicId);
+    if (wasCurrent) {
+      const next = this.listTopics({ archived: false })[0] ?? null;
+      this.setCurrentTopic(next?.id ?? null);
+      this.setCurrentSection(next ? this.getOutline(next.id)[0]?.id ?? null : null);
+    }
   }
 
   updateTopic(
@@ -528,6 +591,7 @@ function topicFromRow(row: Row): TopicSummary {
     title: String(row.title),
     phase: row.phase as TopicPhase,
     exportState: row.export_state as ExportSubstate,
+    archived: Boolean(row.archived),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
   };

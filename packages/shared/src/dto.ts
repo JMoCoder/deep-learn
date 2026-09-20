@@ -7,6 +7,7 @@ export type TopicSummary = {
   title: string;
   phase: TopicPhase;
   exportState: ExportSubstate;
+  archived: boolean;
   createdAt: number;
   updatedAt: number;
 };
@@ -95,6 +96,10 @@ export type AppSnapshot = {
   settings: PublicSettings;
   /** False = reading-first phase; agent book generation paths are frozen. */
   generationEnabled: boolean;
+  /** Active (non-archived) books remain; when false with archives, shelf/learn/notes tabs hide. */
+  hasActiveTopics: boolean;
+  /** True when at least one archived book exists (Me → Columns). */
+  hasArchivedTopics: boolean;
   /** Persisted Learn gate: learner confirmed the boundary card. */
   boundaryConfirmed: boolean;
   /** Persisted Learn gate: finalize_boundary succeeded (also implied by phase). */

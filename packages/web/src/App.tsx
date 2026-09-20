@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { ExportFormat, PublicSettings } from "@quantum/shared";
 import type { AppTab } from "@/app/tabs";
 import { useLocale, useT } from "@/i18n";
@@ -29,7 +29,6 @@ export default function App() {
   const t = useT();
   const locale = useLocale();
   const [tab, setTab] = useState<AppTab>("learn");
-  const [shelfDrawer, setShelfDrawer] = useState(false);
   const rails = useLearnRails();
   const pointer = useTopicPointer(t);
   const gates = useLearnGates(pointer.snapshot);
@@ -65,7 +64,6 @@ export default function App() {
     setLoadError: pointer.setLoadError,
     setTab,
     setSessionOpen: rails.setSessionOpen,
-    setShelfDrawer,
   });
 
   const awaitingTopicAnchor = needsTopicAnchor({
@@ -79,8 +77,16 @@ export default function App() {
   const coachMode = pointer.snapshot?.coachMode ?? "stub";
   const settings = pointer.snapshot?.settings ?? emptySettings;
   const generationEnabled = pointer.snapshot?.generationEnabled ?? false;
+  const hasActiveTopics = pointer.snapshot?.hasActiveTopics ?? pointer.topics.length > 0;
+  const hasArchivedTopics = pointer.snapshot?.hasArchivedTopics ?? false;
   const askedKinds = pointer.boundaries.map((b) => b.kind);
   const currentKind = currentUnansweredKind(pointer.boundaries);
+
+  const readingTabs = hasActiveTopics || !hasArchivedTopics;
+
+  useEffect(() => {
+    if (!readingTabs && tab !== "me") setTab("me");
+  }, [readingTabs, tab]);
 
   return (
     <div
@@ -95,20 +101,19 @@ export default function App() {
       ) : null}
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        {tab === "shelf" ? (
+        {readingTabs && tab === "shelf" ? (
           <ShelfTab
             topic={topic}
             topics={pointer.topics}
-            drawerOpen={shelfDrawer}
-            onDrawerOpen={setShelfDrawer}
             onImportHtml={(html, title) => actions.importHtml(html, title)}
             onSwitch={(id) => void actions.switchTopic(id)}
             onExport={(id, format: ExportFormat) => void actions.requestExport(id, format)}
+            onArchive={(id) => actions.archiveTopic(id)}
             importing={actions.importing}
           />
         ) : null}
 
-        {tab === "learn" ? (
+        {readingTabs && tab === "learn" ? (
           <LearnTab
             topic={topic}
             section={pointer.section}
@@ -144,44 +149,61 @@ export default function App() {
           />
         ) : null}
 
-        {tab === "notes" ? <NotesTab topic={topic} notes={pointer.notes} /> : null}
+        {readingTabs && tab === "notes" ? <NotesTab topic={topic} notes={pointer.notes} /> : null}
 
-        {tab === "me" ? (
+        {tab === "me" || !readingTabs ? (
           <MeTab
             settings={settings}
             onSave={async (next) => {
               await api.saveSettings(next);
               await pointer.refresh();
             }}
+            onUnarchive={async (id) => {
+              await actions.unarchiveTopic(id);
+            }}
+            onDeleteArchived={async (id) => {
+              await actions.deleteTopic(id);
+            }}
           />
         ) : null}
       </div>
 
-      <nav className="relative z-10 grid grid-cols-4 border-t border-paper-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm">
-        <TabButton
-          testId="tab-shelf"
-          active={tab === "shelf"}
-          label={t("tab.shelf")}
-          icon={<Library className="h-5 w-5" />}
-          onClick={() => setTab("shelf")}
-        />
-        <TabButton
-          testId="tab-learn"
-          active={tab === "learn"}
-          label={t("tab.learn")}
-          icon={<GraduationCap className="h-5 w-5" />}
-          onClick={() => setTab("learn")}
-        />
-        <TabButton
-          testId="tab-notes"
-          active={tab === "notes"}
-          label={t("tab.notes")}
-          icon={<BookMarked className="h-5 w-5" />}
-          onClick={() => setTab("notes")}
-        />
+      <nav
+        data-testid="app-tab-nav"
+        data-mode={readingTabs ? "full" : "me-only"}
+        className={cn(
+          "relative z-10 border-t border-paper-line bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm",
+          readingTabs ? "grid grid-cols-4" : "grid grid-cols-1",
+        )}
+      >
+        {readingTabs ? (
+          <>
+            <TabButton
+              testId="tab-shelf"
+              active={tab === "shelf"}
+              label={t("tab.shelf")}
+              icon={<Library className="h-5 w-5" />}
+              onClick={() => setTab("shelf")}
+            />
+            <TabButton
+              testId="tab-learn"
+              active={tab === "learn"}
+              label={t("tab.learn")}
+              icon={<GraduationCap className="h-5 w-5" />}
+              onClick={() => setTab("learn")}
+            />
+            <TabButton
+              testId="tab-notes"
+              active={tab === "notes"}
+              label={t("tab.notes")}
+              icon={<BookMarked className="h-5 w-5" />}
+              onClick={() => setTab("notes")}
+            />
+          </>
+        ) : null}
         <TabButton
           testId="tab-me"
-          active={tab === "me"}
+          active={tab === "me" || !readingTabs}
           label={t("tab.me")}
           icon={<User className="h-5 w-5" />}
           onClick={() => setTab("me")}

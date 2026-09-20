@@ -62,6 +62,8 @@ describe("settings language switch", () => {
           createElement(MeTab, {
             settings: { provider: "openai", modelId: "gpt-4o-mini", baseUrl: "", hasApiKey: false },
             onSave: async () => {},
+            onUnarchive: async () => {},
+            onDeleteArchived: async () => {},
           }),
         ),
       );

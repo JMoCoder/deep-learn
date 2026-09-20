@@ -89,7 +89,13 @@ export function createApp(
 
   app.get("/api/heatmap", (c) => c.json(store.heatmap()));
 
-  app.get("/api/topics", (c) => c.json(store.listTopics()));
+  app.get("/api/topics", (c) => {
+    const archived = c.req.query("archived");
+    if (archived === "1" || archived === "true") {
+      return c.json(store.listTopics({ archived: true }));
+    }
+    return c.json(store.listTopics({ archived: false }));
+  });
 
   app.get("/api/topics/current/projection", (c) => {
     const currentTopicId = store.getCurrentTopicId();
@@ -184,7 +190,8 @@ export function createApp(
 
   app.post("/api/topics/:id/switch", (c) => {
     const id = c.req.param("id");
-    store.requireTopic(id);
+    const topic = store.requireTopic(id);
+    if (topic.archived) return c.json({ error: "topic archived" }, 400);
     store.setCurrentTopic(id);
     const first = store.getOutline(id)[0];
     const currentSection = store.getCurrentSectionId();
@@ -194,6 +201,57 @@ export function createApp(
       currentTopicId: id,
       topic: store.getTopic(id),
       currentSectionId: store.getCurrentSectionId(),
+    });
+  });
+
+  app.post("/api/topics/:id/archive", (c) => {
+    const id = c.req.param("id");
+    try {
+      store.requireTopic(id);
+    } catch {
+      return c.json({ error: "not found" }, 404);
+    }
+    const topic = store.setTopicArchived(id, true);
+    bus.emit({ type: "topic_updated", topicId: id });
+    return c.json({
+      topic,
+      currentTopicId: store.getCurrentTopicId(),
+      hasActiveTopics: store.hasActiveTopics(),
+      state: appSnapshot(store),
+    });
+  });
+
+  app.post("/api/topics/:id/unarchive", (c) => {
+    const id = c.req.param("id");
+    try {
+      store.requireTopic(id);
+    } catch {
+      return c.json({ error: "not found" }, 404);
+    }
+    const topic = store.setTopicArchived(id, false);
+    bus.emit({ type: "topic_updated", topicId: id });
+    return c.json({
+      topic,
+      currentTopicId: store.getCurrentTopicId(),
+      hasActiveTopics: store.hasActiveTopics(),
+      state: appSnapshot(store),
+    });
+  });
+
+  app.delete("/api/topics/:id", (c) => {
+    const id = c.req.param("id");
+    try {
+      store.requireTopic(id);
+    } catch {
+      return c.json({ error: "not found" }, 404);
+    }
+    store.deleteTopic(id);
+    bus.emit({ type: "topic_updated", topicId: id });
+    return c.json({
+      ok: true,
+      currentTopicId: store.getCurrentTopicId(),
+      hasActiveTopics: store.hasActiveTopics(),
+      state: appSnapshot(store),
     });
   });
 
@@ -461,16 +519,19 @@ export function createApp(
 function appSnapshot(store: Store): AppSnapshot {
   const currentTopicId = store.getCurrentTopicId();
   const topic = currentTopicId ? store.getTopic(currentTopicId) : null;
-  const gates = topic
-    ? topicGates(store, topic.id, topic.phase)
+  const activeTopic = topic && !topic.archived ? topic : null;
+  const gates = activeTopic
+    ? topicGates(store, activeTopic.id, activeTopic.phase)
     : { boundaryConfirmed: false, boundaryFinalized: false };
   return {
-    currentTopicId,
-    topic,
-    currentSectionId: store.getCurrentSectionId(),
+    currentTopicId: activeTopic ? activeTopic.id : null,
+    topic: activeTopic,
+    currentSectionId: activeTopic ? store.getCurrentSectionId() : null,
     coachMode: store.hasLiveModel() ? "live" : "stub",
     settings: store.publicSettings(),
     generationEnabled: config.generationEnabled,
+    hasActiveTopics: store.hasActiveTopics(),
+    hasArchivedTopics: store.hasArchivedTopics(),
     ...gates,
   };
 }

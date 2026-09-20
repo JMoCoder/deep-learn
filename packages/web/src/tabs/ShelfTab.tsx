@@ -1,42 +1,69 @@
-import { useRef, useState } from "react";
-import type { ExportFormat, TopicSummary } from "@quantum/shared";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import type { ExportFormat, OutlineNode, TopicSummary } from "@quantum/shared";
+import { Archive, Upload } from "lucide-react";
 import { Drawer } from "@/components/Drawer";
+import { OutlineTree } from "@/components/OutlineTree";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useWideLayout } from "@/lib/use-outline-rail";
+import { api } from "@/lib/api";
 import { phaseText, useLocale, useT } from "@/i18n";
 import { cn, formatTime } from "@/lib/utils";
-import { Library, Upload } from "lucide-react";
 
 export function ShelfTab({
   topic,
   topics,
-  drawerOpen,
-  onDrawerOpen,
   onImportHtml,
   onSwitch,
   onExport,
+  onArchive,
   importing,
 }: {
   topic: TopicSummary | null;
   topics: TopicSummary[];
-  drawerOpen: boolean;
-  onDrawerOpen: (open: boolean) => void;
   onImportHtml: (html: string, title?: string) => Promise<void> | void;
   onSwitch: (id: string) => void;
   onExport: (id: string, format: ExportFormat) => void;
+  onArchive: (id: string) => Promise<void> | void;
   importing?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
-  const wide = useWideLayout();
   const [exportId, setExportId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [pasteHtml, setPasteHtml] = useState("");
   const [pasteTitle, setPasteTitle] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
+  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewOutline, setPreviewOutline] = useState<OutlineNode[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const previewTopic = topics.find((item) => item.id === previewId) ?? null;
+
+  useEffect(() => {
+    if (!previewId) {
+      setPreviewOutline([]);
+      return;
+    }
+    let cancelled = false;
+    setPreviewLoading(true);
+    void api
+      .topic(previewId)
+      .then((detail) => {
+        if (!cancelled) setPreviewOutline(detail.outline);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewOutline([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [previewId]);
 
   async function submitPaste() {
     setImportError(null);
@@ -68,151 +95,146 @@ export function ShelfTab({
     }
   }
 
+  function stop(e: ReactMouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="pointer-events-none absolute inset-0 shelf-atmosphere" aria-hidden />
-      <header className={cn("relative z-10 border-b border-paper-line px-3", wide ? "py-2" : "py-3")}>
-        <section
-          data-testid="shelf-hero"
-          data-layout={wide ? "wide" : "narrow"}
-          className={cn(
-            "hero-topic shelf-hero-enter relative flex min-w-0 items-center gap-3 overflow-hidden rounded-[1.35rem] border border-paper-line/90 pl-5",
-            wide ? "min-h-16 px-4 py-2" : "px-4 py-4",
-          )}
-        >
-          <span aria-hidden className={cn("hero-accent", wide && "hero-accent--wide")} />
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold tracking-[0.18em] text-cinnabar">
-              {t("shelf.brand")}
-            </p>
-            <h1 className="mt-1 font-serif text-[1.45rem] leading-tight tracking-tight">
-              {topic ? topic.title : t("shelf.emptyTitle")}
-            </h1>
-            <p className="mt-1.5 text-sm text-paper-muted">
-              {topic ? t("shelf.currentHint") : t("shelf.emptyHint")}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="relative z-10 shrink-0 self-center"
-            data-testid="open-shelf-drawer"
-            aria-label={t("shelf.openDrawer")}
-            onClick={() => onDrawerOpen(true)}
-          >
-            {t("shelf.manage")}
-          </Button>
-        </section>
-      </header>
-
       <div className="relative z-10 min-h-0 flex-1 overflow-hidden" data-testid="shelf-stage">
-        <div className="quantum-scroll h-full min-h-0 overflow-y-auto px-5 py-6">
-          <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+        <div className="quantum-scroll h-full min-h-0 overflow-y-auto px-4 py-5 sm:px-6">
+          <div
+            data-testid="shelf-grid"
+            className="grid w-full gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16.5rem),1fr))]"
+          >
             <button
               type="button"
               data-testid="shelf-import-open"
               onClick={() => setImportOpen(true)}
-              className="shelf-card-enter group relative w-full overflow-hidden rounded-2xl border border-dashed border-cinnabar/35 bg-paper-deep/50 px-5 py-6 text-left transition-[border-color,transform] duration-300 hover:border-cinnabar/70 hover:bg-paper-deep/80"
+              className="shelf-card-enter group relative min-h-[11rem] overflow-hidden rounded-2xl border border-dashed border-cinnabar/40 bg-paper-deep/55 px-5 py-5 text-left transition-[border-color,transform,background-color] duration-300 hover:-translate-y-0.5 hover:border-cinnabar/70 hover:bg-paper-deep/85"
             >
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 rounded-lg bg-cinnabar/10 p-2 text-cinnabar transition-transform duration-300 group-hover:scale-105">
-                  <Upload className="h-5 w-5" />
-                </span>
-                <div>
-                  <div className="font-serif text-lg text-cinnabar">{t("shelf.importTitle")}</div>
-                  <p className="mt-1 text-sm text-paper-muted">{t("shelf.importHint")}</p>
-                </div>
-              </div>
+              <span className="inline-flex rounded-lg bg-cinnabar/10 p-2 text-cinnabar transition-transform duration-300 group-hover:scale-105">
+                <Upload className="h-5 w-5" />
+              </span>
+              <div className="mt-4 font-serif text-lg text-cinnabar">{t("shelf.importTitle")}</div>
+              <p className="mt-1.5 text-sm leading-relaxed text-paper-muted">{t("shelf.importHint")}</p>
             </button>
 
-            {topics.length === 0 ? (
-              <p className="py-8 text-center text-sm text-paper-muted" data-testid="shelf-empty">
-                {t("shelf.noBooks")}
-              </p>
-            ) : (
-              <ul className="space-y-3" data-testid="shelf-list">
-                {topics.map((item, index) => (
-                  <li
-                    key={item.id}
-                    className="shelf-card-enter rounded-2xl border border-paper-line bg-white/40 px-4 py-3 backdrop-blur-[2px]"
-                    style={{ animationDelay: `${Math.min(index, 6) * 40}ms` }}
-                    data-testid="shelf-book-card"
-                    data-current={topic?.id === item.id ? "true" : "false"}
+            {topics.map((item, index) => (
+              <article
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                data-testid="shelf-book-card"
+                data-current={topic?.id === item.id ? "true" : "false"}
+                className={cn(
+                  "shelf-card-enter group relative flex min-h-[11rem] cursor-pointer flex-col rounded-2xl border bg-white/45 px-4 py-4 text-left backdrop-blur-[2px] transition-[border-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-cinnabar/35 hover:shadow-[0_12px_28px_#2b2a2610]",
+                  topic?.id === item.id ? "border-cinnabar/40" : "border-paper-line",
+                )}
+                style={{ animationDelay: `${Math.min(index + 1, 8) * 35}ms` }}
+                onClick={() => setPreviewId(item.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setPreviewId(item.id);
+                  }
+                }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold tracking-[0.14em] text-cinnabar/80">
+                    {topic?.id === item.id ? t("shelf.currentBadge") : t("shelf.brand")}
+                  </p>
+                  <h2 className="mt-2 font-serif text-[1.2rem] leading-snug tracking-tight">
+                    {item.title}
+                  </h2>
+                  <p className="mt-2 text-xs text-paper-muted">
+                    {phaseText(item.phase, t)} · {formatTime(item.updatedAt, locale)}
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center gap-1 border-t border-paper-line/80 pt-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="px-2 text-cinnabar"
+                    data-testid="shelf-switch"
+                    onClick={(e) => {
+                      stop(e);
+                      onSwitch(item.id);
+                    }}
                   >
-                    <div className="flex items-start gap-3">
-                      <Library className="mt-1 h-4 w-4 shrink-0 text-pine" />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium">{item.title}</div>
-                        <p className="mt-1 text-xs text-paper-muted">
-                          {phaseText(item.phase, t)} · {formatTime(item.updatedAt, locale)}
-                          {topic?.id === item.id ? ` · ${t("shelf.currentBadge")}` : ""}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant={topic?.id === item.id ? "pine" : "outline"}
-                            data-testid="shelf-switch"
-                            onClick={() => onSwitch(item.id)}
-                          >
-                            {t("shelf.switch")}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setExportId(item.id)}>
-                            {t("shelf.export")}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                    {t("shelf.switch")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="px-2"
+                    data-testid="shelf-export"
+                    onClick={(e) => {
+                      stop(e);
+                      setExportId(item.id);
+                    }}
+                  >
+                    {t("shelf.export")}
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-paper-muted hover:text-cinnabar"
+                    data-testid="shelf-archive"
+                    aria-label={t("shelf.archive")}
+                    onClick={(e) => {
+                      stop(e);
+                      setArchiveId(item.id);
+                    }}
+                  >
+                    <Archive className="h-4 w-4" />
+                  </Button>
+                </div>
+              </article>
+            ))}
           </div>
+
+          {topics.length === 0 ? (
+            <p className="mt-8 text-center text-sm text-paper-muted" data-testid="shelf-empty">
+              {t("shelf.noBooks")}
+            </p>
+          ) : null}
         </div>
       </div>
 
       <Drawer
         contained
-        open={drawerOpen}
+        open={Boolean(previewId)}
         side="right"
-        title={t("shelf.drawerTitle")}
-        onClose={() => onDrawerOpen(false)}
+        title={previewTopic?.title ?? t("shelf.outlinePreview")}
+        onClose={() => setPreviewId(null)}
       >
-        <div className="space-y-3 p-3">
-          <button
-            type="button"
-            data-testid="shelf-drawer-import"
-            onClick={() => {
-              onDrawerOpen(false);
-              setImportOpen(true);
-            }}
-            className="w-full rounded-lg border border-dashed border-cinnabar/40 bg-paper-deep px-3 py-4 text-left"
-          >
-            <div className="font-serif text-base text-cinnabar">{t("shelf.importTitle")}</div>
-            <p className="mt-1 text-xs text-paper-muted">{t("shelf.importHint")}</p>
-          </button>
-          {topics.map((item) => (
-            <article key={item.id} className="rounded-lg border border-paper-line p-3">
-              <div className="font-medium">{item.title}</div>
-              <p className="mt-1 text-xs text-paper-muted">
-                {phaseText(item.phase, t)} · {formatTime(item.updatedAt, locale)}
-              </p>
-              <div className="mt-3 flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    onSwitch(item.id);
-                    onDrawerOpen(false);
-                  }}
-                >
-                  {t("shelf.switch")}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setExportId(item.id)}>
-                  {t("shelf.export")}
-                </Button>
-              </div>
-            </article>
-          ))}
+        <div className="flex h-full min-h-0 flex-col" data-testid="shelf-outline-drawer">
+          <div className="border-b border-paper-line px-3 py-3">
+            <p className="text-xs text-paper-muted">{t("shelf.outlinePreview")}</p>
+            <Button
+              className="mt-3 w-full"
+              data-testid="shelf-preview-switch"
+              onClick={() => {
+                if (!previewId) return;
+                const id = previewId;
+                setPreviewId(null);
+                onSwitch(id);
+              }}
+            >
+              {t("shelf.switchToLearn")}
+            </Button>
+          </div>
+          <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto">
+            {previewLoading ? (
+              <p className="px-4 py-6 text-sm text-paper-muted">{t("shelf.importing")}</p>
+            ) : (
+              <OutlineTree nodes={previewOutline} currentId={null} onSelect={() => {}} />
+            )}
+          </div>
         </div>
       </Drawer>
 
@@ -288,6 +310,28 @@ export function ShelfTab({
                 {format}
               </Button>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(archiveId)} onOpenChange={(o) => !o && setArchiveId(null)}>
+        <DialogContent title={t("shelf.archiveConfirmTitle")}>
+          <p className="text-sm text-paper-muted">{t("shelf.archiveConfirmBody")}</p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setArchiveId(null)}>
+              {t("shelf.cancel")}
+            </Button>
+            <Button
+              data-testid="shelf-archive-confirm"
+              onClick={() => {
+                if (!archiveId) return;
+                const id = archiveId;
+                setArchiveId(null);
+                void onArchive(id);
+              }}
+            >
+              {t("shelf.archiveConfirm")}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

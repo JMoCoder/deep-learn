@@ -34,6 +34,8 @@ async function mountApp(requested: string[] = []) {
         coachMode: "stub",
         settings,
         generationEnabled: false,
+        hasActiveTopics: true,
+        hasArchivedTopics: false,
         boundaryConfirmed: false,
         boundaryFinalized: false,
       });
@@ -156,6 +158,73 @@ describe("app frame + four-tab IA", () => {
     });
     assert.ok(document.querySelector('[data-testid="shelf-import-open"]'));
     assert.equal(document.querySelector('[data-testid="notes-pane"]'), null);
+    root.unmount();
+  });
+
+  it("hides shelf/learn/notes tabs when only archived books remain", async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/state") {
+        return json({
+          currentTopicId: null,
+          topic: null,
+          currentSectionId: null,
+          coachMode: "stub",
+          settings,
+          generationEnabled: false,
+          hasActiveTopics: false,
+          hasArchivedTopics: true,
+          boundaryConfirmed: false,
+          boundaryFinalized: false,
+        });
+      }
+      if (url === "/api/topics") return json([]);
+      if (url.includes("/api/topics?archived=1") || url.includes("archived=1")) {
+        return json([
+          {
+            id: "top_a",
+            title: "归档书",
+            phase: "learning",
+            exportState: "idle",
+            archived: true,
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        ]);
+      }
+      if (url === "/api/session/messages") return json([]);
+      if (url === "/api/topics/current/projection") {
+        return json({
+          topic_title: "",
+          section_title: "",
+          section_id: null,
+          outline: [],
+          prereq_edges: [],
+          phase: "idle",
+          boundary_snapshot: emptyBoundarySnapshot(),
+        });
+      }
+      return json({ error: url }, 404);
+    }) as typeof fetch;
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(createElement(LocaleProvider, null, createElement(App)));
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    const nav = document.querySelector('[data-testid="app-tab-nav"]');
+    assert.ok(nav);
+    assert.equal(nav.getAttribute("data-mode"), "me-only");
+    assert.equal(document.querySelector('[data-testid="tab-shelf"]'), null);
+    assert.equal(document.querySelector('[data-testid="tab-learn"]'), null);
+    assert.equal(document.querySelector('[data-testid="tab-notes"]'), null);
+    assert.ok(document.querySelector('[data-testid="tab-me"]'));
+    assert.ok(document.querySelector('[data-testid="me-columns"]'));
     root.unmount();
   });
 });

@@ -13,6 +13,7 @@ const topic: TopicSummary = {
   title: "测量入门",
   phase: "learning",
   exportState: "idle",
+  archived: false,
   createdAt: 1,
   updatedAt: 2,
 };
@@ -34,7 +35,7 @@ describe("NotesTab", () => {
     document.body.replaceChildren();
   });
 
-  it("shows notes only — no book switch or body reading", async () => {
+  it("shows notes without a top status hero or book switch", async () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -43,13 +44,9 @@ describe("NotesTab", () => {
         createElement(LocaleProvider, null, createElement(NotesTab, { topic, notes })),
       );
     });
-    assert.ok(document.querySelector('[data-testid="notes-hero"]'));
+    assert.equal(document.querySelector('[data-testid="notes-hero"]'), null);
     assert.ok(document.querySelector('[data-testid="notes-pane"]'));
     assert.ok(document.querySelector('[data-testid="notes-item"]'));
-    assert.match(document.body.textContent ?? "", /误差不是错误/);
-    assert.equal(document.querySelector('[data-testid="open-topic-drawer"]'), null);
-    assert.equal(document.querySelector('[data-testid="create-topic"]'), null);
-    assert.equal(document.querySelector('[data-testid="books-pane-body"]'), null);
     assert.equal(document.querySelector('[data-testid="shelf-list"]'), null);
     root.unmount();
   });

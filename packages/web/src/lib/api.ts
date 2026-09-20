@@ -28,6 +28,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   state: () => req<AppSnapshot>("/api/state"),
   topics: () => req<TopicSummary[]>("/api/topics"),
+  archivedTopics: () => req<TopicSummary[]>("/api/topics?archived=1"),
   topic: (id: string) => req<TopicDetail>(`/api/topics/${id}`),
   createTopic: (title?: string) =>
     req<TopicSummary>("/api/topics", { method: "POST", body: JSON.stringify({ title }) }),
@@ -42,6 +43,27 @@ export const api = {
       body: JSON.stringify({ title }),
     }),
   switchTopic: (id: string) => req(`/api/topics/${id}/switch`, { method: "POST" }),
+  archiveTopic: (id: string) =>
+    req<{
+      topic: TopicSummary;
+      currentTopicId: string | null;
+      hasActiveTopics: boolean;
+      state: AppSnapshot;
+    }>(`/api/topics/${id}/archive`, { method: "POST" }),
+  unarchiveTopic: (id: string) =>
+    req<{
+      topic: TopicSummary;
+      currentTopicId: string | null;
+      hasActiveTopics: boolean;
+      state: AppSnapshot;
+    }>(`/api/topics/${id}/unarchive`, { method: "POST" }),
+  deleteTopic: (id: string) =>
+    req<{
+      ok: boolean;
+      currentTopicId: string | null;
+      hasActiveTopics: boolean;
+      state: AppSnapshot;
+    }>(`/api/topics/${id}`, { method: "DELETE" }),
   confirmBoundary: (id: string) =>
     req<{ ok: boolean; topicId: string; boundaryConfirmed: boolean; boundaryFinalized: boolean }>(
       `/api/topics/${id}/confirm-boundary`,

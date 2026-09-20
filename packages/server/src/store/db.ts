@@ -109,6 +109,7 @@ function migrate(database: DatabaseSync): void {
   addColumn(database, "notes", "note_type TEXT NOT NULL DEFAULT '思考'");
   addColumn(database, "topics", "boundary_confirmed INTEGER NOT NULL DEFAULT 0");
   addColumn(database, "topics", "boundary_finalized INTEGER NOT NULL DEFAULT 0");
+  addColumn(database, "topics", "archived INTEGER NOT NULL DEFAULT 0");
 }
 
 function addColumn(database: DatabaseSync, table: string, definition: string): void {

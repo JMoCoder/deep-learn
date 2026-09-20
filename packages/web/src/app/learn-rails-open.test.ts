@@ -31,6 +31,8 @@ async function mountApp() {
         currentSectionId: null,
         coachMode: "stub",
           generationEnabled: false,
+        hasActiveTopics: true,
+        hasArchivedTopics: false,
         settings,
         boundaryConfirmed: false,
         boundaryFinalized: false,
