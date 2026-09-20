@@ -59,6 +59,7 @@ describe("confirm/pointer follow GET /api/state", () => {
           topic,
           currentSectionId: null,
           coachMode: "stub",
+          generationEnabled: true,
           settings,
           boundaryConfirmed: false,
           boundaryFinalized: true,
@@ -117,6 +118,7 @@ describe("confirm/pointer follow GET /api/state", () => {
           topic: null,
           currentSectionId: null,
           coachMode: "stub",
+          generationEnabled: true,
           settings,
           boundaryConfirmed: false,
           boundaryFinalized: false,
@@ -147,7 +149,7 @@ describe("confirm/pointer follow GET /api/state", () => {
       await new Promise((r) => setTimeout(r, 30));
     });
 
-    assert.match(document.body.textContent ?? "", /还没有当前主题|No current topic/);
+    assert.match(document.body.textContent ?? "", /还没有当前书籍|No current book|还没有当前主题|No current topic/);
     assert.equal(document.querySelector(".boundary-card"), null);
     assert.equal(localStorage.getItem("quantum.current-topic-id"), null);
     root.unmount();
@@ -167,6 +169,7 @@ describe("confirm/pointer follow GET /api/state", () => {
           topic,
           currentSectionId: null,
           coachMode: "stub",
+          generationEnabled: true,
           settings,
           boundaryConfirmed: confirmed,
           boundaryFinalized: true,

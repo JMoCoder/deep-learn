@@ -30,6 +30,7 @@ async function mountApp() {
         topic: null,
         currentSectionId: null,
         coachMode: "stub",
+          generationEnabled: false,
         settings,
         boundaryConfirmed: false,
         boundaryFinalized: false,

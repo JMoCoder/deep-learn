@@ -1,4 +1,4 @@
-import { useRef, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { AppSnapshot, BoundaryRecord, BoundarySnapshot, OutlineNode } from "@quantum/shared";
 import {
   evaluateOutlineLeafBudget,
@@ -8,6 +8,7 @@ import {
   shouldShowBoundaryCard,
   shouldShowOutlineConfirm,
 } from "@quantum/shared";
+import type { AppTab } from "@/app/tabs";
 import type { TFunction } from "@/i18n";
 import { api } from "@/lib/api";
 import { exportDownloadPath, triggerExportDownload } from "@/lib/export-download";
@@ -18,8 +19,6 @@ import {
   topicTitleFromUtterance,
 } from "@/lib/interview-ui";
 import type { LiveSessionRow } from "@/lib/session-display";
-
-type Tab = "learn" | "books" | "me";
 
 export function useLearnActions(input: {
   t: TFunction;
@@ -40,23 +39,29 @@ export function useLearnActions(input: {
   setLiveRows: Dispatch<SetStateAction<LiveSessionRow[]>>;
   setError: Dispatch<SetStateAction<string | null>>;
   setLoadError: Dispatch<SetStateAction<string | null>>;
-  setTab: Dispatch<SetStateAction<Tab>>;
+  setTab: Dispatch<SetStateAction<AppTab>>;
   setSessionOpen: (open: boolean) => void;
-  setBooksDrawer: Dispatch<SetStateAction<boolean>>;
+  setShelfDrawer: Dispatch<SetStateAction<boolean>>;
 }) {
-  const creatingTopic = useRef(false);
+  const importingRef = useRef(false);
+  const [importing, setImporting] = useState(false);
+  const generationEnabled = input.snapshot?.generationEnabled ?? false;
 
-  const pendingBoundary = shouldShowBoundaryCard({
-    phase: input.snapshot?.topic?.phase ?? "",
-    snapshot: input.boundarySnapshot,
-    confirmed: input.boundaryConfirmed,
-    finalized: input.boundaryFinalized,
-  });
-  const pendingOutline = shouldShowOutlineConfirm({
-    phase: input.snapshot?.topic?.phase ?? "",
-    boundaryConfirmed: input.boundaryConfirmed,
-    hasOutline: input.outline.length > 0,
-  });
+  const pendingBoundary =
+    generationEnabled &&
+    shouldShowBoundaryCard({
+      phase: input.snapshot?.topic?.phase ?? "",
+      snapshot: input.boundarySnapshot,
+      confirmed: input.boundaryConfirmed,
+      finalized: input.boundaryFinalized,
+    });
+  const pendingOutline =
+    generationEnabled &&
+    shouldShowOutlineConfirm({
+      phase: input.snapshot?.topic?.phase ?? "",
+      boundaryConfirmed: input.boundaryConfirmed,
+      hasOutline: input.outline.length > 0,
+    });
 
   async function send(text: string) {
     input.setError(null);
@@ -79,7 +84,8 @@ export function useLearnActions(input: {
     }
     const unanswered = currentUnansweredKind(input.boundaries);
     const interviewing =
-      input.snapshot?.topic?.phase === "boundary_interview" || Boolean(unanswered);
+      generationEnabled &&
+      (input.snapshot?.topic?.phase === "boundary_interview" || Boolean(unanswered));
     if (topicId && shouldBlockComposerConfirm({ text, pendingCard: pendingBoundary, interviewing })) {
       input.setError(input.t("app.error.confirmBoundaryFirst"));
       input.setTab("learn");
@@ -88,13 +94,14 @@ export function useLearnActions(input: {
     }
     const outlineBudget = evaluateOutlineLeafBudget(input.outline, input.boundarySnapshot.chunk_budget);
     const overBudget = outlineBudget.overBudget || (outlineBudget.leafCount === 0 && input.draftRejected);
-    if (topicId && shouldDeferOutlineActionToCard({ text, pendingOutline })) {
+    if (topicId && generationEnabled && shouldDeferOutlineActionToCard({ text, pendingOutline })) {
       input.setError(overBudget ? input.t("app.error.overBudget") : input.t("app.error.useOutlineCard"));
       input.setTab("learn");
       return;
     }
     if (
       topicId &&
+      generationEnabled &&
       shouldBlockOverBudgetConfirm({
         text,
         overBudget,
@@ -114,6 +121,7 @@ export function useLearnActions(input: {
   }
 
   async function confirmBoundaryCard() {
+    if (!generationEnabled) return;
     const topicId = input.snapshot?.currentTopicId;
     if (!topicId) return;
     try {
@@ -126,6 +134,7 @@ export function useLearnActions(input: {
   }
 
   async function confirmOutlineCard() {
+    if (!generationEnabled) return;
     const topicId = input.snapshot?.currentTopicId;
     if (!topicId) return;
     const budget = evaluateOutlineLeafBudget(input.outline, input.boundarySnapshot.chunk_budget);
@@ -143,6 +152,7 @@ export function useLearnActions(input: {
   }
 
   async function reduceOutlineCard() {
+    if (!generationEnabled) return;
     const topicId = input.snapshot?.currentTopicId;
     if (!topicId) return;
     try {
@@ -156,25 +166,27 @@ export function useLearnActions(input: {
     }
   }
 
-  async function createTopic() {
-    if (creatingTopic.current) return;
-    creatingTopic.current = true;
+  async function importHtml(html: string, title?: string) {
+    if (importingRef.current) return;
+    importingRef.current = true;
+    setImporting(true);
     input.setLiveRows([]);
     input.setLoadError(null);
     try {
-      const created = await api.createTopic();
-      input.resetGatesForNewTopic(created.id);
+      const result = await api.importHtml(html, title);
+      input.resetGatesForNewTopic(result.topic.id);
       input.setDraftRejected(false);
-      input.setBooksDrawer(false);
+      input.setShelfDrawer(false);
       input.setTab("learn");
       input.setSessionOpen(true);
       await input.refresh();
     } catch (err) {
-      input.setLoadError(err instanceof Error ? err.message : input.t("app.error.createTopic"));
-      input.setTab("books");
-      input.setBooksDrawer(true);
+      input.setLoadError(err instanceof Error ? err.message : input.t("app.error.importHtml"));
+      input.setTab("shelf");
+      throw err;
     } finally {
-      creatingTopic.current = false;
+      importingRef.current = false;
+      setImporting(false);
     }
   }
 
@@ -215,7 +227,8 @@ export function useLearnActions(input: {
     confirmBoundaryCard,
     confirmOutlineCard,
     reduceOutlineCard,
-    createTopic,
+    importHtml,
+    importing,
     switchTopic,
     selectSection,
     requestExport,

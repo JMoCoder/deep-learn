@@ -33,6 +33,9 @@ async function mountApp(requested: string[] = []) {
         currentSectionId: null,
         coachMode: "stub",
         settings,
+        generationEnabled: false,
+        boundaryConfirmed: false,
+        boundaryFinalized: false,
       });
     }
     if (url === "/api/topics") return json([]);
@@ -63,7 +66,7 @@ async function mountApp(requested: string[] = []) {
   return root;
 }
 
-describe("app frame + default outline rail", () => {
+describe("app frame + four-tab IA", () => {
   afterEach(() => {
     document.body.replaceChildren();
   });
@@ -77,6 +80,27 @@ describe("app frame + default outline rail", () => {
     assert.equal(/\bmax-w-3xl\b/.test(frame.className), false);
     assert.equal(/\bmax-w-4xl\b/.test(frame.className), false);
     assert.equal(/\bmx-auto\b/.test(frame.className), false);
+    root.unmount();
+  });
+
+  it("renders 书架 / 学习 / 笔记 / 我的 in order", async () => {
+    const root = await mountApp();
+    const tabs = ["tab-shelf", "tab-learn", "tab-notes", "tab-me"].map((id) =>
+      document.querySelector(`[data-testid="${id}"]`),
+    );
+    assert.ok(tabs.every(Boolean));
+    const nav = document.querySelector("nav");
+    assert.ok(nav);
+    assert.match(nav.className, /grid-cols-4/);
+    const labels = [...nav.querySelectorAll("button")].map((b) => b.textContent?.trim());
+    assert.ok(
+      (labels[0] === "书架" || labels[0] === "Shelf") &&
+        (labels[1] === "学习" || labels[1] === "Learn") &&
+        (labels[2] === "笔记" || labels[2] === "Notes") &&
+        (labels[3] === "我的" || labels[3] === "Me"),
+      `unexpected tab labels: ${JSON.stringify(labels)}`,
+    );
+    assert.equal(document.querySelector('[data-testid="tab-books"]'), null);
     root.unmount();
   });
 
@@ -120,6 +144,18 @@ describe("app frame + default outline rail", () => {
     assert.equal(document.querySelector("[data-testid=me-heatmap]"), null);
     const pageText = document.body.textContent ?? "";
     assert.equal(/学习热力图|Learning heatmap|占位热力图|placeholder heatmap/i.test(pageText), false);
+    root.unmount();
+  });
+
+  it("shelf tab shows import entry without notes dump", async () => {
+    const root = await mountApp();
+    const shelf = document.querySelector<HTMLButtonElement>('[data-testid="tab-shelf"]');
+    assert.ok(shelf);
+    await act(async () => {
+      shelf.click();
+    });
+    assert.ok(document.querySelector('[data-testid="shelf-import-open"]'));
+    assert.equal(document.querySelector('[data-testid="notes-pane"]'), null);
     root.unmount();
   });
 });

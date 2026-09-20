@@ -31,6 +31,11 @@ export const api = {
   topic: (id: string) => req<TopicDetail>(`/api/topics/${id}`),
   createTopic: (title?: string) =>
     req<TopicSummary>("/api/topics", { method: "POST", body: JSON.stringify({ title }) }),
+  importHtml: (html: string, title?: string) =>
+    req<{ topic: TopicSummary; sectionCount: number; currentSectionId: string | null }>(
+      "/api/topics/import-html",
+      { method: "POST", body: JSON.stringify({ html, title }) },
+    ),
   renameTopic: (id: string, title: string) =>
     req<TopicSummary>(`/api/topics/${id}`, {
       method: "PATCH",

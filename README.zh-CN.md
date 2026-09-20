@@ -1,17 +1,19 @@
 # Deep Learn
 
-本地终身学习 Agent：从访谈 → 边界卡 → 大纲 → 落地笔记。
+本地阅读伴侣：导入 HTML 书籍，带着上下文提问，沉淀笔记。
 
 架构是 **会话 + 工具 + 持久化**，不是 CRUD 页。运行时：`@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`。
 
 两个核心：
 
 1. **Agent 运行时** — 服务端 Pi coding-agent SDK（`packages/server`）。工具、会话、SQLite。
-2. **PWA** — Vite + React（`packages/web`）。对话、选项、边界卡、大纲确认、笔记。
+2. **PWA** — Vite + React（`packages/web`）。阅读、划选、会话、笔记。
 
 共享 TypeScript 契约在 `packages/shared`。
 
 没有云、没有账号、没有遥测。数据只在 Docker volume `quantum-data`。
+
+**本阶段冻结智能体写书/写章**（边界 → 大纲 → `generate_section`）。需要时设 `QUANTUM_GENERATION_ENABLED=1`。主路径是 **手动导入 HTML**。
 
 English: [README.md](./README.md).
 
@@ -78,7 +80,7 @@ pnpm --filter @quantum/web build
 ```
 packages/shared   工具名、事件、DTO
 packages/server   Pi agent、工具、SQLite、SSE、导出
-packages/web      PWA（学习 / 书籍 / 我的）
+packages/web      PWA（书架 / 学习 / 笔记 / 我的）
 docs/             IA、backend-baseline-v0.5、两核验收、手点
 ```
 
@@ -87,24 +89,29 @@ browser  :43127  →  nginx / vite (PWA)
                 →  /api proxy  →  hono :43128
                                      ├─ GET  /api/health
                                      ├─ GET|POST /api/topics
+                                     ├─ POST /api/topics/import-html
                                      ├─ GET|POST /api/session …
-                                     ├─ tools: append_note, cite, …
+                                     ├─ tools: append_note, get_section, …（写书工具默认冻结）
                                      └─ better-sqlite3 → /data/quantum.db
 ```
 
+### 书架
+
+切换 / 导入 HTML / 整理 / 导出。不以正文阅读为主；不堆笔记。
+
+导入：**书架 → 导入 HTML**（选文件或粘贴）。`POST /api/topics/import-html` 按 `h1`/`h2` 拆章并进入 `learning`。
+
 ### 学习
 
-访谈选项 → **边界卡**（用户确认）→ **大纲卡**（叶子数须落在负荷预算内）→ 对话 + 读盘锚定笔记。命中 `scope_out` 是 **拒 + 回流**：该轮不出现笔记卡、不出现引用行。
+阅读当前书当前节。左大纲、右会话。正文划选段落，会话带上下文提问。仅当 `QUANTUM_GENERATION_ENABLED=1` 时展示生成边界/大纲卡。
 
-顶栏：主题·章节。左抽屉 = 大纲。右抽屉 = 会话。正文里没有输入框。
+### 笔记
 
-### 书籍
-
-当前主题英雄卡（没有页面大标题）。主题抽屉从右侧打开。第一张卡 = **新建主题**（`POST /api/topics` —— 遮罩不会抢走点击）。历史 = 切换 + 导出（`md | html | epub`，走 `export_topic`）。笔记只读，没有「记一笔」。
+只看当前书的笔记（AI `append_note` 沉淀）。书籍切换与正文阅读分别在书架 / 学习。
 
 ### 我的（设置）
 
-模型代理和占位热力图。**界面语言**（`中文` / `English`）只切换 PWA 壳层文案。
+模型代理与界面语言。本重构不改「我的」行为，只共享底栏壳。
 
 - 首次访问：跟随浏览器语言（`en*` → English，`zh*` → 中文）。其它情况回落 zh-CN。
 - 选定之后存在 `localStorage`（`quantum.locale`）。

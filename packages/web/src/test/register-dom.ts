@@ -8,6 +8,8 @@ if (!(globalThis as { __quantumDom?: boolean }).__quantumDom) {
     "navigator",
     "HTMLElement",
     "HTMLButtonElement",
+    "HTMLInputElement",
+    "HTMLTextAreaElement",
     "Element",
     "Node",
     "Document",
@@ -17,11 +19,14 @@ if (!(globalThis as { __quantumDom?: boolean }).__quantumDom) {
     "Event",
     "CustomEvent",
     "KeyboardEvent",
+    "InputEvent",
     "DOMParser",
     "NodeFilter",
     "getComputedStyle",
     "requestAnimationFrame",
     "cancelAnimationFrame",
+    "MutationObserver",
+    "ResizeObserver",
   ] as const;
 
   Object.defineProperty(globalThis, "window", { value: win, configurable: true });
@@ -69,6 +74,23 @@ if (!(globalThis as { __quantumDom?: boolean }).__quantumDom) {
     configurable: true,
     value: win.matchMedia.bind(win),
   });
+  if (typeof (globalThis as { MutationObserver?: unknown }).MutationObserver !== "function") {
+    class MutationObserverShim {
+      observe(): void {}
+      disconnect(): void {}
+      takeRecords(): [] {
+        return [];
+      }
+    }
+    Object.defineProperty(globalThis, "MutationObserver", {
+      value: MutationObserverShim,
+      configurable: true,
+    });
+    Object.defineProperty(win, "MutationObserver", {
+      value: MutationObserverShim,
+      configurable: true,
+    });
+  }
   (globalThis as { __quantumDom?: boolean }).__quantumDom = true;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 }

@@ -93,6 +93,8 @@ export type AppSnapshot = {
   currentSectionId: string | null;
   coachMode: "stub" | "live";
   settings: PublicSettings;
+  /** False = reading-first phase; agent book generation paths are frozen. */
+  generationEnabled: boolean;
   /** Persisted Learn gate: learner confirmed the boundary card. */
   boundaryConfirmed: boolean;
   /** Persisted Learn gate: finalize_boundary succeeded (also implied by phase). */

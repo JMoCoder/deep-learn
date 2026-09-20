@@ -14,7 +14,9 @@ import { outlineTitleMap } from "@/lib/prereq-display";
 import type { LiveSessionRow } from "@/lib/session-display";
 import { citationsFromWire, decorateAssistantMessage, looksLikeRefuseCopy, uiNoteType } from "@/lib/session-display";
 
-type Tab = "learn" | "books" | "me";
+import type { AppTab } from "@/app/tabs";
+
+type Tab = AppTab;
 
 export function useSessionEvents(input: {
   refresh: () => Promise<void>;

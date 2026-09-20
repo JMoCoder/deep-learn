@@ -469,6 +469,7 @@ describe("outline card uses web gates, not chat 可以", () => {
             askedKinds: [],
             pendingBoundary: false,
             pendingOutline: true,
+            generationEnabled: true,
             onConfirmBoundary: () => {},
             onConfirmOutline: () => confirmed.push("card"),
             onReviseOutline: () => revised.push("card"),

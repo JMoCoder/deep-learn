@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import { List, Sparkles } from "lucide-react";
 import type {
@@ -60,6 +61,7 @@ export function LearnTab({
   topicPointerNote,
   draftRejected,
   awaitingTopicAnchor,
+  generationEnabled = false,
 }: {
   topic: TopicSummary | null;
   section: SectionRecord | null;
@@ -91,8 +93,10 @@ export function LearnTab({
   topicPointerNote?: string | null;
   draftRejected?: boolean;
   awaitingTopicAnchor?: boolean;
+  generationEnabled?: boolean;
 }) {
   const t = useT();
+  const [selection, setSelection] = useState("");
   const center = topic
     ? `${topic.title}·${section?.title ?? t("learn.sectionFallback")}`
     : t("learn.centerFallback");
@@ -110,10 +114,41 @@ export function LearnTab({
     canConfirm: liveBudget.canConfirm && !(liveBudget.leafCount === 0 && draftRejected),
   };
 
+  const showGenerationCards = generationEnabled && (pendingBoundary || pendingOutline);
   const railOpen = Boolean(outlinePersistent && outlineOpen);
   const outlineDrawerOpen = Boolean(!outlinePersistent && outlineOpen);
   const sessionRailOpen = Boolean(sessionPersistent && sessionOpen);
   const sessionDrawerOpen = Boolean(!sessionPersistent && sessionOpen);
+
+  useEffect(() => {
+    function onSel() {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      const text = sel.toString().trim();
+      if (!text || text.length < 2) return;
+      const anchor = sel.anchorNode;
+      const article = document.querySelector('[data-testid="learn-article"]');
+      if (!article || !anchor || !article.contains(anchor)) return;
+      setSelection(text.slice(0, 1200));
+    }
+    document.addEventListener("mouseup", onSel);
+    document.addEventListener("keyup", onSel);
+    return () => {
+      document.removeEventListener("mouseup", onSel);
+      document.removeEventListener("keyup", onSel);
+    };
+  }, []);
+
+  function sendWithContext(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (selection) {
+      onSend(`【选区】\n${selection}\n\n【提问】\n${trimmed}`);
+      setSelection("");
+      return;
+    }
+    onSend(trimmed);
+  }
 
   function sessionPane() {
     return (
@@ -124,7 +159,7 @@ export function LearnTab({
         busy={busy}
         coachMode={coachMode}
         error={error}
-        onSend={onSend}
+        onSend={sendWithContext}
         phase={phase}
         snapshot={snapshot}
         askedKinds={askedKinds}
@@ -138,6 +173,8 @@ export function LearnTab({
         onCiteSection={onSelectSection}
         canOpenCite={(id) => sectionHasProjectedBody(id, section, outline)}
         awaitingTopicAnchor={awaitingTopicAnchor}
+        selection={selection}
+        onClearSelection={() => setSelection("")}
       />
     );
   }
@@ -205,10 +242,19 @@ export function LearnTab({
           </header>
 
           <div className="relative min-h-0 flex-1 overflow-hidden" data-testid="learn-stage">
-            <div className="quantum-scroll h-full min-h-0 overflow-y-auto px-5 py-6">
+            <div className="pointer-events-none absolute inset-0 learn-atmosphere" aria-hidden />
+            <div className="quantum-scroll relative h-full min-h-0 overflow-y-auto px-5 py-6">
               {topicPointerNote ? (
                 <p className="mb-4 w-full rounded-lg border border-cinnabar/25 bg-cinnabar/8 px-3 py-2 text-xs leading-relaxed text-cinnabar">
                   {topicPointerNote}
+                </p>
+              ) : null}
+              {!generationEnabled && topic ? (
+                <p
+                  data-testid="learn-generation-frozen"
+                  className="mb-4 w-full rounded-lg border border-pine/20 bg-pine/5 px-3 py-2 text-xs leading-relaxed text-pine"
+                >
+                  {t("learn.generationFrozen")}
                 </p>
               ) : null}
               {!topic ? (
@@ -216,7 +262,7 @@ export function LearnTab({
                   title={t("learn.emptyTopicTitle")}
                   body={t("learn.emptyTopicBody")}
                 />
-              ) : pendingBoundary ? (
+              ) : showGenerationCards && pendingBoundary ? (
                 <BoundaryCard
                   snapshot={snapshot}
                   askedKinds={askedKinds}
@@ -225,7 +271,7 @@ export function LearnTab({
                   onConfirm={onConfirmBoundary}
                   onNeedMore={() => onSessionOpen(true)}
                 />
-              ) : pendingOutline ? (
+              ) : showGenerationCards && pendingOutline ? (
                 <OutlineConfirmCard
                   nodes={outline}
                   edges={edges}
@@ -240,17 +286,30 @@ export function LearnTab({
                   body={t("learn.emptySectionBody")}
                 />
               ) : (
-                <article data-testid="learn-article" className="prose-quantum w-full">
+                <article data-testid="learn-article" className="prose-quantum learn-article-enter w-full">
                   {currentPrereqs.length ? (
                     <div className="mb-4 rounded-lg border border-paper-line bg-paper-deep/40 px-3 py-2 not-prose">
                       <p className="text-[11px] font-semibold tracking-wide text-pine">{t("learn.prereq")}</p>
                       <PrereqEdgeList edges={currentPrereqs} compact />
                     </div>
                   ) : null}
+                  <p className="mb-3 text-[11px] text-paper-muted not-prose">{t("learn.selectionHint")}</p>
                   <Markdown>{section.bodyMd}</Markdown>
                 </article>
               )}
-              {topic && !pendingBoundary ? (
+              {topic && !showGenerationCards ? (
+                <div className="mt-6 w-full">
+                  <AcceptHint
+                    phase={phase}
+                    pendingBoundary={false}
+                    pendingOutline={false}
+                    hasTopic
+                    overBudget={outlineBudget.overBudget}
+                    awaitingTopicAnchor={awaitingTopicAnchor}
+                  />
+                </div>
+              ) : null}
+              {topic && showGenerationCards && !pendingBoundary ? (
                 <div className="mt-6 w-full">
                   <AcceptHint
                     phase={phase}

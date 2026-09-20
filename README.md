@@ -1,17 +1,19 @@
 # Deep Learn
 
-Local-only agent that walks a topic from interview → boundary card → outline → grounded notes.
+Local-only reading companion: import HTML books, read with context-aware AI chat, and collect notes.
 
 Architecture is **session + tools + persistence**, not CRUD pages. Runtime: `@mariozechner/pi-agent-core` + `@mariozechner/pi-ai`.
 
 Two cores:
 
 1. **Agent runtime** — Pi coding-agent SDK on the server (`packages/server`). Tools, sessions, SQLite.
-2. **PWA** — Vite + React (`packages/web`). Talk, chips, boundary card, outline confirm, notes.
+2. **PWA** — Vite + React (`packages/web`). Read, select passages, chat, notes.
 
 Shared TypeScript contracts live in `packages/shared`.
 
 No cloud, no account, no telemetry. Data stays in the Docker volume `quantum-data`.
+
+**This phase freezes agent book/article generation** (boundary → outline → `generate_section`). Re-enable with `QUANTUM_GENERATION_ENABLED=1`. The happy path is **manual HTML import**.
 
 Chinese translation: [README.zh-CN.md](./README.zh-CN.md).
 
@@ -77,8 +79,8 @@ pnpm --filter @quantum/web build
 
 ```
 packages/shared   tool names, events, DTOs
-packages/server   Pi agent, tools, SQLite, SSE, export
-packages/web      PWA (Learn / Books / Me)
+packages/server   Pi agent, tools, SQLite, SSE, export, HTML import
+packages/web      PWA (Shelf / Learn / Notes / Me)
 docs/             IA, backend-baseline-v0.5, two-cores acceptance, hand-click
 ```
 
@@ -87,24 +89,29 @@ browser  :43127  →  nginx / vite (PWA)
                 →  /api proxy  →  hono :43128
                                      ├─ GET  /api/health
                                      ├─ GET|POST /api/topics
+                                     ├─ POST /api/topics/import-html
                                      ├─ GET|POST /api/session …
-                                     ├─ tools: append_note, cite, …
+                                     ├─ tools: append_note, get_section, … (generation tools frozen by default)
                                      └─ better-sqlite3 → /data/quantum.db
 ```
 
-### Learn
+### Shelf（书架）
 
-Interview chips → **boundary card** (user confirms) → **outline card** (leaf count must fit the load budget) → talk + grounded notes. A `scope_out` hit is **refuse + reflow**: no note card and no citation row on that turn.
+Book switch / import HTML / organize / export. No reading body as the primary surface; no notes dump.
 
-Header: topic · section. Left drawer = outline. Right drawer = session. No composer in the article body.
+Import: **书架 → 导入 HTML** (file or paste). Server `POST /api/topics/import-html` splits by `h1`/`h2` into chapters and enters `learning`.
 
-### Books
+### Learn（学习）
 
-Current-topic hero (no page title). Topic drawer from the right. First card = **New topic** (`POST /api/topics` — the dimmer does not steal the click). History = switch + export (`md | html | epub` via `export_topic`). Notes are read-only; there is no “jot a note” control.
+Read the current book section. Left outline, right AI session. Select a passage in the body; the session sends it as context. Generation cards stay available only when `QUANTUM_GENERATION_ENABLED=1`.
+
+### Notes（笔记）
+
+Notes for the current book only (AI `append_note` sediment). Book switch and body reading live on Shelf / Learn.
 
 ### Settings (Me)
 
-Model proxy and a placeholder heatmap. **Interface language** (Chinese / English) switches PWA chrome only.
+Model proxy and interface language. **Do not change Me beyond the shared tab shell in this refactor.**
 
 - First visit: follow the browser language (`en*` → English, `zh*` → Chinese). Anything else falls back to zh-CN.
 - After you pick a language, it is stored in `localStorage` (`quantum.locale`).
