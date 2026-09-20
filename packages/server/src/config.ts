@@ -11,6 +11,14 @@ export const config = {
   dataDir: resolve(env("QUANTUM_DATA_DIR", "./data")),
   /** Empty = no HTTP gate (local unit tests). Compose sets a preview default. */
   apiToken: env("QUANTUM_API_TOKEN", ""),
+  /**
+   * Agent book/article generation (boundary → outline → generate_section).
+   * Default off for the reading-first phase. Set QUANTUM_GENERATION_ENABLED=1 to unfreeze.
+   * Read live so unit tests can toggle process.env without reloading the module.
+   */
+  get generationEnabled(): boolean {
+    return (process.env.QUANTUM_GENERATION_ENABLED ?? "").trim() === "1";
+  },
 };
 
 mkdirSync(config.dataDir, { recursive: true });

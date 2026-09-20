@@ -1,12 +1,13 @@
 import type { BoundaryKind, ExportFormat } from "./tools.js";
 import type { ExportSubstate, OutlineNodeStatus, TopicPhase } from "./phases.js";
-import type { BoundarySnapshot, NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
+import type { BoundarySnapshot, NoteKind, NoteReasonCode, NoteType, TutorStrategy } from "./tutor.js";
 
 export type TopicSummary = {
   id: string;
   title: string;
   phase: TopicPhase;
   exportState: ExportSubstate;
+  archived: boolean;
   createdAt: number;
   updatedAt: number;
 };
@@ -52,6 +53,8 @@ export type NoteRecord = {
   body: string;
   reasonCode: NoteReasonCode;
   type: NoteType;
+  /** formal = AI append_note; highlight / thinking reserved for future intake. */
+  kind: NoteKind;
   createdAt: number;
 };
 
@@ -93,6 +96,12 @@ export type AppSnapshot = {
   currentSectionId: string | null;
   coachMode: "stub" | "live";
   settings: PublicSettings;
+  /** False = reading-first phase; agent book generation paths are frozen. */
+  generationEnabled: boolean;
+  /** Active (non-archived) books remain; when false with archives, shelf/learn/notes tabs hide. */
+  hasActiveTopics: boolean;
+  /** True when at least one archived book exists (Me → Columns). */
+  hasArchivedTopics: boolean;
   /** Persisted Learn gate: learner confirmed the boundary card. */
   boundaryConfirmed: boolean;
   /** Persisted Learn gate: finalize_boundary succeeded (also implied by phase). */

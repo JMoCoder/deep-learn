@@ -41,6 +41,8 @@ export function SessionPane({
   canOpenCite,
   sectionTitles,
   awaitingTopicAnchor,
+  selection,
+  onClearSelection,
 }: {
   messages: SessionMessage[];
   liveRows: LiveSessionRow[];
@@ -62,6 +64,8 @@ export function SessionPane({
   canOpenCite?: (sectionId: string) => boolean;
   sectionTitles?: Map<string, string>;
   awaitingTopicAnchor?: boolean;
+  selection?: string;
+  onClearSelection?: () => void;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -213,6 +217,25 @@ export function SessionPane({
         ) : null}
         {error ? <p className="text-sm text-cinnabar">{error}</p> : null}
       </div>
+      {selection ? (
+        <div
+          data-testid="session-selection-chip"
+          className="shrink-0 border-t border-paper-line bg-paper-deep/50 px-3 py-2"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold tracking-wide text-cinnabar">
+                {t("learn.selectionChip")}
+              </p>
+              <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-paper-ink/80">{selection}</p>
+            </div>
+            <Button type="button" size="sm" variant="ghost" onClick={() => onClearSelection?.()}>
+              {t("learn.clearSelection")}
+            </Button>
+          </div>
+          <p className="mt-1 text-[10px] text-paper-muted">{t("session.withSelection")}</p>
+        </div>
+      ) : null}
       <form onSubmit={submit} className="shrink-0 border-t border-paper-line p-3">
         <div
           data-testid="session-composer-shell"

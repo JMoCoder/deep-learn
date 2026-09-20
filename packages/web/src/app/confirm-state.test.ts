@@ -21,6 +21,7 @@ const topic = {
   title: "测量入门",
   phase: "outline_draft" as const,
   exportState: "idle" as const,
+  archived: false,
   createdAt: 1,
   updatedAt: 1,
 };
@@ -59,6 +60,9 @@ describe("confirm/pointer follow GET /api/state", () => {
           topic,
           currentSectionId: null,
           coachMode: "stub",
+          generationEnabled: true,
+        hasActiveTopics: true,
+        hasArchivedTopics: false,
           settings,
           boundaryConfirmed: false,
           boundaryFinalized: true,
@@ -117,6 +121,9 @@ describe("confirm/pointer follow GET /api/state", () => {
           topic: null,
           currentSectionId: null,
           coachMode: "stub",
+          generationEnabled: true,
+        hasActiveTopics: true,
+        hasArchivedTopics: false,
           settings,
           boundaryConfirmed: false,
           boundaryFinalized: false,
@@ -147,7 +154,7 @@ describe("confirm/pointer follow GET /api/state", () => {
       await new Promise((r) => setTimeout(r, 30));
     });
 
-    assert.match(document.body.textContent ?? "", /还没有当前主题|No current topic/);
+    assert.match(document.body.textContent ?? "", /还没有当前书籍|No current book|还没有当前主题|No current topic/);
     assert.equal(document.querySelector(".boundary-card"), null);
     assert.equal(localStorage.getItem("quantum.current-topic-id"), null);
     root.unmount();
@@ -167,6 +174,9 @@ describe("confirm/pointer follow GET /api/state", () => {
           topic,
           currentSectionId: null,
           coachMode: "stub",
+          generationEnabled: true,
+        hasActiveTopics: true,
+        hasArchivedTopics: false,
           settings,
           boundaryConfirmed: confirmed,
           boundaryFinalized: true,

@@ -30,6 +30,10 @@ export type NoteReasonCode = (typeof NOTE_REASON_CODES)[number];
 export const NOTE_TYPES = ["思考", "疑问", "拓展"] as const;
 export type NoteType = (typeof NOTE_TYPES)[number];
 
+/** Product note kinds for Notes filter UI (AI formal / highlight / user thinking). */
+export const NOTE_KINDS = ["formal", "highlight", "thinking"] as const;
+export type NoteKind = (typeof NOTE_KINDS)[number];
+
 export const NOTE_REASON_MEANING = {
   1: "稳定结论/心得",
   2: "可复查误解或未解",
@@ -44,6 +48,14 @@ export const NOTE_TYPE_BY_REASON = {
   4: "疑问",
 } as const satisfies Record<NoteReasonCode, NoteType>;
 
+/** append_note writes formal notes; highlight/thinking reserved for future intake. */
+export const NOTE_KIND_BY_REASON = {
+  1: "formal",
+  2: "formal",
+  3: "formal",
+  4: "formal",
+} as const satisfies Record<NoteReasonCode, NoteKind>;
+
 export function parseNoteReasonCode(raw: unknown): NoteReasonCode | null {
   const n = typeof raw === "string" && /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : raw;
   if (n === 1 || n === 2 || n === 3 || n === 4) return n;
@@ -52,6 +64,15 @@ export function parseNoteReasonCode(raw: unknown): NoteReasonCode | null {
 
 export function noteTypeFromReason(code: NoteReasonCode): NoteType {
   return NOTE_TYPE_BY_REASON[code];
+}
+
+export function noteKindFromReason(code: NoteReasonCode): NoteKind {
+  return NOTE_KIND_BY_REASON[code];
+}
+
+export function parseNoteKind(raw: unknown): NoteKind | null {
+  if (raw === "formal" || raw === "highlight" || raw === "thinking") return raw;
+  return null;
 }
 
 export const APPEND_NOTE_MAX_CHARS = 300;

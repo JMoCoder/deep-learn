@@ -1,5 +1,6 @@
 import type { BoundaryKind, TutorStrategy } from "@quantum/shared";
 import {
+  GENERATION_FROZEN_MESSAGE,
   OUTLINE_ACTION_CARD_ONLY,
   TOPIC_ANCHOR_QUESTION,
   isDefaultTopicTitle,
@@ -18,6 +19,7 @@ import { evaluateOutlineDraft } from "../learning/outline-constraints.js";
 import { outlineFromBoundaries, storedOutlineToDraft } from "../learning/outline-from-boundaries.js";
 import { scaffoldSectionBody } from "../learning/section-scaffold.js";
 import { learningRefuseReply, topicHitsScopeOut } from "../learning/scope-out.js";
+import { config } from "../config.js";
 import { flattenOutline, type Store } from "../store/repos.js";
 
 export type CoachToolCall = {
@@ -60,6 +62,15 @@ export function planCoachTurn(store: Store, topicId: string, input: CoachTurnInp
 
   if (turn.lastRole === "toolResult") {
     return planAfterTool(store, topicId, turn.lastToolName ?? "", last);
+  }
+
+  if (!config.generationEnabled) {
+    if (topic.phase === "boundary_interview" || topic.phase === "outline_draft") {
+      return {
+        text: `${GENERATION_FROZEN_MESSAGE} 请到书架导入 HTML 书籍后再学习。`,
+      };
+    }
+    return planReading(store, topicId, last);
   }
 
   if (topic.phase === "boundary_interview") {
@@ -331,6 +342,80 @@ function planLearning(store: Store, topicId: string, last: string): CoachPlan {
     text: section
       ? `当前在「${section.title}」。正文在中间画布。直接说卡点或要下一节。`
       : "大纲已锁定。说一声，我就生成第一节。",
+  };
+}
+
+/** Reading-first coach: never generate sections; chat + notes against imported body. */
+function planReading(store: Store, topicId: string, last: string): CoachPlan {
+  const outline = flattenOutline(store.getOutline(topicId));
+  const currentId = store.getCurrentSectionId() ?? outline[0]?.id;
+  const currentNode = outline.find((n) => n.id === currentId) ?? outline[0];
+  const section = currentId ? store.getSectionByOutline(currentId) : null;
+
+  if (last && !looksLikeKickoff(last) && topicHitsScopeOut(store, topicId, last)) {
+    return {
+      text: learningRefuseReply(store, topicId, section?.title ?? currentNode?.title),
+      strategy: "REFUSE_OFFSCOPE",
+    };
+  }
+
+  if (/导出|epub|markdown/.test(last) && !/导入/.test(last)) {
+    const format = last.includes("html") ? "html" : last.includes("epub") ? "epub" : "md";
+    return {
+      text: "按你的格式导出当前主题。",
+      tool: { name: "export_topic", args: { format } },
+    };
+  }
+
+  if (last && !looksLikeKickoff(last) && looksLikeAdvance(last)) {
+    const next = nextLeaf(outline, currentNode?.id);
+    if (next && store.getSectionByOutline(next.id)) {
+      store.setCurrentSection(next.id);
+      return {
+        text: `已切到「${next.title}」。正文在中间画布，直接问选中段落或这一节。`,
+        strategy: "ADVANCE",
+      };
+    }
+    return {
+      text: section
+        ? `已经到末节「${section.title}」。可以圈选段落继续问，或去书架导入另一本。`
+        : "书架还没有可切换的章节。请先导入 HTML 书籍。",
+    };
+  }
+
+  if (section && last && looksLikeGroundAsk(last)) {
+    return {
+      text: "对着落盘正文讲这一节。",
+      strategy: "GROUND",
+      tool: {
+        name: "get_section",
+        args: { outline_node_id: section.outlineNodeId },
+      },
+    };
+  }
+
+  if (!section) {
+    return {
+      text: "当前没有可读章节。请到书架导入 HTML 文档。",
+    };
+  }
+
+  if (last && !looksLikeKickoff(last) && !looksLikeOutlineConfirm(last)) {
+    return {
+      text: "记下这一下，并继续围着当前节。",
+      tool: {
+        name: "append_note",
+        args: {
+          section_id: section.id,
+          body: last.slice(0, 500),
+          reason_code: 2,
+        },
+      },
+    };
+  }
+
+  return {
+    text: `当前在「${section.title}」。圈选段落或直接提问；心得会沉淀到笔记页。`,
   };
 }
 

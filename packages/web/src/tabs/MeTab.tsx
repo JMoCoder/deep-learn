@@ -1,14 +1,18 @@
-import { useState, type FormEvent } from "react";
-import type { PublicSettings } from "@quantum/shared";
+import { useEffect, useState, type FormEvent } from "react";
+import type { PublicSettings, TopicSummary } from "@quantum/shared";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { api } from "@/lib/api";
 import { useLocale, useSetLocale, useT } from "@/i18n";
-import { cn } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
 
 export function MeTab({
   settings,
   onSave,
+  onUnarchive,
+  onDeleteArchived,
 }: {
   settings: PublicSettings;
   onSave: (next: {
@@ -18,12 +22,28 @@ export function MeTab({
     apiKey?: string;
     clearApiKey?: boolean;
   }) => Promise<void>;
+  onUnarchive: (id: string) => Promise<void>;
+  onDeleteArchived: (id: string) => Promise<void>;
 }) {
   const t = useT();
   const locale = useLocale();
   const setLocale = useSetLocale();
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [archived, setArchived] = useState<TopicSummary[]>([]);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  async function refreshArchived() {
+    try {
+      setArchived(await api.archivedTopics());
+    } catch {
+      setArchived([]);
+    }
+  }
+
+  useEffect(() => {
+    void refreshArchived();
+  }, []);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,13 +67,57 @@ export function MeTab({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header data-testid="me-top-region" className="border-b border-paper-line px-5 py-4">
-        <h1 className="font-serif text-2xl">{t("me.title")}</h1>
-        <p className="mt-2 text-sm text-paper-muted">{t("me.lead")}</p>
-      </header>
-
       <div className="quantum-scroll min-h-0 flex-1 overflow-y-auto px-5 py-6">
         <div data-testid="me-body" className="w-full space-y-10">
+          <header>
+            <h1 className="font-serif text-2xl tracking-tight">{t("me.title")}</h1>
+            <p className="mt-2 text-sm text-paper-muted">{t("me.lead")}</p>
+          </header>
+
+          <section className="space-y-3" data-testid="me-columns">
+            <h2 className="font-serif text-lg">{t("me.columns")}</h2>
+            <p className="text-sm text-paper-muted">{t("me.columnsLead")}</p>
+            {archived.length === 0 ? (
+              <p className="text-sm text-paper-muted" data-testid="me-columns-empty">
+                {t("me.columnsEmpty")}
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {archived.map((item) => (
+                  <li
+                    key={item.id}
+                    data-testid="me-archived-card"
+                    className="rounded-xl border border-paper-line bg-paper-deep/40 px-4 py-3"
+                  >
+                    <div className="font-medium">{item.title}</div>
+                    <p className="mt-1 text-xs text-paper-muted">
+                      {formatTime(item.updatedAt, locale)}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid="me-unarchive"
+                        onClick={() => void onUnarchive(item.id).then(() => refreshArchived())}
+                      >
+                        {t("me.unarchive")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-testid="me-delete"
+                        className="text-cinnabar"
+                        onClick={() => setDeleteId(item.id)}
+                      >
+                        {t("me.deleteForever")}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <section className="space-y-3">
             <h2 className="font-serif text-lg">{t("me.language")}</h2>
             <p className="text-sm text-paper-muted">{t("me.languageHint")}</p>
@@ -106,6 +170,28 @@ export function MeTab({
           </form>
         </div>
       </div>
+
+      <Dialog open={Boolean(deleteId)} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <DialogContent title={t("me.deleteConfirmTitle")}>
+          <p className="text-sm text-paper-muted">{t("me.deleteConfirmBody")}</p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteId(null)}>
+              {t("shelf.cancel")}
+            </Button>
+            <Button
+              data-testid="me-delete-confirm"
+              onClick={() => {
+                if (!deleteId) return;
+                const id = deleteId;
+                setDeleteId(null);
+                void onDeleteArchived(id).then(() => refreshArchived());
+              }}
+            >
+              {t("me.deleteConfirm")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,14 +1,17 @@
 import type { AgentTool } from "@mariozechner/pi-agent-core";
 import {
   FINALIZE_GATE_SENTENCE,
+  GENERATION_FROZEN_MESSAGE,
   OUTLINE_ACTION_CARD_ONLY,
   evaluateOutlineLeafBudget,
+  isGenerationFrozenTool,
   shouldDeferOutlineActionToCard,
   type ExportFormat,
   type OutlineDraftNode,
 } from "@quantum/shared";
 import { Type } from "typebox";
 import { exportTopic } from "../export/index.js";
+import { config } from "../config.js";
 import { questionFor } from "../learning/boundary-interview.js";
 import {
   evaluateFinalize,
@@ -477,5 +480,25 @@ export function createQuantumTools(runtime: SessionRuntime): AgentTool[] {
     appendNote,
     summarizeNotes,
     exportTool,
-  ];
+  ].map((tool) => gateFrozenGenerationTool(tool));
+}
+
+/** Keep generation tool shapes for a future upgrade; refuse execution while frozen. */
+function gateFrozenGenerationTool(tool: AgentTool): AgentTool {
+  if (!isGenerationFrozenTool(tool.name)) return tool;
+  const inner = tool.execute;
+  return {
+    ...tool,
+    description: `${tool.description} (frozen this phase — import HTML books instead).`,
+    execute: async (toolCallId, params, signal, onUpdate) => {
+      if (config.generationEnabled) {
+        return inner.call(tool, toolCallId, params, signal, onUpdate);
+      }
+      return textResult(GENERATION_FROZEN_MESSAGE, {
+        ok: false,
+        frozen: true,
+        tool: tool.name,
+      });
+    },
+  };
 }
